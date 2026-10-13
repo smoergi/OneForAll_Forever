@@ -17,6 +17,7 @@ Commands
 /oneforall tabs reset    Show the default tabs again for this character
 /oneforall share test    Preview the quest share popup without a group
 /oneforall share         Open the quest share popup (inside a dungeon, in a group)
+/oneforall bug          Show the link for bug reports and ideas
 /oneforall cheapest     Show the cheapest item in your bags
 /oneforall mem          Show how much memory OneForAll uses right now
 /oneforall thanks       Show the last buffs seen by "Thanks for buffs"
@@ -59,6 +60,14 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 
 Changelog (newest first)
 ========================
+
+5.4.3 - bug report button
+------------------------------------------------------------
+- New bug report button in the title bar (next to the skin switch) and
+  /ofa bug: shows the link to the issue page on GitHub to copy, together with
+  your addon version, class and level.
+- Quality of Life tab has its own banner.
+- Shorter tooltip for "Compare items only with Shift".
 
 5.4.2 - tooltips, talents and dungeon texts
 ------------------------------------------------------------

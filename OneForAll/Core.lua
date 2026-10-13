@@ -245,6 +245,8 @@ SlashCmdList.ONEFORALL = function(cmd)
     if UpdateAddOnMemoryUsage then UpdateAddOnMemoryUsage() end
     local kb = get and get("OneForAll")
     if kb then msg(string.format("Memory: %.1f MB (includes garbage the game has not cleaned up yet).", kb / 1024)) end
+  elseif cmd == "bug" then
+    if FLT.UI and FLT.UI.ShowBugReport then FLT.UI.ShowBugReport() end
   elseif cmd == "cheapest" then
     if FLT.QoL and FLT.QoL.PrintCheapest then FLT.QoL.PrintCheapest() end
   elseif cmd == "thanks" then
