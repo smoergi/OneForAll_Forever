@@ -4,15 +4,71 @@ local _, FLT = ...
 -- Steps are required unless marked optional = true (breadcrumbs / story lead-ins);
 -- optional steps are displayed but never block the quest status.
 FLT.QUEST_PREREQ_CHAINS = {
-  -- Added October 2026
-  [6922] = {
-    { id = 6921, name = "Amongst the Ruins" },
+  -- quests of the first 14 dungeons (QuestieDB Forever)
+  [1275] = {
+    { id = 3765, name = "The Corruption Abroad", optional = true },
+  },
+  [1200] = {
+    { id = 1198, name = "In Search of Thaelrid" },
+  },
+  [6563] = {
+    { id = 6562, name = "Trouble in the Deeps", optional = true },
+  },
+  [6565] = {
+    { id = 6564, name = "Allegiance to the Old Gods" },
+  },
+  [95809] = {
+    { id = 95647, name = "Lost in the Thicket Things" },
+  },
+  [98824] = {
+    { id = 95810, name = "Lost Relic Carry" },
+  },
+  [98823] = {
+    { id = 95664, name = "Elder Knowledge" },
+  },
+  [95682] = {
+    { id = 95663, name = "Dragonmaw Rumors", optional = true },
+  },
+  [2922] = {
+    { id = 2923, name = "Tinkmaster Overspark", optional = true },
+  },
+  [2924] = {
+    { id = 2925, name = "Klockmort's Essentials", optional = true },
+  },
+  [2962] = {
+    { id = 2927, name = "The Day After", optional = true },
+    { id = 2926, name = "Gnogaine" },
+  },
+  [2930] = {
+    { id = 2931, name = "Castpipe's Task", optional = true },
+  },
+  [2947] = {
+    { id = 2945, name = "Grime-Encrusted Ring" },
+  },
+  [2949] = {
+    { id = 2945, name = "Grime-Encrusted Ring" },
+  },
+  [2843] = {
+    { id = 2842, name = "Chief Engineer Scooty" },
+  },
+  [96393] = {
+    { id = 96391, name = "Underground Map" },
+  },
+  [5724] = {
+    { id = 5722, name = "Searching for the Lost Satchel" },
+  },
+  [5728] = {
+    { id = 5726, name = "Hidden Enemies" },
+    { id = 5727, name = "Hidden Enemies" },
   },
   [1101] = {
     { id = 1100, name = "Lonebrow's Journal" },
   },
   [6521] = {
     { id = 6522, name = "An Unholy Alliance" },
+  },
+  [1113] = {
+    { id = 1109, name = "Going, Going, Guano!" },
   },
   [1160] = {
     { id = 1149, name = "Test of Faith" },
@@ -24,26 +80,11 @@ FLT.QUEST_PREREQ_CHAINS = {
     { id = 1159, name = "Test of Lore" },
   },
   [1654] = {
+    { id = 1649, name = "The Tome of Valor" },
+    { id = 1650, name = "The Tome of Valor" },
+    { id = 1651, name = "The Tome of Valor" },
+    { id = 1652, name = "The Tome of Valor" },
     { id = 1653, name = "The Test of Righteousness" },
-  },
-  [3369] = {
-    { id = 6981, name = "The Glowing Shard" },
-  },
-  [3370] = {
-    { id = 6981, name = "The Glowing Shard" },
-  },
-  [96393] = {
-    { id = 96391, name = "Underground Map" },
-  },
-  [1491] = {
-    { id = 865, name = "Raptor Horns" },
-  },
-  [914] = {
-    { id = 870, name = "The Forgotten Pools" },
-    { id = 877, name = "The Stagnant Oasis" },
-    { id = 880, name = "Altered Beings" },
-    { id = 1489, name = "Hamuul Runetotem" },
-    { id = 1490, name = "Nara Wildmane" },
   },
   [214] = {
     { id = 65, name = "The Defias Brotherhood" },
@@ -61,40 +102,6 @@ FLT.QUEST_PREREQ_CHAINS = {
     { id = 142, name = "The Defias Brotherhood" },
     { id = 155, name = "The Defias Brotherhood" },
   },
-  -- Alba Fairmoon storyline: only the direct predecessor is enforced; the
-  -- earlier Westfall steps are shown as story context without blocking.
-  [92753] = {
-    { id = 92742, name = "Testing the Wells", optional = true },
-    { id = 92744, name = "Murloc Gills", optional = true },
-    { id = 92745, name = "The State of the Mines", optional = true },
-    { id = 92747, name = "Moonbrook Espionage", optional = true },
-    { id = 92748, name = "Explosive Consultation", optional = true },
-    { id = 92749, name = "A Dynamite Plan", optional = true },
-    { id = 92750, name = "Detonation at a Distance", optional = true },
-    { id = 92751, name = "Detonation at a Distance", optional = true },
-    { id = 92752, name = "Explosive Consultation" },
-  },
-  [5724] = {
-    { id = 5722, name = "Searching for the Lost Satchel" },
-  },
-  [5728] = {
-    { id = 5726, name = "Hidden Enemies" },
-    { id = 5727, name = "Hidden Enemies" },
-  },
-  [1275] = {
-    { id = 3765, name = "The Corruption Abroad", optional = true },
-  },
-  [6563] = {
-    { id = 6562, name = "Trouble in the Deeps", optional = true },
-  },
-  [6564] = {
-    { id = 6562, name = "Trouble in the Deeps" },
-  },
-  [6565] = {
-    { id = 6562, name = "Trouble in the Deeps" },
-    { id = 6564, name = "Allegiance to the Old Gods" },
-  },
-  -- The Stockade
   [378] = {
     { id = 303, name = "The Dark Iron War" },
   },
@@ -102,54 +109,23 @@ FLT.QUEST_PREREQ_CHAINS = {
     { id = 373, name = "The Unsent Letter" },
     { id = 389, name = "Bazil Thredd" },
   },
-  -- Gnomeregan
-  [2922] = {
-    { id = 2923, name = "Tinkmaster Overspark", optional = true },
+  [1491] = {
+    { id = 865, name = "Raptor Horns" },
   },
-  [2924] = {
-    { id = 2925, name = "Klockmort's Essentials", optional = true },
+  [914] = {
+    { id = 870, name = "The Forgotten Pools" },
+    { id = 877, name = "The Stagnant Oasis" },
+    { id = 880, name = "Altered Beings" },
+    { id = 1489, name = "Hamuul Runetotem" },
+    { id = 1490, name = "Nara Wildmane" },
   },
-  [2930] = {
-    { id = 2931, name = "Castpipe's Task", optional = true },
+  [3369] = {
+    { id = 6981, name = "The Glowing Shard" },
   },
-  [2962] = {
-    { id = 2927, name = "The Day After", optional = true },
-    { id = 2926, name = "Gnogaine" },
+  [3370] = {
+    { id = 6981, name = "The Glowing Shard" },
   },
-  [2947] = {
-    { id = 2945, name = "Grime-Encrusted Ring" },
-  },
-  [2949] = {
-    { id = 2945, name = "Grime-Encrusted Ring" },
-  },
-  [2843] = {
-    { id = 2842, name = "Chief Engineer Scooty" },
-  },
-  -- Excavation Site: Wetlands
-  [95647] = {
-    { id = 95737, name = "Seeking Caitlin", optional = true },
-  },
-  [95809] = {
-    { id = 95737, name = "Seeking Caitlin", optional = true },
-    { id = 95647, name = "Lost in the Thicket Things" },
-  },
-  [95795] = {
-    { id = 95772, name = "Songblade Search" },
-  },
-  [98824] = {
-    { id = 95810, name = "Lost Relic Carry" },
-  },
-  [98823] = {
-    { id = 95664, name = "Elder Knowledge" },
-  },
-  [95682] = {
-    { id = 95663, name = "Dragonmaw Rumors", optional = true },
-  },
-  -- Scarlet Monastery: Graveyard
-  [1113] = {
-    { id = 1109, name = "Going, Going, Guano!" },
-  },
-  -- Dungeons added October 2026 (Armory to Sunken Temple), from QuestieDB Forever
+  -- other dungeons
   [1053] = {
     { id = 261, name = "Down the Scarlet Path" },
     { id = 1052, name = "Down the Scarlet Path" },
@@ -301,7 +277,6 @@ FLT.QUEST_PREREQ_CHAINS = {
     { id = 8423, name = "Warrior Kinship" },
     { id = 8424, name = "War on the Shadowsworn" },
   },
-  -- Dungeons added October 2026 (Blackrock Depths to Stratholme), from QuestieDB Forever
   [4082] = {
     { id = 4081, name = "KILL ON SIGHT: Dark Iron Dwarves" },
   },
@@ -604,7 +579,21 @@ FLT.QUEST_PREREQ_CHAINS = {
 }
 
 FLT.QUEST_PREREQ_DETAILS = {
-  [96391] = { level = 15, requires = 9, objective = "Deliver the Dark Iron Map to Earthseer Farsen in Dun Morogh.", pickup = "Dark Iron Map (Dark Iron Spies, Dun Morogh)", turnin = "Earthseer Farsen, Dun Morogh" },
+  [1100] = { level = 34, requires = 29, objective = "Read Henrig Lonebrow's Journal.", pickup = "Henrig Lonebrow's Journal, a drop", turnin = "Falfindel Waywarder, Feralas (89.6, 46.6)" },
+  [6522] = { level = 36, requires = 28, objective = "Take the Small Scroll to Varimathras in the Undercity.", pickup = "Small Scroll, dropped by Charlga Razorflank", turnin = "Varimathras, Undercity (56.2, 92.2)" },
+  [1149] = { level = 26, requires = 25, objective = "If you have faith, leap from the planks overlooking Thousand Needles.", pickup = "Dorn Plainstalker, Thousand Needles (54.0, 41.5)", turnin = "Dorn Plainstalker, Thousand Needles" },
+  [1150] = { level = 30, requires = 25, objective = "Bring Grenka's Claw to Dorn Plainstalker in Thousand Needles.", pickup = "Dorn Plainstalker, Thousand Needles (54.0, 41.5)", turnin = "Dorn Plainstalker, Thousand Needles" },
+  [1151] = { level = 30, requires = 25, objective = "Bring Fragments of Rok'Alim to Dorn Plainstalker in Thousand Needles.", pickup = "Dorn Plainstalker, Thousand Needles (54.0, 41.5)", turnin = "Dorn Plainstalker, Thousand Needles" },
+  [1152] = { level = 30, requires = 25, objective = "Find Braug Dimspirit near the entrance to Talondeep Path in Stonetalon Mountains.", pickup = "Dorn Plainstalker, Thousand Needles (54.0, 41.5)", turnin = "Braug Dimspirit, Stonetalon Mountains (78.8, 45.7)" },
+  [1154] = { level = 30, requires = 25, objective = "Find the Legacy of the Aspects and return it to Braug Dimspirit near the entrance to Talondeep Path in Stonetalon Mountains.", pickup = "Braug Dimspirit, Stonetalon Mountains (78.8, 45.7)", turnin = "Braug Dimspirit, Stonetalon Mountains" },
+  [6627] = { level = 30, requires = 25, objective = "Answer Braug Dimspirit's question successfully and then speak to him again. He will remain in Stonetalon Mountains when you are ready.", pickup = "Braug Dimspirit, Stonetalon Mountains (78.8, 45.7)", turnin = "Braug Dimspirit, Stonetalon Mountains" },
+  [1159] = { level = 30, requires = 25, objective = "Find Parqual Fintallas in Undercity.", pickup = "Braug Dimspirit, Stonetalon Mountains (78.8, 45.7)", turnin = "Parqual Fintallas, Undercity (57.8, 65.4)" },
+  [1649] = { level = 20, requires = 20, objective = "Speak to Duthorian Rall in Stormwind.", pickup = "Tome of Valor, a drop", turnin = "Duthorian Rall, Stormwind City (50.5, 47.5)" },
+  [1650] = { level = 23, requires = 20, objective = "Find Daphne Stilwell in Westfall.", pickup = "Duthorian Rall, Stormwind City (50.5, 47.5)", turnin = "Daphne Stilwell, Westfall (41.7, 89.2)" },
+  [1651] = { level = 25, requires = 20, objective = "Defend Daphne Stilwell from the Defias attack.  Neither of your spirits must be released from their mortal coils if you wish to succeed.  After you are successful, speak to Daphne Stilwell again.", pickup = "Daphne Stilwell, Westfall (41.7, 89.2)", turnin = "Daphne Stilwell, Westfall" },
+  [1652] = { level = 25, requires = 20, objective = "Speak to Duthorian Rall in Stormwind.", pickup = "Daphne Stilwell, Westfall (41.7, 89.2)", turnin = "Duthorian Rall, Stormwind City (50.5, 47.5)" },
+  [1653] = { level = 21, requires = 20, objective = "Speak to Jordan Stilwell in Ironforge", pickup = "Duthorian Rall, Stormwind City (50.5, 47.5)", turnin = "Jordan Stilwell, Dun Morogh (52.5, 36.9)" },
+  [96391] = { level = 15, requires = 9, objective = "Deliver the Dark Iron Map to Earthseer Farsen in Dun Morogh.", pickup = "Dark Iron Map, a drop in Dun Morogh", turnin = "Earthseer Farsen, Dun Morogh" },
   [865] = { level = 18, requires = 13, objective = "Gather 5 Intact Raptor Horns from Sunscale Scytheclaws, and bring them to Mebok Mizzyrix in Ratchet.", pickup = "Mebok Mizzyrix, The Barrens (62.4, 37.6)", turnin = "Mebok Mizzyrix, The Barrens" },
   [870] = { level = 13, requires = 10, objective = "Report back to Tonga Runetotem with your findings.", pickup = "Tonga Runetotem, The Barrens (52.3, 31.9)", turnin = "Tonga Runetotem, The Barrens" },
   [877] = { level = 16, requires = 10, objective = "Return to Tonga at The Crossroads, after investigating the Stagnant Oasis.", pickup = "Tonga Runetotem, The Barrens (52.3, 31.9)", turnin = "Tonga Runetotem, The Barrens" },
@@ -617,11 +606,11 @@ FLT.QUEST_PREREQ_DETAILS = {
   [141] = { level = 18, requires = 14, objective = "Take Shaw's report to Gryan Stoutmantle in Westfall.", pickup = "Master Mathias Shaw, Stormwind City (78.3, 70.7)", turnin = "Gryan Stoutmantle, Westfall (56.3, 47.5)" },
   [142] = { level = 18, requires = 14, objective = "Track down the Defias Messenger in Westfall and bring his message to Stoutmantle.", pickup = "Gryan Stoutmantle, Westfall (56.3, 47.5)", turnin = "Gryan Stoutmantle, Westfall" },
   [155] = { level = 18, requires = 14, objective = "Escort the Defias Traitor to the secret hideout of the Defias Brotherhood. Once the Defias Traitor shows you where VanCleef and his men are hiding out, return to Gryan Stoutmantle with the information.", pickup = "The Defias Traitor, Westfall (55.7, 47.5)", turnin = "Gryan Stoutmantle, Westfall (56.3, 47.5)" },
-  [92742] = { level = 12, requires = 9, objective = "Use the Well Water Sample Kit to collect samples from the wells at the Jansen Stead and the Molsen Farm.", pickup = "Alba Fairmoon, Westfall (Sentinel Hill)", turnin = "Alba Fairmoon, Westfall" },
-  [92744] = { level = 12, requires = 9, objective = "Alba Fairmoon wants you to collect 7 Longshore Murloc Gills along the shoreline of Westfall.", pickup = "Alba Fairmoon, Westfall (Sentinel Hill)", turnin = "Alba Fairmoon, Westfall" },
-  [92745] = { level = 14, requires = 9, objective = "Slay 4 Kobold Diggers in the Jangolode Mine and 6 Riverpaw Miners in the Gold Coast Quarry.", pickup = "Alba Fairmoon, Westfall (Sentinel Hill)", turnin = "Alba Fairmoon, Westfall" },
-  [92747] = { level = 16, requires = 9, objective = "Collect 8 Suspicious Industrial Supplies from Moonbrook.", pickup = "Alba Fairmoon, Westfall (Sentinel Hill)", turnin = "Alba Fairmoon, Westfall" },
-  [92748] = { level = 16, requires = 9, objective = "Travel to the Dwarven District in Stormwind and find an engineer who can help.", pickup = "Alba Fairmoon, Westfall (Sentinel Hill)", turnin = "Sprite Jumpsprocket, Stormwind City (61.9, 30.6)" },
+  [92742] = { level = 12, requires = 9, objective = "Use the Well Water Sample Kit to collect samples from the wells at the Jansen Stead and the Molsen Farm.", pickup = "Alba Fairmoon, Westfall", turnin = "Alba Fairmoon, Westfall" },
+  [92744] = { level = 12, requires = 9, objective = "Alba Fairmoon wants you to collect 7 Longshore Murloc Gills along the shoreline of Westfall.", pickup = "Alba Fairmoon, Westfall", turnin = "Alba Fairmoon, Westfall" },
+  [92745] = { level = 14, requires = 9, objective = "Slay 4 Kobold Diggers in the Jangolode Mine and 6 Riverpaw Miners in the Gold Coast Quarry.", pickup = "Alba Fairmoon, Westfall", turnin = "Alba Fairmoon, Westfall" },
+  [92747] = { level = 16, requires = 9, objective = "Collect 8 Suspicious Industrial Supplies from Moonbrook.", pickup = "Alba Fairmoon, Westfall", turnin = "Alba Fairmoon, Westfall" },
+  [92748] = { level = 16, requires = 9, objective = "Travel to the Dwarven District in Stormwind and find an engineer who can help.", pickup = "Alba Fairmoon, Westfall", turnin = "Sprite Jumpsprocket, Stormwind City (61.9, 30.6)" },
   [92749] = { level = 16, requires = 9, objective = "Obtain 10 Coarse Dynamite from crafting, trading, or the auction house, then return to Sprite Jumpsprocket in the Dwarven District of Stormwind.", pickup = "Sprite Jumpsprocket, Stormwind City (61.9, 30.6)", turnin = "Sprite Jumpsprocket, Stormwind City" },
   [92750] = { level = 16, requires = 9, objective = "Talk to someone in Stormwind Intelligence about acquiring a remote detonator.", pickup = "Sprite Jumpsprocket, Stormwind City (61.9, 30.6)", turnin = "Jasper Fel, Stormwind City (80.3, 70.1)" },
   [92751] = { level = 16, requires = 9, objective = "Bring the Remote Detonator Kit to Sprite Jumpsprocket in the Dwarven District of Stormwind.", pickup = "Jasper Fel, Stormwind City (80.3, 70.1)", turnin = "Sprite Jumpsprocket, Stormwind City (61.9, 30.6)" },
@@ -645,9 +634,9 @@ FLT.QUEST_PREREQ_DETAILS = {
   [1109] = { level = 33, requires = 30, objective = "Bring 1 pile of Kraul Guano to Master Apothecary Faranell in the Undercity.", pickup = "Master Apothecary Faranell, Undercity (48.8, 69.3)", turnin = "Master Apothecary Faranell, Undercity" },
   [95737] = { level = 31, requires = 24, objective = "Speak with Caitlin Grassman in Menethil Harbor.", pickup = "Llana, Ashenvale (35.0, 48.5)", turnin = "Caitlin Grassman, Wetlands (11.9, 58.8)" },
   [95647] = { level = 31, requires = 24, objective = "Find Ardin Grassman in the Excavation Sites.", pickup = "Caitlin Grassman, Wetlands (11.9, 58.8)", turnin = "Ardin Grassman, inside Excavation Site: Wetlands" },
-  [95772] = { level = 31, requires = 24, objective = "Look for Dorin Songblade's brother, Daewyn, in Whelgar's Excavation Site.", pickup = "Dorin Songblade, Redridge Mountains (25.8, 46.4)", turnin = "Daewyn Songblade (body), inside Excavation Site: Wetlands" },
-  [95810] = { level = 31, requires = 24, objective = "Bring the Titan Relic to Prospector Whelgar in the Wetlands excavation site.", pickup = "Titan Relic (found in Excavation Site: Wetlands)", turnin = "Prospector Whelgar, Wetlands (38.8, 52.4)" },
-  [95664] = { level = 31, requires = 24, objective = "Take the Titan Relic to the Elder Rise in Thunder Bluff and look for someone who can tell you more about it.", pickup = "Titan Relic (found in Excavation Site: Wetlands)", turnin = "Bashana Runetotem, Thunder Bluff (71.1, 34.2)" },
+  [95772] = { level = 31, requires = 24, objective = "Look for Dorin Songblade's brother, Daewyn, in Whelgar's Excavation Site.", pickup = "Dorin Songblade, Redridge Mountains (25.8, 46.4)", turnin = "Daewyn Songblade, inside Excavation Site: Wetlands" },
+  [95810] = { level = 31, requires = 24, objective = "Bring the Titan Relic to Prospector Whelgar in the Wetlands excavation site.", pickup = "Titan Relic, a drop inside Excavation Site: Wetlands", turnin = "Prospector Whelgar, Wetlands (38.8, 52.4)" },
+  [95664] = { level = 31, requires = 24, objective = "Take the Titan Relic to the Elder Rise in Thunder Bluff and look for someone who can tell you more about it.", pickup = "Titan Relic, a drop inside Excavation Site: Wetlands", turnin = "Bashana Runetotem, Thunder Bluff (71.1, 34.2)" },
   [95663] = { level = 31, requires = 24, objective = "Travel to the Wetlands and meet the Deathstalker Agent in the hills above the Dragonmaw camp.", pickup = "Zaruk, Arathi Highlands (74.5, 35.6)", turnin = "Deathstalker Agent" },
   -- Dungeons added October 2026 (Armory to Sunken Temple)
   [261] = { level = 39, requires = 34, objective = "Destroy 30 Undead Ravagers, then return to Brother Anton at Nijel's Point.", pickup = "Brother Anton, Desolace (66.5, 7.9)", turnin = "Brother Anton, Desolace" },

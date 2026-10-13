@@ -7,10 +7,8 @@ FLT.mapNameToID = {}
 -- on the Classic/Forever world-map canvas. Entries are intentionally limited to
 -- starts that are known with enough confidence to place a marker.
 FLT.QUEST_START_MAPS = {
-  [92401] = { mapID=1421, x=44.40, y=42.80, label="Tabitha Heartweaver" },
-  [92421] = { mapID=1458, x=57.80, y=89.80, label="Morbin Lightbane" },
+  [92401] = { mapID=1421, x=44.50, y=43.00, label="Tabitha Heartweaver — Silverpine Forest" },
   [95216] = { mapID=1458, x=46.31, y=71.91, label="Theodore Griffs — Undercity" },
-  [92422] = { mapID=1420, x=65.20, y=60.20, label="Deathguard Kristof" },
 
   [214]  = { mapID=1436, x=56.67, y=47.35, label="Scout Riell — Westfall" },
   [168]  = { mapID=1453, x=70.31, y=40.82, label="Wilder Thistlenettle — Stormwind City" },
@@ -46,7 +44,7 @@ FLT.QUEST_START_MAPS = {
   [1491] = { mapID=1413, x=62.37, y=37.62, label="Mebok Mizzyrix — The Barrens" },
   [959]  = { mapID=1413, x=63.09, y=37.61, label="Crane Operator Bigglefuzz — The Barrens" },
   [914]  = { mapID=1456, x=75.65, y=31.61, label="Nara Wildmane — Thunder Bluff" },
-  [6981] = { mapID=1413, x=62.98, y=37.20, label="Sputtervalve, Ratchet" },
+  [6981] = { mapID=1413, x=62.98, y=37.22, label="Sputtervalve — The Barrens" },
 
   [1098] = { mapID=1421, x=43.42, y=40.86, label="High Executor Hadrec — Silverpine Forest" },
   [1740] = { mapID=1413, x=49.31, y=57.21, label="Doan Karhan — The Barrens" },
@@ -54,12 +52,11 @@ FLT.QUEST_START_MAPS = {
   [1014] = { mapID=1421, x=44.20, y=39.81, label="Dalar Dawnweaver — Silverpine Forest" },
 
   -- Hall of Thanes
-  [96403] = { mapID=1455, x=32.40, y=44.80, label="Thom Filch" },
-  [96394] = { mapID=1455, x=33.00, y=48.00, label="Afadra Dunwall" },
-  [96393] = { mapID=1426, x=64.80, y=58.40, label="Earthseer Farsen" },
+  [96403] = { mapID=1455, x=32.00, y=45.00, label="Thom Filch — Ironforge" },
+  [96394] = { mapID=1455, x=33.90, y=48.10, label="Afadra Dunwall — Ironforge" },
+  [96393] = { mapID=1426, x=64.80, y=58.50, label="Earthseer Farsen — Dun Morogh" },
 
   -- The Deadmines (Forever)
-  [92753] = { mapID=1436, x=52.40, y=53.00, label="Alba Fairmoon" },
 
   -- The Stockade (Wowhead Forever quest pages)
   [386]  = { mapID=1433, x=21.17, y=46.58, label="Guard Berton — Redridge Mountains" },
