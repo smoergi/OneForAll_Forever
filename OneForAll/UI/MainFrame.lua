@@ -365,6 +365,24 @@ local function decorateWindow()
     GameTooltip:Show()
   end)
   skinBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+  -- bug report button left of the skin switch
+  local bugBtn = UI.GoldButton(frame, "", 24, 20, UI.ASSET_ROOT .. "icon_bug", 11)
+  bugBtn:SetPoint("RIGHT", skinBtn, "LEFT", -6, 0)
+  bugBtn:SetFrameLevel(frame:GetFrameLevel() + 25)
+  if bugBtn.icon then
+    bugBtn.icon:ClearAllPoints(); bugBtn.icon:SetSize(14, 14); bugBtn.icon:SetPoint("CENTER", 0, 0)
+    bugBtn.icon:SetVertexColor(FLT.SkinC(1, 0.80, 0.30))
+  end
+  bugBtn:SetScript("OnMouseDown", nil); bugBtn:SetScript("OnMouseUp", nil)
+  bugBtn:SetScript("OnClick", function() UI.ShowBugReport() end)
+  bugBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText("Report a bug")
+    GameTooltip:AddLine("Shows the link where you can report bugs and ideas.", 1, 1, 1)
+    GameTooltip:Show()
+  end)
+  bugBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
 local function createUI()

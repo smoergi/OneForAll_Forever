@@ -204,6 +204,9 @@ local TAB_BANNERS = {
   pets={
     texture=ASSET_ROOT.."pets_banner",
   },
+  qol={
+    texture=ASSET_ROOT.."qol_banner",
+  },
 }
 
 local function createPanelBanner(parent, kind, topOffset, leftInset, rightInset, height)
@@ -643,6 +646,48 @@ function UI.Confirm(text, onYes, yesLabel, secureMacro)
     end
   end
   f:Show()
+end
+
+-- Bug report window: the GitHub issues link of the public repo in a box that
+-- can be copied (WoW cannot open a browser), plus version / class / level.
+UI.ISSUES_URL = "https://github.com/smoergi/OneForAll_Forever/issues"
+local bugFrame
+function UI.ShowBugReport()
+  if not bugFrame then
+    local f = CreateFrame("Frame", "OneForAllBugReport", UIParent)
+    f:SetSize(420, 196); f:SetPoint("CENTER", 0, 80); f:SetFrameStrata("FULLSCREEN_DIALOG"); f:EnableMouse(true)
+    UI.FramedPanel(f)
+    for _, t in ipairs(OrnateFrame(f, f, 16, 3, "OVERLAY", 4)) do t:SetVertexColor(FLT.SkinC(1, 1, 1, 1)) end
+    local title = FLT.NewFS(f, nil, "OVERLAY", "GameFontNormalLarge"); title:SetPoint("TOP", 0, -20)
+    title:SetText("Report a bug or idea"); title:SetTextColor(FLT.SkinC(1, 0.82, 0.20))
+    local text = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); text:SetPoint("TOP", 0, -46); text:SetWidth(370)
+    text:SetJustifyH("CENTER")
+    text:SetText("Copy the link (Ctrl+C) and open it in your browser. A screenshot and your addon version help a lot.")
+    local box = FLT.SkinBlizz(CreateFrame("EditBox", nil, f, "InputBoxTemplate"))
+    box:SetSize(350, 22); box:SetPoint("TOP", 0, -84); box:SetAutoFocus(false); box:SetFontObject("GameFontHighlightSmall")
+    -- read only: any typing puts the link back, a click selects it all
+    local function reset(b) b:SetText(UI.ISSUES_URL); b:HighlightText(); b:SetCursorPosition(0) end
+    box:SetScript("OnTextChanged", function(b, user) if user then reset(b) end end)
+    box:SetScript("OnEditFocusGained", function(b) b:HighlightText() end)
+    box:SetScript("OnMouseUp", function(b) b:SetFocus(); b:HighlightText() end)
+    box:SetScript("OnEscapePressed", function() f:Hide() end)
+    f.box = box
+    f.info = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); f.info:SetPoint("TOP", 0, -116); f.info:SetWidth(370); f.info:SetJustifyH("CENTER")
+    local ok = GoldButton(f, "Close", 110, 26, nil, 13); ok:SetPoint("BOTTOM", 0, 18)
+    ok:SetScript("OnClick", function() f:Hide() end)
+    if UISpecialFrames then table.insert(UISpecialFrames, "OneForAllBugReport") end
+    bugFrame = f
+  end
+  local f = bugFrame
+  local ver
+  if C_AddOns and C_AddOns.GetAddOnMetadata then ver = C_AddOns.GetAddOnMetadata(ADDON, "Version")
+  elseif GetAddOnMetadata then ver = GetAddOnMetadata(ADDON, "Version") end
+  local class = UnitClass and UnitClass("player")
+  local level = UnitLevel and UnitLevel("player")
+  f.info:SetText(string.format("OneForAll %s  |  %s  |  Level %s", tostring(ver or "?"), tostring(class or "?"), tostring(level or "?")))
+  f.box:SetText(UI.ISSUES_URL)
+  f:Show()
+  f.box:SetFocus(); f.box:HighlightText()
 end
 
 -- Asks before switching the skin; the Reload button runs /reload securely.

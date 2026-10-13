@@ -92,7 +92,7 @@ local function createQoLPanel(parent)
   local Q = FLT.QoL
   local panel = CreateFrame("Frame", nil, parent)
   UI.PlacePanel(panel, parent)
-  UI.TitleBand(panel, { emblem = UI.ASSET_ROOT .. "emblem_qol", art = UI.ASSET_ROOT .. "settings_banner",
+  UI.TitleBand(panel, { emblem = UI.ASSET_ROOT .. "emblem_qol", art = UI.ASSET_ROOT .. "qol_banner",
     title = "Quality of Life", subtitle = "Small helpers for everyday play. Everything is off until you switch it on. Hold Shift to pause the automations.", fadeRight = 200 })
 
   -- scrollable page below the title band
@@ -263,7 +263,7 @@ local function createQoLPanel(parent)
   local tips = section(2, "Tooltips", "Interface\\Icons\\INV_Misc_Spyglass_03")
   tips:check("Boss drops", "Shows which dungeon boss drops an item.", "bossDrops")
   tips:check("Recipes: who knows it", "On recipe items: whether you, one of your other characters or a guild member already knows the recipe.", "recipeTip")
-  tips:check("Compare items only with Shift", "Item tooltips no longer show your equipped item next to them automatically; hold Shift to compare. This is the game setting alwaysCompareItems (on = 0, off = 1).", nil, nil,
+  tips:check("Compare items only with Shift", "Item tooltips no longer show your equipped item next to them automatically; hold Shift to compare.", nil, nil,
     function() return Q.GetCompareShift() end, function(v) Q.SetCompareShift(v) end)
   tips:check("Target of players", "Shows who a player (or NPC) under your mouse is targeting. \"You\" when it is you.", "unitTarget")
   tips:finish()
