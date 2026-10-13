@@ -5,26 +5,22 @@ local SRC = FLT.DUNGEON_REGISTRY or {}
 -- Level ranges: WoW Forever recommended ranges (Warcraft Tavern Forever dungeon
 -- list; the new dungeons match the Wowhead Forever overview). They are stored
 -- in the Data\Dungeons files; minLevel below only drives sorting/grouping.
+-- Entrance coordinates: QuestieDB Forever (support/Forever/Zones/dungeons.lua).
 -- coordsUnverified marks entrances that still need an in-game /ofa where check.
 -- dataStatus: "forever" = Forever quests/loot recorded, "partial" = bosses only.
 local META = {
-  ["Hall of Thanes"] = {key="hall", short="Hall of Thanes", territory="Alliance", mapZone="Ironforge", mapX=43.5, mapY=52.0, betaNew=true, minLevel=13},
-  ["Ragefire Chasm"] = {key="rfc", instanceID=389, territory="Horde", mapZone="Orgrimmar", mapX=52.8, mapY=49.6, minLevel=13},
-  -- The only published entrance coordinates (71.6, 11.4) are labelled "Tirisfal
-  -- Glades", but on the Tirisfal map they point at the northern coast. They match
-  -- the east side of the ruined keep on the Undercity map, which is where the
-  -- entrance is described ("just outside the Undercity, east side of the keep's
-  -- courtyard"). Verify in game with /ofa where.
-  ["Ruins of Lordaeron"] = {key="lordaeron", territory="Horde", mapZone="Undercity", mapX=71.6, mapY=11.4, betaNew=true, minLevel=15, coordsUnverified=true},
-  ["The Deadmines"] = {key="deadmines", instanceID=36, territory="Alliance", mapZone="Westfall", mapX=42.5, mapY=71.6, minLevel=15},
-  ["Wailing Caverns"] = {key="wc", instanceID=43, territory="Horde", mapZone="The Barrens", mapX=46.0, mapY=36.3, minLevel=17},
-  ["Shadowfang Keep"] = {key="sfk", instanceID=33, territory="Horde", mapZone="Silverpine Forest", mapX=44.5, mapY=68.0, minLevel=20},
-  ["Blackfathom Deeps"] = {key="bfd", instanceID=48, territory="Contested", mapZone="Ashenvale", mapX=14.0, mapY=14.0, minLevel=22},
-  ["Excavation Site: Wetlands"] = {key="excavation", short="Excavation Site", territory="Contested", mapZone="Wetlands", mapX=38.5, mapY=47.0, betaNew=true, minLevel=24, coordsUnverified=true},
-  ["The Stockade"] = {key="stockade", instanceID=34, territory="Alliance", mapZone="Stormwind City", mapX=41.2, mapY=58.0, minLevel=25, coordsUnverified=true},
-  ["City of Dalaran"] = {key="dalaran", territory="Contested", mapZone="Alterac Mountains", betaNew=true, minLevel=28, dataStatus="partial"},
-  ["Gnomeregan"] = {key="gnomeregan", instanceID=90, territory="Alliance", mapZone="Dun Morogh", mapX=24.4, mapY=39.8, minLevel=29, coordsUnverified=true, openToBoth=true},
-  ["Razorfen Kraul"] = {key="rfk", instanceID=47, territory="Horde", mapZone="The Barrens", mapX=42.3, mapY=89.9, minLevel=29, coordsUnverified=true},
+  ["Hall of Thanes"] = {key="hall", short="Hall of Thanes", territory="Alliance", mapZone="Ironforge", mapX=27.63, mapY=47.83, betaNew=true, minLevel=13},
+  ["Ragefire Chasm"] = {key="rfc", instanceID=389, territory="Horde", mapZone="Orgrimmar", mapX=52.6, mapY=49.0, minLevel=13},
+  ["Ruins of Lordaeron"] = {key="lordaeron", territory="Horde", mapZone="Undercity", mapX=72.48, mapY=11.33, betaNew=true, minLevel=15, coordsUnverified=true},
+  ["The Deadmines"] = {key="deadmines", instanceID=36, territory="Alliance", mapZone="Westfall", mapX=42.5, mapY=71.7, minLevel=15},
+  ["Wailing Caverns"] = {key="wc", instanceID=43, territory="Horde", mapZone="The Barrens", mapX=46.0, mapY=36.5, minLevel=17},
+  ["Shadowfang Keep"] = {key="sfk", instanceID=33, territory="Horde", mapZone="Silverpine Forest", mapX=44.8, mapY=67.8, minLevel=20},
+  ["Blackfathom Deeps"] = {key="bfd", instanceID=48, territory="Contested", mapZone="Ashenvale", mapX=14.5, mapY=14.2, minLevel=22},
+  ["Excavation Site: Wetlands"] = {key="excavation", short="Excavation Site", territory="Contested", mapZone="Wetlands", mapX=47.79, mapY=56.16, betaNew=true, minLevel=24, coordsUnverified=true},
+  ["The Stockade"] = {key="stockade", instanceID=34, territory="Alliance", mapZone="Stormwind City", mapX=52.41, mapY=70.01, minLevel=25, coordsUnverified=true},
+  ["City of Dalaran"] = {key="dalaran", territory="Contested", mapZone="Alterac Mountains", mapX=8.46, mapY=59.21, betaNew=true, minLevel=28, dataStatus="partial", coordsUnverified=true},
+  ["Gnomeregan"] = {key="gnomeregan", instanceID=90, territory="Alliance", mapZone="Dun Morogh", mapX=24.3, mapY=39.8, minLevel=29, coordsUnverified=true, openToBoth=true},
+  ["Razorfen Kraul"] = {key="rfk", instanceID=47, territory="Horde", mapZone="The Barrens", mapX=42.9, mapY=90.2, minLevel=29, coordsUnverified=true},
   ["Scarlet Monastery: Library"] = {key="smlib", instanceID=189, short="SM: Library", uiMaps={303}, territory="Horde", mapZone="Tirisfal Glades", mapX=82.6, mapY=33.8, minLevel=33, coordsUnverified=true},
   ["Scarlet Monastery: Graveyard"] = {key="smgy", instanceID=189, uiMaps={302}, short="SM: Graveyard", territory="Horde", mapZone="Tirisfal Glades", mapX=82.6, mapY=33.8, minLevel=30, coordsUnverified=true},
   ["The Drowned City"] = {key="drowned", short="Drowned City", territory="Contested", mapZone="Stranglethorn Vale", betaNew=true, minLevel=35, dataStatus="partial"},

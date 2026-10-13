@@ -61,6 +61,17 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+5.4.4 - dungeon data from own sources
+------------------------------------------------------------
+- The first 14 dungeons (Hall of Thanes to Scarlet Monastery: Library) were
+  rebuilt from the same sources as all other dungeons: boss and trash loot,
+  quest rewards, XP and reputation, quest chains, map pins and entrances.
+  Some loot tables are larger now; a few quest values (e.g. XP) follow the
+  current Forever beta data.
+- Follow-up rewards are shown again (e.g. Hidden Enemies, The Glowing Shard),
+  quest items and bags are back in the boss loot.
+- DUNGEON_DATA_SOURCES.txt rewritten.
+
 5.4.3 - bug report button
 ------------------------------------------------------------
 - New bug report button in the title bar (next to the skin switch) and
