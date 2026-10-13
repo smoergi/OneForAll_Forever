@@ -1,0 +1,42 @@
+OneForAll includes a reduced data extract derived from ProfessionDB / LibProfessionDB for WoW Forever.
+Only the Merchant's Favor recipes used by OneForAll are included.
+
+MIT License
+
+Copyright (c) 2026 Pimptasty
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--- Talents Forever reference data ---
+Talent tree structure and beta change metadata are cross-checked against data published by Talents Forever:
+https://talentsforever.com/data.json
+
+Talents Forever states that its published talent data is licensed under CC BY 4.0 and may be copied/adapted with attribution.
+Attribution: Data from talentsforever.com (https://talentsforever.com)
+License: https://creativecommons.org/licenses/by/4.0/
+
+OneForAll continues to read live talent icons/tooltips/node data from the WoW Forever client at runtime, using the published Talents Forever structure as a reference/fallback for tree layout behavior.
+
+--- QuestieDB / Questie ---
+Quest data (givers, turn-ins, prerequisites, chains), NPC/object spawn coordinates
+(hunter pet tame locations, recipe sources, dungeon quests and keys) were generated
+from the QuestieDB Forever data, which is derived from Questie.
+Sources: https://github.com/Questie/questiedb and https://github.com/Questie/Questie
+License: GNU General Public License v3.0 (https://www.gnu.org/licenses/gpl-3.0.html)
+OneForAll itself is licensed under the GPL-3.0-or-later (see LICENSE.txt).
