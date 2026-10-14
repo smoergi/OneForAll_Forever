@@ -12,7 +12,7 @@ FLT.QoL = QoL
 local DEFAULTS = {
   lootFeedQuality = 1, lootFeedMoney = true,
   inviteMode = "friendsguild", keywordMode = "friendsguild", keyword = "inv", duelMode = "friendsguild",
-  durabilityPct = 20,
+  durabilityPct = 20, mmDir = "auto",
 }
 
 local function db()
@@ -46,6 +46,9 @@ function QoL.Set(key, value)
   if listeners[key] then listeners[key](value) end
 end
 local function on(key, fn) listeners[key] = fn end
+QoL.On = on
+QoL.MM_DIR_OPTIONS = { { key = "auto", label = "Automatic" }, { key = "top", label = "Top" }, { key = "bottom", label = "Bottom" },
+  { key = "left", label = "Left" }, { key = "right", label = "Right" } }
 
 local function msg(text) if FLT.Msg then FLT.Msg(text) end end
 local function paused() return IsShiftKeyDown and IsShiftKeyDown() end
@@ -64,6 +67,7 @@ local function money(c)
   if cu > 0 or #parts == 0 then parts[#parts + 1] = cu .. COIN.c end
   return table.concat(parts, " ")
 end
+QoL.Money = money
 local function inCombat() return InCombatLockdown and InCombatLockdown() end
 
 -- ---------------------------------------------------------------------------
@@ -361,6 +365,11 @@ local function playerAura(unit, info)
   if unit ~= "player" or not QoL.Get("thanksBuff") or inCombat() then return end
   pcall(scanAddedAuras, info)
 end
+
+-- Note: the combat log cannot be used for this - in the Forever client registering
+-- COMBAT_LOG_EVENT_UNFILTERED is a protected action (ADDON_ACTION_FORBIDDEN, 5.5.0-beta11).
+-- So a buff is only thanked when the game names its caster (unit token: target,
+-- mouseover, nameplate ...) or a matching cast of that player was seen.
 
 -- ---------------------------------------------------------------------------
 -- Durability warning
@@ -1100,6 +1109,19 @@ local function neverList()
   local d = db(); if not d then return {} end
   d.bagsNever = d.bagsNever or {}
   return d.bagsNever
+end
+-- the "never suggest" list for the settings: sorted item IDs, remove one, clear all
+function QoL.GetNeverItems()
+  local out = {}
+  for id in pairs(neverList()) do if tonumber(id) then out[#out + 1] = tonumber(id) end end
+  table.sort(out)
+  return out
+end
+function QoL.RemoveNever(id)
+  neverList()[id] = nil
+end
+function QoL.ClearNever()
+  local d = db(); if d then d.bagsNever = {} end
 end
 local function itemDetails(link)
   local quality, classID, setID

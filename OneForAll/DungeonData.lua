@@ -43,6 +43,11 @@ local META = {
   ["Stratholme"] = {key="strat", instanceID=329, territory="Contested", mapZone="Eastern Plaguelands", mapX=26.5, mapY=10.4, minLevel=58, coordsUnverified=true},
   ["Shaper's Terrace"] = {key="shapers", territory="Contested", mapZone="Un'Goro Crater", betaNew=true, minLevel=58, dataStatus="partial"},
   ["Upper Blackrock Spire"] = {key="ubrs", instanceID=229, short="UBRS", territory="Contested", mapZone="Searing Gorge", mapX=34.8, mapY=85.3, minLevel=59, coordsUnverified=true},
+  -- Raids (Raids view of the Dungeons tab): size = players, raidStatus as announced by Blizzard,
+  -- attunement "unknown" = not known yet (Onyxia's comes from Data\RaidAttunements.lua)
+  ["Barrow Deeps"] = {key="barrow", raid=true, size=10, raidStatus="New raid, opens 9 December 2026", territory="Contested", mapZone="Mount Hyjal", betaNew=true, minLevel=60, dataStatus="partial", attunement="unknown"},
+  ["Hyjal Summit"] = {key="hyjal", raid=true, size=20, raidStatus="New raid, opens 9 December 2026", territory="Contested", mapZone="Mount Hyjal", betaNew=true, minLevel=60, dataStatus="partial", attunement="unknown"},
+  ["Onyxia's Lair"] = {key="onyxia", instanceID=249, raid=true, size=40, raidStatus="Opens 9 December 2026", territory="Contested", mapZone="Dustwallow Marsh", mapX=52.6, mapY=76.8, minLevel=60, coordsUnverified=true},
 }
 
 -- Sorted by minimum level (then name). The browse list groups these into
@@ -138,6 +143,10 @@ for _,name in ipairs(ORDER) do
       mapZone=m.mapZone,
       mapX=m.mapX,
       mapY=m.mapY,
+      raid=m.raid,
+      size=m.size,
+      raidStatus=m.raidStatus,
+      attunement=m.attunement,
       description=s.description,
       icon=s.icon,
       bosses={},

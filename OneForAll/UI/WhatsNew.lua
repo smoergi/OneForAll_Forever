@@ -5,17 +5,23 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 -- "Noteworthy changes" popup. Shown once per account after logging in with a
 -- new NEWS_ID (change it for the next release with news). /ofa news reopens it.
 
-local NEWS_ID = "5.3.0"
+local NEWS_ID = "5.5.0"
 
 local NEWS = {
-  { icon = "Interface\\Icons\\INV_Misc_Bag_10", title = "Bags full helper", tab = "qol", button = "Open Quality of Life",
+  { icon = "Interface\\Icons\\INV_Misc_Head_Dragon_Black", title = "Dungeons & Raids", tab = "dungeons", button = "Open Dungeons & Raids",
     lines = {
-      "Bags full while looting? OneForAll shows the cheapest item in your bags next to the loot.",
-      "One click destroys it and loots. Quest items, tools and other important items are never suggested.",
+      "New Raids view: Barrow Deeps, Hyjal Summit and Onyxia's Lair, grouped by size (10, 20, 40 players) with bosses, known loot and quests.",
+      "The Onyxia attunement (Drakefire Amulet) step by step for Alliance and Horde. Key and Attunement steps can be switched between the factions.",
     } },
-  { icon = "Interface\\Icons\\INV_Misc_Gem_Pearl_04", title = "Quest loot sparkles", tab = "qol", button = "Open Quality of Life",
+  { icon = "Interface\\Icons\\INV_Misc_Gear_01", title = "Quality of Life", tab = "qol", button = "Open Quality of Life",
     lines = {
-      "Quest items in the world sparkle again (Quality of Life > Quests).",
+      "Collect minimap buttons: the minimap buttons of other addons in one bar behind a movable OneForAll button, opening the way you like.",
+      "Bags full helper: the list of items you never want suggested can now be checked and cleared in the settings.",
+      "New options are marked with a yellow ! in the Quality of Life tab.",
+    } },
+  { icon = "Interface\\Icons\\Trade_Tailoring", title = "Nearest trainers", tab = "professions", button = "Open Professions",
+    lines = {
+      "The Professions overview shows the closest trainer of every profession for your faction, with a map button.",
     } },
 }
 

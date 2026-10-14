@@ -62,7 +62,22 @@ local function clampScale(s)
   return math.floor(s * 100 + 0.5) / 100
 end
 
+-- Puts the window's top-left corner exactly on a screen pixel. Otherwise every
+-- frame edge inside sits between two pixels and the game's pixel snapping makes
+-- thin gold lines jump or change their brightness when the window moves or grows.
+local function snapToPixels()
+  local left, top = frame:GetLeft(), frame:GetTop()
+  local s = frame:GetEffectiveScale()
+  if not left or not top or not s or s <= 0 then return end
+  local pl, pt = math.floor(left * s + 0.5) / s, math.floor(top * s + 0.5) / s
+  if math.abs(pl - left) > 0.001 or math.abs(pt - top) > 0.001 then
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", pl, pt)
+  end
+end
+
 local function savePosition()
+  snapToPixels()
   local left, top = frame:GetLeft(), frame:GetTop()
   if not left or not top then return end
   local db = windowDB()
@@ -407,6 +422,7 @@ local function createUI()
   else
     frame:SetPoint("CENTER")
   end
+  frame:HookScript("OnShow", function() snapToPixels() end)
   decorateWindow()
   createResizeGrip()
   createHeightGrip()

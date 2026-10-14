@@ -53,6 +53,9 @@ local DUNGEON_ART = {
   strat=ASSET_ROOT.."Dungeons\\stratholme",
   shapers=ASSET_ROOT.."Dungeons\\shapers_terrace",
   ubrs=ASSET_ROOT.."Dungeons\\upper_blackrock_spire",
+  barrow=ASSET_ROOT.."Dungeons\\barrow_deeps",
+  hyjal=ASSET_ROOT.."Dungeons\\hyjal_summit",
+  onyxia=ASSET_ROOT.."Dungeons\\onyxias_lair",
 }
 
 -- Collapsible level brackets for the browse list (grouped by minimum level).
@@ -65,6 +68,16 @@ local BRACKETS = {
 }
 
 UI.DUNGEON_BRACKETS = BRACKETS
+-- Raids view: one band per raid size (green / blue / purple like item quality)
+local RAID_BRACKETS = {
+  { id="r10", label="10 Players", size=10, color={0.30,0.95,0.40} },
+  { id="r20", label="20 Players", size=20, color={0.30,0.62,1.00} },
+  { id="r40", label="40 Players", size=40, color={0.76,0.42,1.00} },
+}
+local function raidColor(size)
+  for _,br in ipairs(RAID_BRACKETS) do if br.size==size then return unpack(br.color) end end
+  return 0.85,0.82,0.74
+end
 
 local function playerLevel()
   return (UnitLevel and tonumber(UnitLevel("player"))) or 1
@@ -157,7 +170,10 @@ local ART_ACCENT = {
   scholomance={0.40,0.75,0.35},
   shapers_terrace={0.30,0.55,0.75},
   stratholme={0.75,0.45,0.21},
-  upper_blackrock_spire={0.75,0.34,0.14}
+  upper_blackrock_spire={0.75,0.34,0.14},
+  barrow_deeps={0.39,0.54,0.75},
+  hyjal_summit={0.46,0.59,0.75},
+  onyxias_lair={0.75,0.27,0.08},
 }
 local function dungeonAccent(key)
   local path=DUNGEON_ART[key]
@@ -195,25 +211,41 @@ local function createDungeonPanel(parent)
   -- Ornate gold frame around the banner.
   if browseBanner then OrnateFrame(browseBanner, browseBanner, 12, 3, "OVERLAY", 2) end
 
-  -- Title band: compass emblem, small-caps title, subtitle, level filter.
+  -- Title band, split in two: Dungeons (left) | Raids (right). The open half is
+  -- bright with a gold frame, the other one is dimmed.
+  -- The banner art fades out to the left behind the emblem and the title.
   local band=CreateFrame("Frame",nil,browse); band:SetPoint("TOPLEFT",8,-8); band:SetSize(ROW_W,58)
   local bandBg=makeTexture(band,"BACKGROUND",0.045,0.045,0.058,0.96); bandBg:SetPoint("TOPLEFT",2,-2); bandBg:SetPoint("BOTTOMRIGHT",-2,2)
-  -- dungeon banner art behind the band, faded out behind the title (left)
-  -- and behind the level filter (right)
-  local bandArt=band:CreateTexture(nil,"BORDER",nil,0); bandArt:SetPoint("TOPLEFT",2,-2); bandArt:SetPoint("BOTTOMRIGHT",-2,2)
-  FLT.SetTex(bandArt, ASSET_ROOT.."dungeons_banner"); bandArt:SetTexCoord(0,1,0.18,0.82)
-  local shadeL=makeTexture(band,"BORDER",0.045,0.045,0.058,0.94); shadeL:SetDrawLayer("BORDER",1); shadeL:SetPoint("TOPLEFT",2,-2); shadeL:SetPoint("BOTTOMLEFT",2,2); shadeL:SetWidth(360)
-  local fadeL=band:CreateTexture(nil,"BORDER",nil,1); FLT.SetTex(fadeL, ASSET_ROOT.."shade_lr"); fadeL:SetVertexColor(FLT.SkinC(0.18,0.18,0.23))
-  fadeL:SetPoint("TOPLEFT",shadeL,"TOPRIGHT"); fadeL:SetPoint("BOTTOMLEFT",shadeL,"BOTTOMRIGHT"); fadeL:SetWidth(340)
-  local fadeR=band:CreateTexture(nil,"BORDER",nil,1); FLT.SetTex(fadeR, ASSET_ROOT.."shade_lr"); fadeR:SetTexCoord(1,0,0,1); fadeR:SetVertexColor(FLT.SkinC(0.18,0.18,0.23))
-  fadeR:SetPoint("TOPRIGHT",-2,-2); fadeR:SetPoint("BOTTOMRIGHT",-2,2); fadeR:SetWidth(300)
-  OrnateFrame(band, band, 15, 2, "OVERLAY", 1)
-  local emblem=band:CreateTexture(nil,"ARTWORK"); emblem:SetSize(46,46); emblem:SetPoint("LEFT",10,0)
-  FLT.SetTex(emblem, ASSET_ROOT.."emblem_dungeons")
-  local browseTitle=smallCaps(band,"Browse Dungeons",19,15,GOLD,"GameFontNormalLarge")
-  browseTitle:SetPoint("TOPLEFT",66,-9)
-  local browseSub=FLT.NewFS(band, nil,"OVERLAY","GameFontHighlightSmall")
-  browseSub:SetPoint("TOPLEFT",67,-34); browseSub:SetText("Select a dungeon to view bosses, boss-specific loot and a structured quest guide. Beta data can change."); browseSub:SetTextColor(FLT.SkinC(0.80,0.77,0.70))
+  local bandHalves={}
+  local function makeHalf(kind,x,w,art,emblemTex,emblemSize,title,sub)
+    local h=CreateFrame("Button",nil,band); h:SetPoint("TOPLEFT",x,0); h:SetSize(w,58)
+    local a=h:CreateTexture(nil,"BORDER",nil,0); a:SetPoint("TOPLEFT",2,-2); a:SetPoint("BOTTOMRIGHT",-2,2)
+    FLT.SetTex(a, ASSET_ROOT..art); a:SetTexCoord(0,1,0.0625,0.9375)
+    local sh=makeTexture(h,"BORDER",0.045,0.045,0.058,0.88); sh:SetDrawLayer("BORDER",1); sh:SetPoint("TOPLEFT",2,-2); sh:SetPoint("BOTTOMLEFT",2,2); sh:SetWidth(120)
+    local fade=h:CreateTexture(nil,"BORDER",nil,1); FLT.SetTex(fade, ASSET_ROOT.."shade_lr"); fade:SetVertexColor(FLT.SkinC(0.18,0.18,0.23))
+    fade:SetPoint("TOPLEFT",sh,"TOPRIGHT"); fade:SetPoint("BOTTOMLEFT",sh,"BOTTOMRIGHT"); fade:SetWidth(240)
+    local dim=h:CreateTexture(nil,"ARTWORK",nil,0); dim:SetPoint("TOPLEFT",2,-2); dim:SetPoint("BOTTOMRIGHT",-2,2); dim:SetColorTexture(0,0,0,0.62)
+    local em=h:CreateTexture(nil,"ARTWORK",nil,2); em:SetSize(emblemSize,emblemSize); em:SetPoint("CENTER",h,"LEFT",33,0)
+    FLT.SetTex(em, ASSET_ROOT..emblemTex)
+    local tt=smallCaps(h,title,19,15,GOLD,"GameFontNormalLarge"); tt:SetPoint("TOPLEFT",66,-9)
+    local st=FLT.NewFS(h, nil,"OVERLAY","GameFontHighlightSmall"); st:SetPoint("TOPLEFT",67,-34); st:SetText(sub); st:SetTextColor(FLT.SkinC(0.80,0.77,0.70))
+    local frameTex=OrnateFrame(h, h, 15, 2, "OVERLAY", 1) or {}
+    local hi=makeTexture(h,"HIGHLIGHT",0.90,0.66,0.22,0.08); hi:SetPoint("TOPLEFT",2,-2); hi:SetPoint("BOTTOMRIGHT",-2,2)
+    local half={button=h}
+    function half:SetOpen(on)
+      dim:SetShown(not on)
+      for _,ft in ipairs(frameTex) do ft:SetAlpha(on and 1 or 0.25) end
+      em:SetAlpha(on and 1 or 0.55); a:SetAlpha(on and 1 or 0.7)
+      if on then tt:SetAlpha(1); st:SetAlpha(1) else tt:SetAlpha(0.55); st:SetAlpha(0.45) end
+      if on then h:UnlockHighlight() end
+    end
+    h:SetScript("OnClick",function() if browse._setView then browse._setView(kind) end end)
+    bandHalves[kind]=half
+    return half
+  end
+  local HALF_W=math.floor(ROW_W/2)
+  makeHalf("dungeons",0,HALF_W,"dungeons_split","emblem_dungeons",46,"Dungeons","Bosses, loot, quests and keys of every dungeon.")
+  makeHalf("raids",HALF_W,ROW_W-HALF_W,"raids_split","emblem_raids",54,"Raids","Raids for 10, 20 and 40 players with attunements.")
 
   local fallbackSettings={}
   local function dungeonSettings()
@@ -284,6 +316,22 @@ local function createDungeonPanel(parent)
   headerCol("Key",COL.key,COL_W.key,"CENTER")
   headerCol("Quests",COL.quests,COL_W.quests,"CENTER","quests")
   headerCol("Actions",COL.actions,COL_W.actions,"CENTER")
+  -- Raids view: own header (Size instead of Territory, Attunement instead of Key)
+  local dungeonHeader=header
+  header=CreateFrame("Frame",nil,browse); header:SetPoint("TOPLEFT",8,-74); header:SetSize(ROW_W,24); header:Hide()
+  do
+    local rbg=makeTexture(header,"BACKGROUND",0.075,0.062,0.040,0.96); rbg:SetPoint("TOPLEFT",2,-2); rbg:SetPoint("BOTTOMRIGHT",-2,2)
+    OrnateFrame(header, header, 10, 1, "OVERLAY", 1)
+  end
+  headerCol("Raid",14,COL.level-14,"LEFT","name")
+  headerCol("Level",COL.level,COL_W.level,"CENTER","level")
+  headerCol("Size",COL.side,COL_W.side,"CENTER","size")
+  headerCol("Zone",COL.zone,COL_W.zone,"LEFT","zone")
+  headerCol("Attunement",COL.key-8,COL_W.key+16,"CENTER")
+  headerCol("Quests",COL.quests,COL_W.quests,"CENTER","quests")
+  headerCol("Actions",COL.actions,COL_W.actions,"CENTER")
+  local raidHeader=header
+  header=dungeonHeader
 
   local sf=FLT.SkinBlizz(CreateFrame("ScrollFrame",nil,browse,"UIPanelScrollFrameTemplate"))
   sf:SetPoint("TOPLEFT",8,-104); sf:SetPoint("BOTTOMRIGHT",-8,4); UI.PlaceScrollBar(sf)
@@ -322,6 +370,7 @@ local function createDungeonPanel(parent)
     local chevron=cbox:CreateTexture(nil,"OVERLAY"); chevron:SetSize(15,15); chevron:SetPoint("CENTER",0,0)
     FLT.SetTex(chevron, ASSET_ROOT.."chevron")
     local title=FLT.NewFS(holder, nil,"OVERLAY","GameFontNormalLarge"); title:SetPoint("LEFT",46,0); title:SetText(bracket.label); title:SetTextColor(FLT.SkinC(unpack(GOLD)))
+    if bracket.color then title:SetTextColor(unpack(bracket.color)) end
     do local font,_,flags=title:GetFont(); if font then title:SetFont(font,14,flags) end end
     local info=FLT.NewFS(holder, nil,"OVERLAY","GameFontHighlightSmall"); info:SetPoint("RIGHT",-20,0); info:SetJustifyH("RIGHT"); info:SetTextColor(FLT.SkinC(0.85,0.82,0.74))
     OrnateFrame(holder, holder, 13, 2, "OVERLAY", 1)
@@ -345,7 +394,17 @@ local function createDungeonPanel(parent)
     holder:SetScript("OnLeave",function() GameTooltip:Hide() end)
     return section
   end
+  local raidSections={}
   local function sectionFor(d)
+    if d.raid then
+      for bi,br in ipairs(RAID_BRACKETS) do
+        if br.size==d.size then
+          raidSections[bi]=raidSections[bi] or createSection(br, bi+1)
+          return raidSections[bi]
+        end
+      end
+      return nil
+    end
     local lvl=d.minLevel or 0
     for bi,br in ipairs(BRACKETS) do
       if lvl>=br.min and lvl<=br.max then
@@ -406,7 +465,7 @@ local function createDungeonPanel(parent)
       local wt=warn:CreateTexture(nil,"OVERLAY"); wt:SetAllPoints(); FLT.SetTex(wt, "Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew")
       warn:SetScript("OnEnter",function(self)
         GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine("Partial data",1,0.62,0.25)
-        GameTooltip:AddLine("Bosses only - loot and quests are not recorded yet.",1,1,1,true); GameTooltip:Show()
+        GameTooltip:AddLine(d.raid and "Not open yet - bosses only, loot and quests are not known yet." or "Bosses only - loot and quests are not recorded yet.",1,1,1,true); GameTooltip:Show()
       end)
       warn:SetScript("OnLeave",function() GameTooltip:Hide() end)
       afterName=afterName+20
@@ -421,14 +480,25 @@ local function createDungeonPanel(parent)
     -- faction crest only (the name is in the tooltip)
     local sideName=d.territory or d.side or "Contested"
     local crestF=CreateFrame("Frame",nil,row); crestF:SetSize(28,28); crestF:SetPoint("CENTER",row,"LEFT",COL.side+COL_W.side/2,0)
-    local crest=crestF:CreateTexture(nil,"ARTWORK"); crest:SetAllPoints()
-    local tc=CREST_TC[sideName] or CREST_TC.Contested
-    FLT.SetTex(crest, ASSET_ROOT.."faction_crests"); crest:SetTexCoord(tc[1],tc[2],0,1)
-    crestF:SetScript("OnEnter",function(self)
-      local r,g,b=dungeonSideColor(sideName)
-      GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine(sideName,r,g,b)
-      GameTooltip:AddLine(SIDE_INFO[sideName] or "",1,1,1,true); GameTooltip:Show()
-    end)
+    if d.raid then
+      -- raids: group size in the colour of its band instead of the faction crest
+      local sz=FLT.NewFS(crestF, nil,"OVERLAY","GameFontNormalLarge"); sz:SetPoint("CENTER"); sz:SetText(tostring(d.size or "?"))
+      sz:SetTextColor(raidColor(d.size))
+      crestF:SetScript("OnEnter",function(self)
+        GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine("Raid for "..tostring(d.size or "?").." players",raidColor(d.size))
+        if d.raidStatus then GameTooltip:AddLine(d.raidStatus,1,1,1,true) end
+        GameTooltip:Show()
+      end)
+    else
+      local crest=crestF:CreateTexture(nil,"ARTWORK"); crest:SetAllPoints()
+      local tc=CREST_TC[sideName] or CREST_TC.Contested
+      FLT.SetTex(crest, ASSET_ROOT.."faction_crests"); crest:SetTexCoord(tc[1],tc[2],0,1)
+      crestF:SetScript("OnEnter",function(self)
+        local r,g,b=dungeonSideColor(sideName)
+        GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine(sideName,r,g,b)
+        GameTooltip:AddLine(SIDE_INFO[sideName] or "",1,1,1,true); GameTooltip:Show()
+      end)
+    end
     crestF:SetScript("OnLeave",function() GameTooltip:Hide() end)
 
     -- Coordinates are left to the Map button; the column only names the zone.
@@ -439,16 +509,26 @@ local function createDungeonPanel(parent)
     -- check (key in your bags/keyring) or a red cross.
     local keyIcon=row:CreateTexture(nil,"OVERLAY"); keyIcon:SetSize(20,20); keyIcon:SetPoint("CENTER",row,"LEFT",COL.key+COL_W.key/2,0); keyIcon:Hide()
     local keyHover=CreateFrame("Frame",nil,row); keyHover:SetPoint("CENTER",keyIcon,"CENTER"); keyHover:SetSize(30,30)
+    -- raids: "?" while the attunement is not known, "-" when none is needed
+    local keyText
+    if d.raid then
+      keyText=FLT.NewFS(row, nil,"OVERLAY","GameFontHighlight"); keyText:SetPoint("CENTER",keyIcon,"CENTER")
+      keyText:SetTextColor(0.70,0.68,0.62)
+    end
     keyHover:SetScript("OnEnter",function(self)
+      if d.raid and d.attunement=="unknown" then
+        GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:SetText("Attunement",1,0.82,0.20)
+        GameTooltip:AddLine("Not known yet. It is filled in once Blizzard shows how you get in.",1,1,1,true); GameTooltip:Show(); return
+      end
       local keys=dungeonKeys(d); if not keys or requiredKeyStatus(d)==nil then return end
-      GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:SetText("Key needed",1,0.82,0.20)
+      GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:SetText(d.raid and "Attunement needed" or "Key needed",1,0.82,0.20)
       for _,k in ipairs(keys) do
         if k.required then
           local have=hasKeyItem(k.item)
           GameTooltip:AddDoubleLine(k.name,have and "You have it" or "Missing",0.92,0.90,0.84,have and 0.3 or 1,have and 1 or 0.3,have and 0.4 or 0.3)
         end
       end
-      GameTooltip:AddLine("Open the dungeon and pick the Key tab for the steps.",0.65,0.65,0.65,true)
+      GameTooltip:AddLine(d.raid and "Open the raid and pick the Attunement tab for the steps." or "Open the dungeon and pick the Key tab for the steps.",0.65,0.65,0.65,true)
       GameTooltip:Show()
     end)
     keyHover:SetScript("OnLeave",function() GameTooltip:Hide() end)
@@ -459,7 +539,8 @@ local function createDungeonPanel(parent)
       GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
       GameTooltip:SetText(d.name,1,0.82,0.20)
       if #(d.quests or {})==0 then
-        GameTooltip:AddLine(partial and "No quests have been recorded for this dungeon yet." or "No dungeon quests recorded.",0.92,0.90,0.84,true)
+        local what=d.raid and "raid" or "dungeon"
+        GameTooltip:AddLine(partial and ("No quests have been recorded for this "..what.." yet.") or ("No "..what.." quests recorded."),0.92,0.90,0.84,true)
       else
         local completedQuests,relevantQuests,questCounts=questProgressForPlayer(d)
         GameTooltip:AddLine(completedQuests.." quests completed of "..relevantQuests.." currently relevant/available to your character.",0.92,0.90,0.84,true)
@@ -477,7 +558,7 @@ local function createDungeonPanel(parent)
       mapBtn:SetScript("OnClick",function() FLT:ShowOnMap({zone=d.mapZone,x=d.mapX,y=d.mapY,name=d.name.." entrance"}) end)
       mapBtn:SetScript("OnEnter",function(self)
         GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
-        GameTooltip:AddLine("Dungeon entrance",1,0.82,0)
+        GameTooltip:AddLine(d.raid and "Raid entrance" or "Dungeon entrance",1,0.82,0)
         GameTooltip:AddLine(d.mapZone..string.format(" (%.1f, %.1f)",d.mapX,d.mapY),1,1,1,true)
         if d.coordsUnverified then GameTooltip:AddLine("This entrance position has not been verified in game yet.",1,0.62,0.25,true) end
         GameTooltip:Show()
@@ -495,7 +576,7 @@ local function createDungeonPanel(parent)
       questSelection[dungeon.key]=questSelection[dungeon.key] or 1
       if detail._render then detail._render() end
     end)
-    local entry={dungeon=d,row=row,questText=qc,levelText=lv,keyIcon=keyIcon,order=di,openQuests=0,
+    local entry={dungeon=d,row=row,questText=qc,levelText=lv,keyIcon=keyIcon,keyText=keyText,order=di,openQuests=0,
       sortName=(d.short or d.name or ""):lower(),sortSide=sideName,sortZone=zoneText:lower()}
     browseRows[#browseRows+1]=entry
     local sec=sectionFor(d)
@@ -511,6 +592,7 @@ local function createDungeonPanel(parent)
     side=function(e) return e.sortSide end,
     zone=function(e) return e.sortZone end,
     quests=function(e) return e.openQuests end,
+    size=function(e) return e.dungeon.size or 0 end,
   }
   local function sortEntries(list,s,highFirst)
     if not (s and SORT_VALUE[s.key]) then
@@ -530,20 +612,33 @@ local function createDungeonPanel(parent)
 
   local function relayout()
     local cfg=dungeonSettings()
+    local raids=cfg.view=="raids"
     local onlyFit=cfg.onlyFit and true or false
     fitCheck:SetChecked(onlyFit)
+    for kind,half in pairs(bandHalves) do half:SetOpen((kind=="raids")==raids) end
+    dungeonHeader:SetShown(not raids); raidHeader:SetShown(raids)
     local s=cfg.sort
     for _,b in ipairs(sortButtons) do
       local state=(s and s.key==b.key) and (s.desc and "desc" or "asc") or "none"
       local tc=SORT_TC[state]; b.arrow:SetTexCoord(tc[1],tc[2],0,1)
     end
+    -- the other view's bands and rows stay hidden
+    local function hideAll(list)
+      for _,sec in pairs(list) do
+        sec.header:Hide(); sec.box:Hide()
+        for _,entry in ipairs(sec.rows) do entry.row:Hide() end
+      end
+    end
+    hideAll(raids and sections or raidSections)
     local y=-4
     local shownSections=0
     local highFirst=cfg.highFirst and true or false
-    for step=1,#BRACKETS do
-      local bi=highFirst and (#BRACKETS-step+1) or step
-      local sec=sections[bi]
-      if sec and cfg.hiddenBrackets and cfg.hiddenBrackets[sec.bracket.id] then
+    local brackets=raids and RAID_BRACKETS or BRACKETS
+    local secs=raids and raidSections or sections
+    for step=1,#brackets do
+      local bi=highFirst and (#brackets-step+1) or step
+      local sec=secs[bi]
+      if sec and not raids and cfg.hiddenBrackets and cfg.hiddenBrackets[sec.bracket.id] then
         sec.header:Hide(); sec.box:Hide()
         for _,entry in ipairs(sec.rows) do entry.row:Hide() end
         sec=nil
@@ -551,7 +646,7 @@ local function createDungeonPanel(parent)
       if sec then
         local visible={}
         for _,entry in ipairs(sec.rows) do
-          if not onlyFit or fitsPlayer(entry.dungeon) then visible[#visible+1]=entry end
+          if raids or not onlyFit or fitsPlayer(entry.dungeon) then visible[#visible+1]=entry end
         end
         sortEntries(visible,s,highFirst)
         for _,entry in ipairs(sec.rows) do entry.row:Hide() end
@@ -564,7 +659,8 @@ local function createDungeonPanel(parent)
           y=y-SECTION_H-3
           local collapsed=cfg.collapsed[sec.bracket.id]
           if collapsed then sec.chevron:SetTexCoord(0.5,1,0,1) else sec.chevron:SetTexCoord(0,0.5,0,1) end
-          sec.info:SetText(#visible..(#visible==1 and " dungeon" or " dungeons"))
+          if raids then sec.info:SetText(#visible..(#visible==1 and " raid" or " raids"))
+          else sec.info:SetText(#visible..(#visible==1 and " dungeon" or " dungeons")) end
           if collapsed then
             sec.box:Hide()
           else
@@ -582,6 +678,15 @@ local function createDungeonPanel(parent)
     end
     emptyText:SetShown(shownSections==0)
     child:SetHeight(math.max(1,-y+10))
+  end
+  browse._setView=function(kind)
+    local cfg=dungeonSettings()
+    local v=(kind=="raids") and "raids" or nil
+    if cfg.view==v then return end
+    cfg.view=v
+    if PlaySound and type(SOUNDKIT)=="table" and SOUNDKIT.IG_CHARACTER_INFO_TAB then pcall(PlaySound,SOUNDKIT.IG_CHARACTER_INFO_TAB) end
+    sf:SetVerticalScroll(0)
+    relayout()
   end
   browse._relayout=relayout
   UI.RefreshDungeonList=function() if browse:IsShown() then relayout() end end
@@ -604,6 +709,7 @@ local function createDungeonPanel(parent)
       entry.levelText:SetTextColor(FLT.SkinC(levelColor(d)))
       local ks=requiredKeyStatus(d)
       if ks==nil then entry.keyIcon:Hide() else FLT.SetTex(entry.keyIcon, ks and KEY_ICON_YES or KEY_ICON_NO); entry.keyIcon:Show() end
+      if entry.keyText then entry.keyText:SetText(ks~=nil and "" or (d.attunement=="unknown" and "?" or "-")) end
     end
     relayout()
   end
@@ -628,7 +734,7 @@ local function createDungeonPanel(parent)
   local dmeta=FLT.NewFS(dband, nil,"OVERLAY","GameFontHighlightSmall"); dmeta:SetPoint("LEFT",dcrest,"RIGHT",5,0); dmeta:SetTextColor(FLT.SkinC(0.78,0.75,0.68))
   local bossesBtn=UI.GoldButton(dband,"Bosses & Loot",126,26,nil,13); bossesBtn:SetPoint("RIGHT",-144,0)
   local questsBtn=UI.GoldButton(dband,"Quests",120,26,nil,13); questsBtn:SetPoint("RIGHT",-14,0)
-  local keyBtn=UI.GoldButton(dband,"Key",90,26,nil,13); keyBtn:SetPoint("RIGHT",-14,0); keyBtn:Hide()
+  local keyBtn=UI.GoldButton(dband,"Key",110,26,nil,13); keyBtn:SetPoint("RIGHT",-14,0); keyBtn:Hide()
 
   -- Rounded card background with an automatic border colour (lighter than
   -- the fill); keeps the SetColorTexture() calls of the list code working.
@@ -1387,6 +1493,7 @@ local function createDungeonPanel(parent)
   -- Key tab: the keys a dungeon needs (or optional shortcut keys) and the
   -- steps to get them. Left: keys with their steps; right: step details.
   local keySelection={}
+  local keyFactionFilter={}
   local function stepStatus(step)
     if step.quest then
       if FLT.IsQuestDone and FLT:IsQuestDone(step.quest) then return "completed" end
@@ -1396,8 +1503,16 @@ local function createDungeonPanel(parent)
   end
   function renderKey(d)
     local keys=dungeonKeys(d) or {}
+    -- faction switch only when a key has faction specific steps
+    local split=false
+    for _,k in ipairs(keys) do for _,s in ipairs(k.steps or {}) do if s.faction then split=true end end end
     local faction=UnitFactionGroup and UnitFactionGroup("player") or nil
-    local viewKey="key:"..d.key
+    if faction~="Alliance" and faction~="Horde" then faction=nil end
+    if split then
+      faction=keyFactionFilter[d.key] or faction or "Alliance"
+      keyFactionFilter[d.key]=faction
+    end
+    local viewKey="key:"..d.key..":"..(faction or "-")
     local view=showView(viewKey)
     if view then view.refresh(); view.select(keySelection[d.key] or 1); return end
     view=newView(viewKey)
@@ -1405,7 +1520,14 @@ local function createDungeonPanel(parent)
     local left=dynFrame("Frame"); left:SetPoint("TOPLEFT",0,0); left:SetPoint("BOTTOMLEFT",0,0); left:SetWidth(390)
     framedPanel(left)
     listBand(left,d)
-    local lh=dynText(left,"GameFontNormalLarge"); lh:SetPoint("TOPLEFT",16,-14); lh:SetText("Key"); lh:SetTextColor(FLT.SkinC(1,0.82,0.20))
+    local lh=dynText(left,"GameFontNormalLarge"); lh:SetPoint("TOPLEFT",16,-14); lh:SetText(d.raid and "Attunement" or "Key"); lh:SetTextColor(FLT.SkinC(1,0.82,0.20))
+    if split then
+      local allianceBtn=UI.GoldButton(left,"Alliance",92,22,nil,12); allianceBtn:SetPoint("TOPRIGHT",-108,-10)
+      local hordeBtn=UI.GoldButton(left,"Horde",92,22,nil,12); hordeBtn:SetPoint("TOPRIGHT",-12,-10)
+      allianceBtn:SetActive(faction=="Alliance"); hordeBtn:SetActive(faction=="Horde")
+      allianceBtn:SetScript("OnClick",function() keyFactionFilter[d.key]="Alliance"; keySelection[d.key]=1; renderKey(d) end)
+      hordeBtn:SetScript("OnClick",function() keyFactionFilter[d.key]="Horde"; keySelection[d.key]=1; renderKey(d) end)
+    end
     local legend=dynText(left,"GameFontDisableSmall"); legend:SetPoint("TOPLEFT",14,-48)
     legend:SetText("Steps for "..(faction or "both factions").."  |  green = done, yellow = in quest log")
 
@@ -1512,7 +1634,7 @@ local function createDungeonPanel(parent)
       -- key box: icon, name, whether you carry it, what it is for
       local keyStatus
       do
-        local box,cy,close=openBox(c,y,"Key")
+        local box,cy,close=openBox(c,y,d.raid and "Attunement" or "Key")
         local kic=box:CreateTexture(nil,"ARTWORK"); kic:SetSize(32,32); kic:SetPoint("TOPLEFT",10,-28)
         FLT.SetTex(kic, dungeonItemIcon({id=k.item,name=k.name}))
         local kn=FLT.NewFS(box,nil,"OVERLAY","GameFontHighlight"); kn:SetPoint("TOPLEFT",50,-29); kn:SetText(k.name)
@@ -1586,19 +1708,27 @@ local function createDungeonPanel(parent)
     local sideName=d.territory or d.side or "Contested"
     local ctc=({Alliance={0,0.25},Horde={0.25,0.5}})[sideName] or {0.5,0.75}
     dcrest:SetTexCoord(ctc[1],ctc[2],0,1)
+    dcrest:SetShown(not d.raid)
     local sr,sg,sb=dungeonSideColor(d.territory or d.side)
     local zoneText=(d.mapZone or d.area or "Unknown")
     -- only level and faction are coloured; zone and separators stay neutral
     local function hex(r,g,b) return string.format("%02x%02x%02x",math.floor(r*255),math.floor(g*255),math.floor(b*255)) end
     local lr,lg,lb=levelColor(d)
     local sep="  |cff8a7a5a|||r  "
-    dmeta:SetText("|cff"..hex(lr,lg,lb).."LV "..tostring(d.level).."|r"..sep.."|cffd9d4c7"..zoneText.."|r"..sep.."|cff"..hex(sr,sg,sb)..sideName.."|r"..(d.betaNew and (sep.."|cff66f080New in Forever|r") or ""))
+    if d.raid then
+      local rr,rg,rb=raidColor(d.size)
+      dmeta:SetText("|cff"..hex(lr,lg,lb).."LV "..tostring(d.level).."|r"..sep.."|cff"..hex(rr,rg,rb)..tostring(d.size or "?").." players|r"..sep.."|cffd9d4c7"..zoneText.."|r"..(d.raidStatus and (sep.."|cff66f080"..d.raidStatus.."|r") or ""))
+    else
+      dmeta:SetText("|cff"..hex(lr,lg,lb).."LV "..tostring(d.level).."|r"..sep.."|cffd9d4c7"..zoneText.."|r"..sep.."|cff"..hex(sr,sg,sb)..sideName.."|r"..(d.betaNew and (sep.."|cff66f080New in Forever|r") or ""))
+    end
+    back:SetLabel(d.raid and "Raids" or "Dungeons")
+    keyBtn:SetLabel(d.raid and "Attunement" or "Key")
     dmeta:SetTextColor(FLT.SkinC(0.85,0.83,0.78))
     local hasKeys=dungeonKeys(d)~=nil
     if not hasKeys and mode=="key" then mode="bosses" end
     keyBtn:SetShown(hasKeys)
     questsBtn:ClearAllPoints(); bossesBtn:ClearAllPoints()
-    questsBtn:SetPoint("RIGHT",hasKeys and -114 or -14,0); bossesBtn:SetPoint("RIGHT",hasKeys and -244 or -144,0)
+    questsBtn:SetPoint("RIGHT",hasKeys and -134 or -14,0); bossesBtn:SetPoint("RIGHT",hasKeys and -264 or -144,0)
     if mode=="quests" then renderQuests(d) elseif mode=="key" then renderKey(d) else renderBosses(d) end
     questsBtn:SetActive(mode=="quests"); bossesBtn:SetActive(mode=="bosses"); keyBtn:SetActive(mode=="key")
   end
@@ -1622,4 +1752,4 @@ local function createDungeonPanel(parent)
 end
 
 
-UI.RegisterPanel({ key="dungeons", label="Dungeons", order=2, tabWidth=128, create=createDungeonPanel })
+UI.RegisterPanel({ key="dungeons", label="Dungeons & Raids", order=2, tabWidth=160, create=createDungeonPanel })

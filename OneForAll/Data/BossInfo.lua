@@ -3,6 +3,7 @@ local _, FLT = ...
 -- Creature type of the dungeon bosses (Wowhead Forever / Classic NPC data,
 -- October 2026). Missing ones are learned in game when you target the boss.
 FLT.BOSS_TYPES = {
+  [10184] = "Dragonkin", -- Onyxia
   [639] = "Humanoid", -- ?
   [642] = "Mechanical", -- ?
   [643] = "Humanoid", -- ?

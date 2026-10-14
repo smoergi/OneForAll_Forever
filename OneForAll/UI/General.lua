@@ -68,4 +68,4 @@ local function createGeneralPanel(parent)
 end
 
 
-UI.RegisterPanel({ key="general", label="General", order=1, tabWidth=118, create=createGeneralPanel })
+UI.RegisterPanel({ key="general", label="General", order=1, tabWidth=96, create=createGeneralPanel })

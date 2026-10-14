@@ -284,10 +284,30 @@ function FLT:CreateTalentPlannerPanel(parent)
   -- row and gives the talent trees more vertical room.
   local rail=CreateFrame("Frame",nil,panel); rail:SetPoint("TOPLEFT",8,-74); rail:SetPoint("BOTTOMLEFT",8,4); rail:SetWidth(122)
   UI.FramedPanel(rail)
-  local chooser=UI.SmallCaps(rail,"Class",13,10,UI.HEAD_GOLD); chooser:SetPoint("TOPLEFT",12,-12)
-  local cy=-32
+  -- top of the rail: spellbook -> what the class trainer teaches next
+  do
+    local sb=CreateFrame("Button",nil,rail); sb:SetSize(40,40); sb:SetPoint("TOPLEFT",12,-10)
+    local ic=sb:CreateTexture(nil,"ARTWORK"); ic:SetPoint("TOPLEFT",3,-3); ic:SetPoint("BOTTOMRIGHT",-3,3)
+    ic:SetTexture("Interface\\Icons\\INV_Misc_Book_09"); ic:SetTexCoord(0.08,0.92,0.08,0.92)
+    local fr=sb:CreateTexture(nil,"OVERLAY"); fr:SetAllPoints(); FLT.SetTex(fr,ASSET_ROOT.."talent_frame"); fr:SetVertexColor(FLT.SkinC(0.66,0.48,0.16,0.98))
+    local hl=sb:CreateTexture(nil,"HIGHLIGHT"); FLT.SetTex(hl,ASSET_ROOT.."talent_frame"); hl:SetAllPoints(); hl:SetVertexColor(FLT.SkinC(1,0.86,0.40,0.85)); hl:SetBlendMode("ADD")
+    sb:SetHighlightTexture(hl)
+    local l=UI.SmallCaps(rail,"Trainer",12,9,UI.HEAD_GOLD); l:SetPoint("LEFT",sb,"RIGHT",8,7)
+    local l2=FLT.NewFS(rail,nil,"OVERLAY","GameFontDisableSmall"); l2:SetPoint("TOPLEFT",l,"BOTTOMLEFT",0,-2); l2:SetText("Next spells")
+    sb:SetScript("OnClick",function() if FLT.ToggleTrainerSpells then FLT.ToggleTrainerSpells(selectedClass) end end)
+    sb:SetScript("OnEnter",function(self)
+      GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine("What can I learn next?",FLT.SkinC(1,0.82,0))
+      GameTooltip:AddLine("Spells and ranks a class trainer teaches. For your own class: what you do not know yet, for your level and the next levels.",1,1,1,true)
+      GameTooltip:Show()
+    end)
+    sb:SetScript("OnLeave",function() GameTooltip:Hide() end)
+    local d0=rail:CreateTexture(nil,"ARTWORK"); FLT.SetTex(d0, ASSET_ROOT.."divider_ornate"); d0:SetHeight(12)
+    d0:SetPoint("TOPLEFT",4,-54); d0:SetPoint("TOPRIGHT",-4,-54)
+  end
+  local chooser=UI.SmallCaps(rail,"Class",13,10,UI.HEAD_GOLD); chooser:SetPoint("TOPLEFT",12,-70)
+  local cy=-88
   for _,c in ipairs(CLASSES) do
-    local b=UI.NavButton(rail,c.name,104,24,"Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"); b:SetPoint("TOPLEFT",9,cy); cy=cy-28; classButtons[c.id]=b
+    local b=UI.NavButton(rail,c.name,104,24,"Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"); b:SetPoint("TOPLEFT",9,cy); cy=cy-26; classButtons[c.id]=b
     -- class crest from the character-creation atlas (slightly cropped)
     local tc=type(CLASS_ICON_TCOORDS)=="table" and CLASS_ICON_TCOORDS[c.token]
     if tc and b.icon then
@@ -331,25 +351,25 @@ function FLT:CreateTalentPlannerPanel(parent)
   local function presetIndex() return activePreset[selectedClass] or 1 end
   local div=rail:CreateTexture(nil,"ARTWORK"); FLT.SetTex(div, ASSET_ROOT.."divider_ornate"); div:SetHeight(12)
   div:SetPoint("TOPLEFT",4,cy-2); div:SetPoint("TOPRIGHT",-4,cy-2)
-  local plabel=UI.SmallCaps(rail,"Preset",13,10,UI.HEAD_GOLD); plabel:SetPoint("TOPLEFT",12,cy-20)
+  local plabel=UI.SmallCaps(rail,"Preset",13,10,UI.HEAD_GOLD); plabel:SetPoint("TOPLEFT",12,cy-18)
   local presetButtons={}
   for i=1,2 do
-    local b=UI.GoldButton(rail,tostring(i),49,24,nil,13); b:SetPoint("TOPLEFT",9+(i-1)*55,cy-40); presetButtons[i]=b
+    local b=UI.GoldButton(rail,tostring(i),49,24,nil,13); b:SetPoint("TOPLEFT",9+(i-1)*55,cy-34); presetButtons[i]=b
     b:SetScript("OnClick",function()
       activePreset[selectedClass]=i
       copyInto(stateFor(selectedClass),presetsFor(selectedClass)[i])
       panel:RefreshTalentPlanner()
     end)
   end
-  local unsaved=FLT.NewFS(rail, nil,"OVERLAY","GameFontDisableSmall"); unsaved:SetPoint("TOPLEFT",12,cy-70); unsaved:SetWidth(100); unsaved:SetJustifyH("LEFT")
-  local save=UI.GoldButton(rail,"Save Preset",104,24,nil,12); save:SetPoint("TOPLEFT",9,cy-88)
+  local unsaved=FLT.NewFS(rail, nil,"OVERLAY","GameFontDisableSmall"); unsaved:SetPoint("TOPLEFT",12,cy-62); unsaved:SetWidth(100); unsaved:SetJustifyH("LEFT")
+  local save=UI.GoldButton(rail,"Save Preset",104,24,nil,12); save:SetPoint("TOPLEFT",9,cy-76)
   save:SetScript("OnClick",function()
     local i=presetIndex(); local class=classByID(selectedClass)
     UI.Confirm(string.format("Save the current talents as %sPreset %d|r for %s?\nThe saved preset is replaced.",FLT.SkinHex("ffd200"),i,class and class.name or ""),function()
       copyInto(presetsFor(selectedClass)[i],stateFor(selectedClass)); panel:RefreshTalentPlanner()
     end,"Save")
   end)
-  local reset=UI.GoldButton(rail,"Reset",104,24,nil,12); reset:SetPoint("TOPLEFT",9,cy-118)
+  local reset=UI.GoldButton(rail,"Reset",104,24,nil,12); reset:SetPoint("TOPLEFT",9,cy-104)
   reset:SetScript("OnClick",function()
     local i=presetIndex(); local class=classByID(selectedClass)
     UI.Confirm(string.format("Reset %sPreset %d|r for %s?\nAll talent points of this preset are removed.",FLT.SkinHex("ffd200"),i,class and class.name or ""),function()
