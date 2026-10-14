@@ -13,14 +13,26 @@ local function getAngle(y, x)
   return a
 end
 
+-- The button sits on the rim of the minimap: half the minimap size plus a small
+-- overhang, so it follows a bigger (or scaled) minimap like the buttons of other
+-- addons. Square minimaps: the point is pushed out to the square's edge.
 local function positionButton(angle)
   if not button or not Minimap then return end
   angle = angle or 225
-  local radius = 80
+  local half = (Minimap:GetWidth() or 140) / 2
+  local radius = half + 5
   local r = math.rad(angle)
+  local x, y = math.cos(r), math.sin(r)
+  local shape = GetMinimapShape and GetMinimapShape() or "ROUND"
+  if shape == "SQUARE" then
+    local m = math.max(math.abs(x), math.abs(y))
+    if m > 0 then x, y = x / m, y / m end
+    radius = half + 4
+  end
   button:ClearAllPoints()
-  button:SetPoint("CENTER", Minimap, "CENTER", math.cos(r) * radius, math.sin(r) * radius)
+  button:SetPoint("CENTER", Minimap, "CENTER", x * radius, y * radius)
 end
+FLT.PositionMinimapButton = function() positionButton(ForeverCompanionDB and ForeverCompanionDB.minimapAngle or 225) end
 
 local function stopDragging(self)
   self:SetScript("OnUpdate", nil)
@@ -46,6 +58,7 @@ function FLT:CreateMinimapButton()
   if button or not Minimap then return end
 
   button = CreateFrame("Button", "OneForAllMinimapButton", Minimap)
+  FLT.minimapButton = button
   button:SetSize(31, 31)
   button:SetFrameStrata("MEDIUM")
   button:SetFrameLevel((Minimap:GetFrameLevel() or 0) + 8)
@@ -101,5 +114,9 @@ function FLT:CreateMinimapButton()
   button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
   positionButton((ForeverCompanionDB and ForeverCompanionDB.minimapAngle) or 225)
+  -- minimap size can change after login (other addons, UI scale)
+  if Minimap.HookScript then Minimap:HookScript("OnSizeChanged", FLT.PositionMinimapButton) end
+  if C_Timer and C_Timer.After then C_Timer.After(3, FLT.PositionMinimapButton) end
   button:Show()
+  if FLT.MinimapCollectorRefresh then FLT.MinimapCollectorRefresh() end
 end

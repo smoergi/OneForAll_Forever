@@ -19,6 +19,8 @@ Commands
 /oneforall share         Open the quest share popup (inside a dungeon, in a group)
 /oneforall bug          Show the link for bug reports and ideas
 /oneforall cheapest     Show the cheapest item in your bags
+/oneforall buttons      List the minimap buttons the button collector holds
+/oneforall trainer      Show what the last class trainer visit read
 /oneforall mem          Show how much memory OneForAll uses right now
 /oneforall thanks       Show the last buffs seen by "Thanks for buffs"
 /oneforall talentdump    Save all talent IDs to the SavedVariables (for the addon author)
@@ -60,6 +62,27 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 
 Changelog (newest first)
 ========================
+
+5.5.0 - raids, trainer spells, minimap buttons
+------------------------------------------------------------
+- Dungeons & Raids (tab renamed): new Raids view with Barrow Deeps, Hyjal
+  Summit and Onyxia's Lair, grouped by size (10 / 20 / 40 players), with
+  bosses, known loot, quests and the Onyxia attunement for both factions.
+- Key / Attunement tab: switch between Alliance and Horde steps.
+- Talent Trees: trainer button (top left) opens the class trainer window:
+  spells and ranks you do not know yet for your level and the next levels,
+  costs from your trainer visits, quest-taught spells marked, every other
+  class selectable.
+- Professions overview: Nearest trainers for every profession with a Map
+  button; smaller tiles.
+- Quality of Life: Collect minimap buttons (bar behind a movable OneForAll
+  button, opening to any side, preview picture); the bags full helper's
+  "never suggest" list can be edited; new options marked with a yellow "!".
+- Thank players who buff you: tooltip explains that friendly nameplates help.
+- The minimap button sits on the edge of the minimap again.
+- Settings tab scrolls on small windows; scroll bars of Quality of Life and
+  Settings sit inside the window; the window is placed on whole pixels.
+- Noteworthy changes popup for 5.5.0. New commands: /ofa buttons, /ofa trainer.
 
 5.4.4 - dungeon data from own sources
 ------------------------------------------------------------

@@ -3,7 +3,7 @@
 ## Notes: All-in-one WoW Forever companion: dungeons, quests, loot, Library Books, professions, talent planning, hunter pets and quality of life helpers.
 ## Author: Smoergi
 ## X-License: GPL-3.0-or-later
-## Version: 5.4.4
+## Version: 5.5.0
 ## IconTexture: Interface\AddOns\OneForAll\Assets\minimap_icon
 ## SavedVariables: ForeverCompanionDB, ForeverLibraryTrackerDB
 ## SavedVariablesPerCharacter: ForeverCompanionCharDB
@@ -55,11 +55,17 @@ Data\Dungeons\DireMaulNorth.lua
 Data\Dungeons\Scholomance.lua
 Data\Dungeons\Stratholme.lua
 Data\Dungeons\ShapersTerrace.lua
+Data\Dungeons\BarrowDeeps.lua
+Data\Dungeons\HyjalSummit.lua
+Data\Dungeons\OnyxiasLair.lua
 Data\DungeonQuestChains.lua
 Data\DungeonKeys.lua
+Data\RaidAttunements.lua
 Data\DungeonDropChance.lua
 Data\BossInfo.lua
 Data\HunterPets.lua
+Data\TrainerSpells.lua
+Data\ProfessionTrainers.lua
 DungeonData.lua
 Core.lua
 QoL.lua
@@ -81,9 +87,11 @@ TalentData.lua
 TalentSpellIDs.lua
 TalentLayoutFallback.lua
 TalentPlanner.lua
+UI\TrainerSpells.lua
 UI\HunterPets.lua
 UI\QoL.lua
 UI\MainFrame.lua
 Minimap.lua
+MinimapCollector.lua
 UI\WhatsNew.lua
 UI\VersionCheck.lua

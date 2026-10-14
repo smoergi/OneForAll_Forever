@@ -570,11 +570,11 @@ local function createProfessionPanel(parent)
 
   local function sectionTitle(text, y) return UI.SectionTitle(homeView,text,8,y,-22) end
   local function makeTile(w)
-    local t=CreateFrame("Button",nil,homeView); t:SetSize(w,52)
+    local t=CreateFrame("Button",nil,homeView); t:SetSize(w,42)
     UI.CardRow(t)
-    t.icon=t:CreateTexture(nil,"ARTWORK"); t.icon:SetSize(36,36); t.icon:SetPoint("LEFT",10,0)
-    t.name=FLT.NewFS(t, nil,"OVERLAY","GameFontNormal"); t.name:SetPoint("TOPLEFT",54,-9); t.name:SetTextColor(FLT.SkinC(1,0.82,0.20))
-    t.sub=FLT.NewFS(t, nil,"OVERLAY","GameFontHighlightSmall"); t.sub:SetPoint("TOPLEFT",54,-29); t.sub:SetWidth(w-60); t.sub:SetJustifyH("LEFT"); t.sub:SetWordWrap(false)
+    t.icon=t:CreateTexture(nil,"ARTWORK"); t.icon:SetSize(28,28); t.icon:SetPoint("LEFT",8,0)
+    t.name=FLT.NewFS(t, nil,"OVERLAY","GameFontNormal"); t.name:SetPoint("TOPLEFT",44,-6); t.name:SetTextColor(FLT.SkinC(1,0.82,0.20))
+    t.sub=FLT.NewFS(t, nil,"OVERLAY","GameFontHighlightSmall"); t.sub:SetPoint("TOPLEFT",44,-23); t.sub:SetWidth(w-50); t.sub:SetJustifyH("LEFT"); t.sub:SetWordWrap(false)
     return t
   end
 
@@ -594,12 +594,103 @@ local function createProfessionPanel(parent)
   local campTile=makeTile(250)
   local otherTitle=sectionTitle("Others",-400)
   -- position the "All professions" block below the own professions
+  -- Nearest trainers: for every profession the closest friendly trainer on your
+  -- continent (QuestieDB Forever positions, Data\ProfessionTrainers.lua) with a Map button.
+  local layoutTrainers
+  local TRAINER_ORDER={"Alchemy","Blacksmithing","Enchanting","Engineering","Leatherworking","Tailoring","Cooking","First Aid","Fishing","Herbalism","Mining","Skinning"}
+  local trainerTitle=sectionTitle("Nearest trainers",-520)
+  -- new in 5.5.0: remove after the release (see TODO.md)
+  if UI.NewMark then local nm=UI.NewMark(homeView,"New in OneForAll 5.5.0: the closest trainer of every profession, with a map button."); nm:SetPoint("LEFT",trainerTitle,"RIGHT",6,0) end
+  local trainerBox=CreateFrame("Frame",nil,homeView); trainerBox:SetSize(784,4*24+12)
+  UI.FramedPanel(trainerBox)
+  -- thin gold lines between the three columns
+  for k=1,2 do
+    local ln=trainerBox:CreateTexture(nil,"ARTWORK"); ln:SetWidth(1)
+    ln:SetPoint("TOP",trainerBox,"TOPLEFT",8+k*258-3,-8); ln:SetPoint("BOTTOM",trainerBox,"BOTTOMLEFT",8+k*258-3,8)
+    ln:SetColorTexture(FLT.SkinC(0.72,0.55,0.25,0.45))
+  end
+  local trainerRows={}
+  for i,prof in ipairs(TRAINER_ORDER) do
+    local r=CreateFrame("Frame",nil,trainerBox); r:SetSize(254,22); r:EnableMouse(true)
+    local hi=r:CreateTexture(nil,"HIGHLIGHT"); hi:SetAllPoints(); hi:SetColorTexture(FLT.SkinC(0.90,0.66,0.22,0.08))
+    r.icon=r:CreateTexture(nil,"ARTWORK"); r.icon:SetSize(16,16); r.icon:SetPoint("LEFT",4,0); FLT.SetTex(r.icon, PROFESSION_ICONS[prof]); r.icon:SetTexCoord(0.08,0.92,0.08,0.92)
+    r.name=FLT.NewFS(r,nil,"OVERLAY","GameFontNormalSmall"); r.name:SetPoint("LEFT",26,0); r.name:SetWidth(94); r.name:SetJustifyH("LEFT"); r.name:SetWordWrap(false)
+    r.sub=FLT.NewFS(r,nil,"OVERLAY","GameFontHighlightSmall"); r.sub:SetPoint("LEFT",122,0); r.sub:SetWidth(106); r.sub:SetJustifyH("LEFT"); r.sub:SetWordWrap(false)
+    r.sub:SetTextColor(0.80,0.78,0.72)
+    r.map=CreateFrame("Button",nil,r); r.map:SetSize(18,18); r.map:SetPoint("RIGHT",-4,0)
+    local mt=r.map:CreateTexture(nil,"ARTWORK"); mt:SetAllPoints(); FLT.SetTex(mt, UI.ASSET_ROOT.."icon_map"); r.map.tex=mt
+    r.map:SetHighlightTexture(UI.ASSET_ROOT.."icon_map","ADD")
+    function r.map:SetLook(on) mt:SetAlpha(on and 1 or 0.3) end
+    r.prof=prof
+    r:SetScript("OnEnter",function(self)
+      GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine(prof.." trainer",1,0.82,0)
+      local tr=self.trainer
+      if tr then
+        GameTooltip:AddLine(tr[2].."  |cff9d9d9d<"..tr[3]..">|r",1,1,1)
+        GameTooltip:AddLine(string.format("%s (%.1f, %.1f)",tr[8],tr[6],tr[7]),0.85,0.82,0.74)
+        if self.dist then GameTooltip:AddLine(string.format("About %d yards away",math.floor(self.dist/10+0.5)*10),0.7,0.7,0.7) end
+      else
+        GameTooltip:AddLine("No trainer known on this continent.",0.8,0.8,0.8,true)
+      end
+      GameTooltip:Show()
+    end)
+    r:SetScript("OnLeave",function() GameTooltip:Hide() end)
+    trainerRows[i]=r
+  end
+  layoutTrainers=function(top)
+    trainerTitle:ClearAllPoints(); trainerTitle:SetPoint("TOPLEFT",8,top)
+    trainerBox:ClearAllPoints(); trainerBox:SetPoint("TOPLEFT",8,top-26)
+    for i,r in ipairs(trainerRows) do r:ClearAllPoints(); r:SetPoint("TOPLEFT",8+((i-1)%3)*258,-6-math.floor((i-1)/3)*24) end
+  end
+  local worldCache={}
+  local function worldPos(map,x,y)
+    if not (C_Map and C_Map.GetWorldPosFromMapPos and CreateVector2D) then return nil end
+    local ok,cont,pos=pcall(C_Map.GetWorldPosFromMapPos,map,CreateVector2D(x/100,y/100))
+    if ok and cont and pos then return cont,pos.x,pos.y end
+  end
+  local function trainerWorld(tr)
+    local c=worldCache[tr]
+    if c==nil then local a,b,d=worldPos(tr[5],tr[6],tr[7]); c=a and {a,b,d} or false; worldCache[tr]=c end
+    return c or nil
+  end
+  local function updateTrainers()
+    local fac=UnitFactionGroup and UnitFactionGroup("player")
+    local mine=(fac=="Alliance" and "A") or (fac=="Horde" and "H") or nil
+    local pc,px,py
+    if C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition then
+      local map=C_Map.GetBestMapForUnit("player")
+      local p=map and C_Map.GetPlayerMapPosition(map,"player")
+      if p then local x,y=p.x or 0,p.y or 0; pc,px,py=worldPos(map,x*100,y*100) end
+    end
+    for _,r in ipairs(trainerRows) do
+      local best,bestD
+      for _,tr in ipairs(FLT.PROFESSION_TRAINERS and FLT.PROFESSION_TRAINERS[r.prof] or {}) do
+        if not mine or tr[4]:find(mine,1,true) then
+          local w=pc and trainerWorld(tr)
+          if w and w[1]==pc then
+            local d=math.sqrt((w[2]-px)^2+(w[3]-py)^2)
+            if not bestD or d<bestD then best,bestD=tr,d end
+          end
+        end
+      end
+      r.trainer,r.dist=best,bestD
+      r.name:SetText(r.prof)
+      if best then
+        r.sub:SetText(best[2]..", "..best[8]); r.map:Enable(); r.map:SetLook(true)
+        r.map:SetScript("OnClick",function() FLT:ShowOnMap({mapID=best[5],x=best[6],y=best[7],name=best[2].." ("..r.prof..")"}) end)
+      else
+        r.sub:SetText("none on this continent"); r.map:Disable(); r.map:SetLook(false)
+      end
+    end
+  end
+
   local function layoutAll(top)
     allTitle:ClearAllPoints(); allTitle:SetPoint("TOPLEFT",8,top)
-    for i,t in ipairs(allOrder) do t:ClearAllPoints(); t:SetPoint("TOPLEFT",8+((i-1)%4)*198,top-28-math.floor((i-1)/4)*60) end
-    local oy=top-28-nRows*60-10
+    for i,t in ipairs(allOrder) do t:ClearAllPoints(); t:SetPoint("TOPLEFT",8+((i-1)%4)*198,top-28-math.floor((i-1)/4)*48) end
+    local oy=top-28-nRows*48-4
     otherTitle:ClearAllPoints(); otherTitle:SetPoint("TOPLEFT",8,oy)
     campTile:ClearAllPoints(); campTile:SetPoint("TOPLEFT",8,oy-28)
+    if layoutTrainers then layoutTrainers(oy-28-42-10) end
   end
   FLT.SetTex(campTile.icon, "Interface\\Icons\\Spell_Fire_Fire"); campTile.name:SetText("Camping Buffs")
   campTile.sub:SetText("Campsite objects of every profession")
@@ -625,7 +716,7 @@ local function createProfessionPanel(parent)
       if i>8 then break end
       local t=ownTiles[i]
       if not t then t=makeTile(190); ownTiles[i]=t end
-      t:ClearAllPoints(); t:SetPoint("TOPLEFT",8+((i-1)%4)*198,-74-math.floor((i-1)/4)*58)
+      t:ClearAllPoints(); t:SetPoint("TOPLEFT",8+((i-1)%4)*198,-74-math.floor((i-1)/4)*48)
       FLT.SetTex(t.icon, PROFESSION_ICONS[pr.name]); t.name:SetText(pr.name)
       local txt=pr.rank and ("Skill "..pr.rank..(pr.max and ("/"..pr.max) or "")) or "Skill unknown"
       local known,total=recipeSummary(pr.name)
@@ -639,7 +730,8 @@ local function createProfessionPanel(parent)
     end
     ownNone:SetShown(#own==0)
     local ownRows=math.max(1,math.ceil(math.min(#own,8)/4))
-    layoutAll(-74-ownRows*58-16)
+    layoutAll(-74-ownRows*48-10)
+    updateTrainers()
     -- all professions
     for profession,t in pairs(allTiles) do
       local known,total=recipeSummary(profession)

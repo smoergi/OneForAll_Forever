@@ -172,3 +172,23 @@ tools/dungeon-gen/early_rebuild.py and early_chains.py:
 - Dungeon entrances: QuestieDB Forever (support/Forever/Zones/dungeons.lua).
 - Descriptions, quest notes, boss and item notes: written for OneForAll
   (tools/dungeon-gen/early_texts.py).
+
+
+2026-10-14 Raids and trainer spells (OneForAll 5.5.0)
+===============================================================================
+Generated with tools/dungeon-gen/raids.py and tools/trainer-gen/trainer_spells.py:
+- Raid list, sizes and opening date: Blizzard (BlizzCon 2026, 2026-2027
+  roadmap) as listed on wowforevertalents.com.
+- Boss names of Barrow Deeps and Hyjal Summit: wowtbc.gg Forever loot tables.
+- Onyxia's Lair: quests, NPC positions and the drops known so far from
+  QuestieDB Forever; rewards from wowforevertalents.com; item names, slots and
+  qualities from the Wowhead tooltip API; entrance from QuestieDB Forever.
+- Onyxia attunement (Drakefire Amulet): quest chains from QuestieDB Forever
+  (preQuestSingle / preQuestGroup).
+- Trainer spells: WoW Forever client database (SkillLineAbility, SpellLevels,
+  SpellName, Spell, SpellMisc; wago.tools DB2 export, product "wowf").
+  Training costs are not in the client data; they are read in game at the
+  class trainer.
+- Raid descriptions: written for OneForAll.
+- Profession trainers (Professions overview, "Nearest trainers"): QuestieDB
+  Forever NPC data (title, trainer flag, faction, position).

@@ -21,15 +21,19 @@ local function createSettingsPanel(parent)
   UI.PlacePanel(panel, parent)
   UI.TitleBand(panel, { emblem = UI.ASSET_ROOT .. "emblem_settings", art = UI.ASSET_ROOT .. "settings_banner",
     title = "Settings", subtitle = "Options apply to your whole account unless marked \"this character\".", fadeRight = 200 })
-  local TOP = -66 -- below the title band
+  -- scrollable page below the title band (at the normal window height not everything fits)
+  local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate"))
+  sf:SetPoint("TOPLEFT", 0, -74); sf:SetPoint("BOTTOMRIGHT", -8, 4)
+  local page = CreateFrame("Frame", nil, sf); page:SetSize(COL_X[2] + COL_W + 4, 10); sf:SetScrollChild(page)
+  UI.PlaceScrollBar(sf)
 
   local refreshers = {}
-  local colY = { TOP - 10, TOP - 10 }
+  local colY = { -4, -4 }
 
   -- A section in column col (1 = left, 2 = right). Returns an object with
   -- :check(label, hint, get, set[, x, compact]), :button(...), :text(...), :finish().
   local function section(col, label, icon)
-    local box = CreateFrame("Frame", nil, panel)
+    local box = CreateFrame("Frame", nil, page)
     box:SetPoint("TOPLEFT", COL_X[col], colY[col]); box:SetWidth(COL_W)
     UI.FramedPanel(box)
     local band = makeTexture(box, "BORDER", 0.09, 0.075, 0.05, 0.85); band:SetPoint("TOPLEFT", 3, -3); band:SetPoint("TOPRIGHT", -3, -3); band:SetHeight(28)
@@ -239,9 +243,11 @@ local function createSettingsPanel(parent)
   win:nextRow()
   win:finish()
 
-  local footer = FLT.NewFS(panel, nil, "OVERLAY", "GameFontDisableSmall")
-  footer:SetPoint("BOTTOMLEFT", 14, 8)
+  local bottom = math.min(colY[1], colY[2])
+  local footer = FLT.NewFS(page, nil, "OVERLAY", "GameFontDisableSmall")
+  footer:SetPoint("TOPLEFT", 14, bottom - 2)
   footer:SetText("Like OneForAll or have an idea? Leave a comment on CurseForge - feedback and suggestions are always welcome.")
+  page:SetHeight(-bottom + 24)
 
   panel:SetScript("OnShow", function() for _, f in ipairs(refreshers) do f() end end)
   panel:Hide()

@@ -49,8 +49,29 @@ local GOLD_ART = {
   talent_button_border=true, icon_map=true, icon_back=true, icon_close=true, grip_resize=true, grip_height=true,
   minimap_icon=true, leather=true,
 }
+-- Pixel snapping: switching it off (beta3/4) made thin gold lines darker and lighter
+-- with every pixel of window height. The game's default snapping keeps them crisp,
+-- so noSnap does nothing any more (kept as a hook, see DESIGN.md).
+local function noSnap(x)
+  return x
+end
+UI.NoSnap = noSnap
+
+-- Small yellow "!" for features that are new since the last live release, with a
+-- "New" tooltip. Returns the frame (anchor it yourself).
+function UI.NewMark(parent, tip)
+  local f = CreateFrame("Frame", nil, parent); f:SetSize(12, 16); f:EnableMouse(true)
+  local t = f:CreateTexture(nil, "OVERLAY"); t:SetAllPoints(); t:SetTexture("Interface\\GossipFrame\\AvailableQuestIcon")
+  f:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine("New", 1, 0.82, 0)
+    GameTooltip:AddLine(tip or "New in this version.", 1, 1, 1, true); GameTooltip:Show()
+  end)
+  f:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  return f
+end
 function FLT.SetTex(tex, path, ...)
   tex:SetTexture(path, ...)
+  noSnap(tex)
   if type(path) ~= "string" or not tex.SetVertexColor or not skinIsSilver() then return end
   local name = path:match("[Aa]ssets\\(.+)$")
   if not name then return end
@@ -117,7 +138,7 @@ UI.LAYOUT = LAYOUT
 local function makeTexture(parent, layer, r, g, b, a)
   local t = parent:CreateTexture(nil, layer or "BACKGROUND")
   t:SetColorTexture(FLT.SkinC(r, g, b, a))
-  return t
+  return noSnap(t)
 end
 
 local function makeButton(parent, text, w, h)
@@ -253,7 +274,7 @@ local ORNATE_TEX = ASSET_ROOT .. "ornate_frame"
 local function sliceTex(owner, layer, sub, tex, l, r, t, b)
   local x = owner:CreateTexture(nil, layer, nil, sub)
   FLT.SetTex(x, tex); x:SetTexCoord(l, r, t, b)
-  return x
+  return noSnap(x)
 end
 
 local function RoundRect(owner, anchor, layer, sub, c, inset, cr, cg, cb, ca)

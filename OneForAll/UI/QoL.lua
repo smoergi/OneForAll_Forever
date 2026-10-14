@@ -11,6 +11,16 @@ local COL_W = 320
 local COL_X = { 8, 342, 676 }
 local openDropDown -- below
 
+-- Yellow "!" (tooltip "New") next to options added since the last live release (5.4.4).
+-- Only for the 5.5.0 release: empty this list for the next version.
+local NEW_TAGS = { mmCollect = true, mmDir = true, bagsNever = true }
+local function newTag(parent, anchor, key)
+  if not NEW_TAGS[key] then return end
+  local m = UI.NewMark(parent, "New in OneForAll 5.5.0.")
+  m:SetPoint("LEFT", anchor, "RIGHT", 5, 0)
+  return m
+end
+
 -- Shared drop-down list (one at a time); a click outside closes it.
 local ddMenu, ddCatcher
 openDropDown = function(owner, options, current, onPick)
@@ -59,6 +69,7 @@ local PREVIEWS = {
   questSparkles = { title = "Quest loot sparkles", tex = "preview_sparkles", w = 300, h = 300, t = 1 },
   bagsFull = { title = "Bags full helper", tex = "preview_bagsfull", w = 560, h = 183, t = 167 / 256 },
   questXP = { title = "Quest XP on the experience bar", tex = "preview_questxp", w = 640, h = 119, t = 190 / 256 },
+  mmCollect = { title = "Collect minimap buttons", tex = "preview_collector", w = 384, h = 164, t = 219 / 256 },
 }
 local previewFrame
 local function showPreview(key)
@@ -88,6 +99,106 @@ local function showPreview(key)
   f:Show(); f:Raise()
 end
 
+-- "Never suggested" list of the bags full helper: one row per item with an X to
+-- take it off the list again, plus "Remove all". Opens below its button.
+local neverMenu
+local NEVER_ROWS = 10
+local function itemLook(id)
+  local name, quality, icon
+  pcall(function()
+    local info = { (C_Item and C_Item.GetItemInfo or GetItemInfo)(id) }
+    name, quality, icon = info[1], info[3], info[10]
+  end)
+  if not icon then pcall(function() icon = (C_Item and C_Item.GetItemIconByID or GetItemIcon)(id) end) end
+  if not name then pcall(function() if C_Item and C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end end) end
+  return name, quality, icon or "Interface\\Icons\\INV_Misc_QuestionMark"
+end
+local function showNeverList(owner, onChange)
+  local Q = FLT.QoL
+  if not neverMenu then
+    local catcher = CreateFrame("Button", nil, UIParent); catcher:SetAllPoints(UIParent)
+    catcher:SetFrameStrata("FULLSCREEN_DIALOG"); catcher:SetFrameLevel(1); catcher:RegisterForClicks("AnyUp"); catcher:Hide()
+    local m = CreateFrame("Frame", nil, UIParent); m:SetFrameStrata("FULLSCREEN_DIALOG"); m:SetFrameLevel(20)
+    m:EnableMouse(true); m:EnableMouseWheel(true); m:Hide(); m:SetWidth(300)
+    UI.FramedPanel(m)
+    catcher:SetScript("OnClick", function() m:Hide() end)
+    m:SetScript("OnHide", function() catcher:Hide() end)
+    m.catcher, m.rows, m.offset = catcher, {}, 0
+    m.title = FLT.NewFS(m, nil, "OVERLAY", "GameFontNormal"); m.title:SetPoint("TOPLEFT", 12, -10); m.title:SetTextColor(FLT.SkinC(1, 0.82, 0.20))
+    m.empty = FLT.NewFS(m, nil, "OVERLAY", "GameFontDisableSmall"); m.empty:SetPoint("TOPLEFT", 12, -32); m.empty:SetWidth(276); m.empty:SetJustifyH("LEFT")
+    m.empty:SetText("Nothing on the list. In the bags full helper, the X button puts an item here so it is never suggested again.")
+    m.more = FLT.NewFS(m, nil, "OVERLAY", "GameFontDisableSmall")
+    m.clear = UI.GoldButton(m, "Remove all", 110, 22, nil, 11); m.clear:SetPoint("BOTTOMRIGHT", -10, 10)
+    m.more:SetPoint("BOTTOMLEFT", 12, 16)
+    for i = 1, NEVER_ROWS do
+      local r = CreateFrame("Frame", nil, m); r:SetSize(280, 22); r:SetPoint("TOPLEFT", 10, -30 - (i - 1) * 24)
+      r:EnableMouse(true)
+      local hi = r:CreateTexture(nil, "BACKGROUND"); hi:SetAllPoints(); hi:SetColorTexture(FLT.SkinC(0.90, 0.66, 0.22, 0.12)); hi:Hide()
+      r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", 2, 0); r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+      r.text = FLT.NewFS(r, nil, "OVERLAY", "GameFontHighlight"); r.text:SetPoint("LEFT", 26, 0); r.text:SetWidth(222); r.text:SetJustifyH("LEFT"); r.text:SetWordWrap(false)
+      r.x = CreateFrame("Button", nil, r); r.x:SetSize(16, 16); r.x:SetPoint("RIGHT", -4, 0)
+      r.x:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up"); r.x:SetHighlightTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Highlight", "ADD")
+      r.x:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText("Remove from the list"); GameTooltip:AddLine("The bags full helper may suggest this item again.", 1, 1, 1, true); GameTooltip:Show() end)
+      r.x:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      r:SetScript("OnEnter", function(self)
+        hi:Show()
+        if self.id then GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); pcall(GameTooltip.SetItemByID, GameTooltip, self.id); GameTooltip:Show() end
+      end)
+      r:SetScript("OnLeave", function() hi:Hide(); GameTooltip:Hide() end)
+      m.rows[i] = r
+    end
+    m:SetScript("OnMouseWheel", function(self, delta)
+      local n = #(self.ids or {})
+      self.offset = math.max(0, math.min(math.max(0, n - NEVER_ROWS), self.offset - delta))
+      self.fill()
+    end)
+    neverMenu = m
+  end
+  local m = neverMenu
+  if m:IsShown() and m.owner == owner then m:Hide(); return end
+  local retried = false
+  m.fill = function()
+    local ids = Q.GetNeverItems(); m.ids = ids
+    m.offset = math.max(0, math.min(m.offset, #ids - NEVER_ROWS))
+    m.title:SetText("Never suggested  |  " .. #ids .. (#ids == 1 and " item" or " items"))
+    m.empty:SetShown(#ids == 0)
+    local missing = false
+    for i, r in ipairs(m.rows) do
+      local id = ids[i + m.offset]
+      if id then
+        local name, quality, icon = itemLook(id)
+        if not name then missing = true end
+        r.id = id
+        r.icon:SetTexture(icon)
+        r.text:SetText(name or ("Item " .. id))
+        local c = quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
+        if c then r.text:SetTextColor(c.r, c.g, c.b) else r.text:SetTextColor(0.92, 0.90, 0.84) end
+        r.x:SetScript("OnClick", function() Q.RemoveNever(id); m.fill(); if onChange then onChange() end end)
+        r:Show()
+      else
+        r.id = nil; r:Hide()
+      end
+    end
+    local shown = math.min(#ids, NEVER_ROWS)
+    if #ids > NEVER_ROWS then m.more:SetText("Scroll for more"); m.more:Show() else m.more:Hide() end
+    m.clear:SetEnabled(#ids > 0); m.clear:SetLook(#ids > 0)
+    m:SetHeight(#ids == 0 and 110 or (30 + shown * 24 + 40))
+    if missing and not retried and C_Timer and C_Timer.After then
+      retried = true
+      C_Timer.After(0.6, function() if m:IsShown() then m.fill() end end)
+    end
+  end
+  m.clear:SetScript("OnClick", function()
+    m:Hide()
+    UI.Confirm("Remove all items from the\n\"never suggest\" list?", function() Q.ClearNever(); if onChange then onChange() end end, "Remove all")
+  end)
+  m.offset = 0
+  m.fill()
+  m:ClearAllPoints(); m:SetPoint("TOPRIGHT", owner, "BOTTOMRIGHT", 0, -2)
+  m.owner = owner
+  m.catcher:Show(); m:Show()
+end
+
 local function createQoLPanel(parent)
   local Q = FLT.QoL
   local panel = CreateFrame("Frame", nil, parent)
@@ -97,7 +208,7 @@ local function createQoLPanel(parent)
 
   -- scrollable page below the title band
   local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate"))
-  sf:SetPoint("TOPLEFT", 0, -70); sf:SetPoint("BOTTOMRIGHT", 0, 4)
+  sf:SetPoint("TOPLEFT", 0, -70); sf:SetPoint("BOTTOMRIGHT", -8, 4)
   local page = CreateFrame("Frame", nil, sf); page:SetSize(COL_X[3] + COL_W + 4, 10); sf:SetScrollChild(page)
   UI.PlaceScrollBar(sf)
 
@@ -143,6 +254,9 @@ local function createQoLPanel(parent)
         pb:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
         pb:SetScript("OnClick", function() showPreview(key) end)
         hint(pb, "Show preview", "A picture of how it looks in the game.")
+        newTag(box, pb, key)
+      elseif key then
+        newTag(box, l, key)
       end
       self.y = self.y - 28
       return cb, l
@@ -161,6 +275,7 @@ local function createQoLPanel(parent)
         l:SetPoint("TOPLEFT", 16, self.y - 5)
       end
       l:SetText(text)
+      newTag(box, l, key)
       local b = UI.GoldButton(box, "", 128, 22, nil, 11); b:SetPoint("TOPRIGHT", -12, self.y - 1)
       local arrow = b:CreateTexture(nil, "OVERLAY"); arrow:SetSize(12, 12); arrow:SetPoint("RIGHT", -8, 0)
       FLT.SetTex(arrow, UI.ASSET_ROOT .. "chevron"); arrow:SetTexCoord(0, 0.5, 0, 1)
@@ -213,6 +328,21 @@ local function createQoLPanel(parent)
   loot:check("Sell junk", "Sells all grey items when you open a merchant.", "sellJunk")
   loot:check("Bags full helper", "When loot does not fit, suggests the cheapest item in your bags (value x stack) and destroys it and loots with one click. Quest items, library books, recipes, set pieces, profession tools and items without value are never suggested. Items better than grey need a second click. /ofa cheapest shows it any time.", "bagsFull")
   loot:check("Only grey and white items", "The bags full helper only suggests poor and common items.", "bagsLowOnly", 24)
+  do -- items the player put on the "never suggest" list
+    local l = FLT.NewFS(loot.box, nil, "OVERLAY", "GameFontHighlight"); l:SetPoint("TOPLEFT", 40, loot.y - 5); l:SetText("Never suggested")
+    newTag(loot.box, l, "bagsNever")
+    local b = UI.GoldButton(loot.box, "", 110, 22, nil, 11); b:SetPoint("TOPRIGHT", -12, loot.y - 1)
+    local arrow = b:CreateTexture(nil, "OVERLAY"); arrow:SetSize(12, 12); arrow:SetPoint("RIGHT", -8, 0)
+    FLT.SetTex(arrow, UI.ASSET_ROOT .. "chevron"); arrow:SetTexCoord(0, 0.5, 0, 1)
+    local function show()
+      local n = #Q.GetNeverItems()
+      b:SetLabel(n == 1 and "1 item" or (n .. " items"))
+    end
+    b:SetScript("OnClick", function(self) showNeverList(self, show) end)
+    hint(b, "Never suggested", "Items you blocked with the X button in the bags full helper. Open the list to allow single items again, or remove all.")
+    refreshers[#refreshers + 1] = show
+    loot.y = loot.y - 30
+  end
   loot:finish()
 
   local feed = section(1, "Loot feed", "Interface\\Icons\\INV_Misc_Coin_02")
@@ -256,7 +386,7 @@ local function createQoLPanel(parent)
     social.y = social.y - 30
   end
   social:choice("Allow duels from", "Duel requests from everyone else are declined automatically. Off: OneForAll does nothing with duels.", "duelMode", Q.DUEL_OPTIONS, "duelOn")
-  social:check("Thank players who buff you", "Sends a /thank emote to players outside your group or raid who buff you (not in combat, at most once every few minutes per player).", "thanksBuff")
+  social:check("Thank players who buff you", "Sends a /thank emote to players outside your group or raid who buff you (not in combat, at most once every few minutes per player). Works best with friendly nameplates switched on (Shift+V): the game only names the caster when you can see him as a nameplate, target or mouseover.", "thanksBuff")
   social:finish()
 
   -- RIGHT COLUMN ---------------------------------------------------------------
@@ -301,6 +431,13 @@ local function createQoLPanel(parent)
     iface.y = iface.y - 30
   end
   iface:check("Copy chat button", "Adds a small button to the top right of every chat window. It opens the chat text so you can select and copy it (Ctrl+C).", "copyChat")
+  iface:check("Collect minimap buttons", "Puts the minimap buttons of other addons into one bar. It opens from a bigger OneForAll button that you can drag anywhere (it is not tied to the minimap). Right-click that button to open OneForAll. Switching this off puts all buttons back on the minimap.", "mmCollect")
+  iface:choice("Bar opens", "Where the bar with the collected buttons opens next to the OneForAll button. Automatic: towards the middle of the screen.", "mmDir", Q.MM_DIR_OPTIONS)
+  do
+    local rb = UI.GoldButton(iface.box, "Reset", 60, 20, nil, 11); rb:SetPoint("TOPRIGHT", -12, iface.y + 56)
+    rb:SetScript("OnClick", function() if FLT.ResetMinimapCollector then FLT.ResetMinimapCollector() end end)
+    hint(rb, "Reset button position", "Puts the minimap button collector back to its default place next to the minimap.")
+  end
   iface:finish()
 
   local frames = section(2, "Unit frames", "Interface\\Icons\\INV_Misc_Head_Human_01")
@@ -314,7 +451,7 @@ local function createQoLPanel(parent)
   page:SetHeight(math.max(-colY[1], -colY[2], -colY[3]) + 8)
 
   panel:SetScript("OnShow", function() for _, f in ipairs(refreshers) do f() end end)
-  panel:SetScript("OnHide", function() if ddMenu then ddMenu:Hide() end end)
+  panel:SetScript("OnHide", function() if ddMenu then ddMenu:Hide() end; if neverMenu then neverMenu:Hide() end end)
   panel:Hide()
   return panel
 end
