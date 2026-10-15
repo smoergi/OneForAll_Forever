@@ -261,8 +261,8 @@ function FLT:CreateTalentPlannerPanel(parent)
   panel:Hide()
 
   -- Title band (mirrored banner art, so the mage is visible on the right).
-  UI.TitleBand(panel,{ emblem=ASSET_ROOT.."emblem_talents", art=ASSET_ROOT.."talents_banner", mirror=true,
-    title="Talent Trees", subtitle="Plan talents for every class. Two presets per class - left-click adds, right-click removes a point.", fadeRight=80 })
+  UI.TitleBand(panel,{ emblem=ASSET_ROOT.."emblem_talents", art=ASSET_ROOT.."talents_banner",
+    title="Talent Trees", subtitle="Plan talents for every class. See your next spells to learn.", fadeRight=60 })
 
   local selectedClass=select(3,UnitClass("player"))
   selectedClass=tonumber(selectedClass)
@@ -750,6 +750,6 @@ function FLT:CreateTalentPlannerPanel(parent)
   return panel
 end
 
-FLT.UI.RegisterPanel({ key="talents", label="Talent Trees", order=6, tabWidth=132,
+FLT.UI.RegisterPanel({ key="talents", label="Talent Trees", order=5, tabWidth=132,
   create=function(parent) return FLT:CreateTalentPlannerPanel(parent) end })
 

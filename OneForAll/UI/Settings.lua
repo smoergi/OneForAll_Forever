@@ -93,7 +93,7 @@ local function createSettingsPanel(parent)
 
   -- LEFT COLUMN ----------------------------------------------------------------
   -- Tabs (per character), two per row in tab-bar order. The arrows move a
-  -- tab left / right in the tab bar; Settings and General stay in front.
+  -- tab left / right in the tab bar; Settings stays in front.
   local tabs = section(1, "Shown tabs  |cff9d9d9d(this character)|r", "Interface\\Icons\\INV_Misc_Book_09")
   local cells = {}
   local function sortable() return UI.SortableTabs and UI.SortableTabs() or {} end
@@ -156,7 +156,7 @@ local function createSettingsPanel(parent)
       if (d.minLevel or 0) >= br.min and (d.minLevel or 0) <= br.max then used[br.id] = true end
     end
   end
-  local dun = section(1, "Dungeon list", "Interface\\Icons\\INV_Misc_Map_01")
+  local dun = section(1, "Dungeons | Raids", "Interface\\Icons\\INV_Misc_Map_01")
   -- Left: the level brackets one below the other. Right: the other switches.
   local left, right = {}, {}
   for _, br in ipairs(UI.DUNGEON_BRACKETS or {}) do
@@ -176,6 +176,10 @@ local function createSettingsPanel(parent)
   right[#right + 1] = { "Show recipe drops in boss loot", "Lists the recipes a boss can drop below its loot, with the yellow / green / blue markers.",
     function() return db().dungeonRecipes ~= false end,
     function(v) db().dungeonRecipes = v end }
+  -- on by default (also after updating): only an explicit "off" turns it off
+  right[#right + 1] = { "Dungeon map on M", "Inside a dungeon that has a map, the world map key (M) opens OneForAll's dungeon map instead of the world map. Press it again to close. Takes effect outside combat.",
+    function() return db().dungeonMapKey ~= false end,
+    function(v) db().dungeonMapKey = v and true or false; if FLT.ApplyDungeonMapKey then FLT.ApplyDungeonMapKey() end end }
   for i = 1, math.max(#left, #right) do
     local l, r = left[i], right[i]
     if l then dun:check(l[1], l[2], l[3], l[4], 0, true) end

@@ -5,23 +5,22 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 -- "Noteworthy changes" popup. Shown once per account after logging in with a
 -- new NEWS_ID (change it for the next release with news). /ofa news reopens it.
 
-local NEWS_ID = "5.5.0"
+local NEWS_ID = "5.6.0"
 
 local NEWS = {
-  { icon = "Interface\\Icons\\INV_Misc_Head_Dragon_Black", title = "Dungeons & Raids", tab = "dungeons", button = "Open Dungeons & Raids",
+  { icon = "Interface\\AddOns\\OneForAll\\Assets\\emblem_armory", title = "Armory", tab = "armory", button = "Open Armory",
     lines = {
-      "New Raids view: Barrow Deeps, Hyjal Summit and Onyxia's Lair, grouped by size (10, 20, 40 players) with bosses, known loot and quests.",
-      "The Onyxia attunement (Drakefire Amulet) step by step for Alliance and Horde. Key and Attunement steps can be switched between the factions.",
+      "New tab instead of General: raid, dungeon, PvP, crafted and world sets for your class, with the pieces you already own, set bonuses and where each piece drops.",
+      "Reputation rewards of every faction, grouped by standing, with your standing and the vendor on the map. The data is still incomplete and will grow.",
     } },
-  { icon = "Interface\\Icons\\INV_Misc_Gear_01", title = "Quality of Life", tab = "qol", button = "Open Quality of Life",
+  { icon = "Interface\\Icons\\INV_Misc_Map_01", title = "Dungeon maps", tab = "dungeons", button = "Open Dungeons & Raids",
     lines = {
-      "Collect minimap buttons: the minimap buttons of other addons in one bar behind a movable OneForAll button, opening the way you like.",
-      "Bags full helper: the list of items you never want suggested can now be checked and cleared in the settings.",
-      "New options are marked with a yellow ! in the Quality of Life tab.",
+      "Every dungeon now has a Map with boss portraits (click one for its loot) and the entrance. Zoom with the mouse wheel, drag to move.",
+      "Inside a dungeon the world map key (M) opens its map. You can turn this off in Settings > Dungeons | Raids. Map layout: Forever Simple World Map by Tarolg.",
     } },
-  { icon = "Interface\\Icons\\Trade_Tailoring", title = "Nearest trainers", tab = "professions", button = "Open Professions",
+  { icon = "Interface\\Icons\\INV_Misc_Gear_01", title = "Tabs", tab = "settings", button = "Open Settings",
     lines = {
-      "The Professions overview shows the closest trainer of every profession for your faction, with a map button.",
+      "New tab order: Armory, Dungeons & Raids, Professions, Quality of Life, Talent Trees, Library Books, Hunter Pets. The window opens on the tab you used last.",
     } },
 }
 

@@ -7,7 +7,8 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 local frame
 local panels = {}      -- key -> panel frame
 local tabButtons = {}  -- key -> tab button
-local activeTab = "general"
+local activeTab = nil
+local defaultTab -- defined below (last used tab, else the first shown tab)
 
 -- Panels are built the first time their tab is opened (saves memory for tabs
 -- that are never used in a session).
@@ -29,8 +30,10 @@ end
 function UI.EnsurePanel(key) return ensurePanel(key) end
 
 local function setPanelTab(tab)
-  activeTab = tab or "general"
+  activeTab = tab or defaultTab()
   ensurePanel(activeTab)
+  -- remember the tab per character: the window opens on it next time
+  if activeTab ~= "settings" and type(ForeverCompanionCharDB) == "table" then ForeverCompanionCharDB.lastTab = activeTab end
   for key, panel in pairs(panels) do
     if key == activeTab then panel:Show() else panel:Hide() end
   end
@@ -216,7 +219,7 @@ local function playerClass()
 end
 
 function UI.IsTabVisible(key)
-  if key == "general" or key == "settings" then return true end
+  if key == "settings" then return true end
   local saved = type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.tabs and ForeverCompanionCharDB.tabs[key]
   if saved ~= nil then return saved and true or false end
   for _, spec in ipairs(UI.panels) do
@@ -230,7 +233,7 @@ function UI.IsTabVisible(key)
 end
 
 function UI.SetTabVisible(key, visible)
-  if key == "general" or key == "settings" or type(ForeverCompanionCharDB) ~= "table" then return end
+  if key == "settings" or type(ForeverCompanionCharDB) ~= "table" then return end
   ForeverCompanionCharDB.tabs = ForeverCompanionCharDB.tabs or {}
   ForeverCompanionCharDB.tabs[key] = visible and true or false
   UI.LayoutTabs()
@@ -242,8 +245,8 @@ function UI.ResetTabs()
 end
 
 -- Tab order (per character, ForeverCompanionCharDB.tabOrder = list of keys).
--- Settings and General always stay in front; the other tabs can be moved.
-local FIXED_TABS = { settings = true, general = true }
+-- Settings always stays in front; the other tabs can be moved.
+local FIXED_TABS = { settings = true }
 function UI.SortableTabs()
   local saved = type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.tabOrder
   local pos = {}
@@ -287,6 +290,18 @@ function UI.ResetTabOrder()
   UI.LayoutTabs()
 end
 
+-- Start tab: the last used tab of this character, else the first shown tab.
+function defaultTab()
+  local last = type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.lastTab
+  if type(last) == "string" and last ~= "settings" and UI.IsTabVisible(last) then
+    for _, spec in ipairs(UI.panels) do if spec.key == last then return last end end
+  end
+  for _, spec in ipairs(UI.SortableTabs()) do
+    if UI.IsTabVisible(spec.key) then return spec.key end
+  end
+  return "settings"
+end
+
 function UI.LayoutTabs()
   if not frame then return end
   local x = 18
@@ -302,7 +317,7 @@ function UI.LayoutTabs()
       end
     end
   end
-  if not UI.IsTabVisible(activeTab) and panels[activeTab] then setPanelTab("general") end
+  if activeTab and not UI.IsTabVisible(activeTab) and panels[activeTab] then setPanelTab(defaultTab()) end
 end
 
 -- Tab button: same plate skin as the gold buttons; the active tab glows.
@@ -442,7 +457,7 @@ local function createUI()
   end
 
   -- Tabs sit directly below the title bar, in the order given by each
-  -- panel's "order" value. Hidden tabs (General tab settings) are skipped.
+  -- panel's "order" value. Hidden tabs (Settings > Shown tabs) are skipped.
   for _, spec in ipairs(UI.panels) do
     local key = spec.key
     local b = makeTab(frame, spec.icon and "" or spec.label, spec.tabWidth or 130, 27)
@@ -464,7 +479,7 @@ local function createUI()
   tabLine:SetPoint("TOPRIGHT", -12, -66)
   tabLine:SetHeight(1)
 
-  setPanelTab("general")
+  setPanelTab(defaultTab())
   frame:SetScript("OnShow", function() FLT:Refresh() end)
   frame:Hide()
 end
@@ -505,6 +520,8 @@ function FLT:OpenPanel(key)
   end
   frame:Show()
 end
+
+function UI.IsWindowShown() return frame ~= nil and frame:IsShown() end
 
 function FLT:ToggleUI()
   if not frame then createUI() end

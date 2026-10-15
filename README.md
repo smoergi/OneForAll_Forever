@@ -2,7 +2,8 @@
 
 All-in-one companion addon for **WoW Forever**. No other addons required.
 
-- **Dungeons & Raids** – bosses with portraits, loot with drop chances, quests with quest chains and map pins, dungeon keys and raid attunements
+- **Armory** – item sets for your class (raid, dungeon, PvP, crafted, world) with the pieces you own, set bonuses and where they drop; reputation rewards by standing
+- **Dungeons & Raids** – dungeon maps with boss portraits (M inside a dungeon), bosses, loot with drop chances, quests with quest chains and map pins, dungeon keys and raid attunements
 - **Library Books** – which books you have, still need, and where to find them
 - **Professions** – Merchant's Favor recipes, who in your guild (or on your other characters) knows a recipe, the nearest trainer of every profession
 - **Talent planner** – plan your talents with two saved presets per class; class trainer window with the spells you can learn next

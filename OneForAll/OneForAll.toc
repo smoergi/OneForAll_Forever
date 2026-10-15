@@ -1,9 +1,9 @@
 ## Interface: 16001
 ## Title: OneForAll
-## Notes: All-in-one WoW Forever companion: dungeons, quests, loot, Library Books, professions, talent planning, hunter pets and quality of life helpers.
+## Notes: All-in-one WoW Forever companion: dungeons, quests, loot, item sets and reputation rewards, Library Books, professions, talent planning, hunter pets and quality of life helpers.
 ## Author: Smoergi
 ## X-License: GPL-3.0-or-later
-## Version: 5.5.1
+## Version: 5.6.0
 ## IconTexture: Interface\AddOns\OneForAll\Assets\minimap_icon
 ## SavedVariables: ForeverCompanionDB, ForeverLibraryTrackerDB
 ## SavedVariablesPerCharacter: ForeverCompanionCharDB
@@ -66,6 +66,8 @@ Data\BossInfo.lua
 Data\HunterPets.lua
 Data\TrainerSpells.lua
 Data\ProfessionTrainers.lua
+Data\Armory.lua
+Data\DungeonMaps.lua
 DungeonData.lua
 Core.lua
 QoL.lua
@@ -73,15 +75,16 @@ ProfessionRuntime.lua
 Map.lua
 Proximity.lua
 UI\Widgets.lua
-UI\General.lua
 UI\Settings.lua
 UI\DungeonHelpers.lua
 UI\DungeonPortraits.lua
+UI\DungeonMap.lua
 UI\Dungeons.lua
 UI\Books.lua
 UI\ProfessionRecipes.lua
 UI\ProfessionGuild.lua
 UI\Professions.lua
+UI\Armory.lua
 UI\QuestShare.lua
 TalentData.lua
 TalentSpellIDs.lua

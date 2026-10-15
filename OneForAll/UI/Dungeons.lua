@@ -571,7 +571,7 @@ local function createDungeonPanel(parent)
     row:SetScript("OnEnter",function() card:SetBorder(unpack(ROW_BORDER_HI)) end)
     row:SetScript("OnLeave",function() card:SetBorder(unpack(ROW_BORDER)) end)
     row:SetScript("OnClick",function()
-      selectedDungeon=dungeon; browse:Hide(); detail:Show()
+      selectedDungeon=dungeon; mode="bosses"; browse:Hide(); detail:Show()
       bossSelection[dungeon.key]=bossSelection[dungeon.key] or 1
       questSelection[dungeon.key]=questSelection[dungeon.key] or 1
       if detail._render then detail._render() end
@@ -735,6 +735,8 @@ local function createDungeonPanel(parent)
   local bossesBtn=UI.GoldButton(dband,"Bosses & Loot",126,26,nil,13); bossesBtn:SetPoint("RIGHT",-144,0)
   local questsBtn=UI.GoldButton(dband,"Quests",120,26,nil,13); questsBtn:SetPoint("RIGHT",-14,0)
   local keyBtn=UI.GoldButton(dband,"Key",110,26,nil,13); keyBtn:SetPoint("RIGHT",-14,0); keyBtn:Hide()
+  local mapBtn=UI.GoldButton(dband,"Map",84,26,ASSET_ROOT.."icon_map",13); mapBtn:SetPoint("RIGHT",bossesBtn,"LEFT",-6,0); mapBtn:Hide()
+  do local mark=UI.NewMark(mapBtn,"Dungeon maps: boss portraits, entrance, zoom. Inside a dungeon, M opens the map."); mark:SetPoint("BOTTOMRIGHT",mapBtn,"TOPRIGHT",2,-6) end
 
   -- Rounded card background with an automatic border colour (lighter than
   -- the fill); keeps the SetColorTexture() calls of the list code working.
@@ -1501,6 +1503,19 @@ local function createDungeonPanel(parent)
     end
     return "open"
   end
+  -- Map: the dungeon map (UI\DungeonMap.lua, data from Forever Simple World Map)
+  local function renderMap(d)
+    local viewKey="map:"..d.key
+    local view=showView(viewKey)
+    if view then if view.map then view.map.Refresh() end return end
+    view=newView(viewKey)
+    local m=UI.CreateDungeonMap(view); m:SetAllPoints()
+    m:SetMap(FLT.DUNGEON_MAPS[d.name], d, function(i)
+      bossSelection[d.key]=i; mode="bosses"; detail._render()
+    end)
+    view.map=m
+  end
+
   function renderKey(d)
     local keys=dungeonKeys(d) or {}
     -- faction switch only when a key has faction specific steps
@@ -1729,8 +1744,11 @@ local function createDungeonPanel(parent)
     keyBtn:SetShown(hasKeys)
     questsBtn:ClearAllPoints(); bossesBtn:ClearAllPoints()
     questsBtn:SetPoint("RIGHT",hasKeys and -134 or -14,0); bossesBtn:SetPoint("RIGHT",hasKeys and -264 or -144,0)
-    if mode=="quests" then renderQuests(d) elseif mode=="key" then renderKey(d) else renderBosses(d) end
-    questsBtn:SetActive(mode=="quests"); bossesBtn:SetActive(mode=="bosses"); keyBtn:SetActive(mode=="key")
+    local hasMap=FLT.DUNGEON_MAPS and FLT.DUNGEON_MAPS[d.name] and UI.CreateDungeonMap and true or false
+    if not hasMap and mode=="map" then mode="bosses" end
+    mapBtn:SetShown(hasMap)
+    if mode=="quests" then renderQuests(d) elseif mode=="key" then renderKey(d) elseif mode=="map" then renderMap(d) else renderBosses(d) end
+    questsBtn:SetActive(mode=="quests"); bossesBtn:SetActive(mode=="bosses"); keyBtn:SetActive(mode=="key"); mapBtn:SetActive(mode=="map")
   end
   -- Re-render (cheap: views are cached) whenever the detail page becomes
   -- visible again, so quest states are current after reopening the window.
@@ -1738,13 +1756,21 @@ local function createDungeonPanel(parent)
   bossesBtn:SetScript("OnClick",function() mode="bosses"; detail._render() end)
   questsBtn:SetScript("OnClick",function() mode="quests"; detail._render() end)
   keyBtn:SetScript("OnClick",function() mode="key"; detail._render() end)
+  mapBtn:SetScript("OnClick",function() mode="map"; detail._render() end)
 
   -- Opens a dungeon's detail page directly (used when the window is opened
-  -- inside that dungeon).
-  UI.OpenDungeon=function(target)
+  -- inside that dungeon, and by the Armory's "Show" buttons).
+  -- bossName (optional): select that boss ("trash mobs" = the trash loot entry).
+  -- openMode (optional): "map" opens the dungeon map.
+  UI.OpenDungeon=function(target, bossName, openMode)
     if not target then return end
-    selectedDungeon=target; mode="bosses"; browse:Hide(); detail:Show()
+    selectedDungeon=target; mode=openMode or "bosses"; browse:Hide(); detail:Show()
     bossSelection[target.key]=bossSelection[target.key] or 1
+    if bossName then
+      local bosses=target.bosses or {}
+      if bossName=="trash mobs" and #(target.trashLoot or {})>0 then bossSelection[target.key]=#bosses+1 end
+      for i,b in ipairs(bosses) do if b.name==bossName then bossSelection[target.key]=i end end
+    end
     questSelection[target.key]=questSelection[target.key] or 1
     if detail._render then detail._render() end
   end
