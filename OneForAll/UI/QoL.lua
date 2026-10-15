@@ -1,7 +1,7 @@
 local _, FLT = ...
 local UI = FLT.UI
 
--- Quality of Life tab: one switch per feature (all off by default).
+-- Quality of Life tab: one switch per feature (defaults in QoL.lua DEFAULTS).
 -- Logic lives in QoL.lua (FLT.QoL).
 
 local unpack = unpack or table.unpack
@@ -11,56 +11,18 @@ local COL_W = 320
 local COL_X = { 8, 342, 676 }
 local openDropDown -- below
 
--- Yellow "!" (tooltip "New") next to options added since the last live release (5.4.4).
--- Only for the 5.5.0 release: empty this list for the next version.
-local NEW_TAGS = {}
+-- Yellow "!" (tooltip "New") next to options added since the last live release.
+-- Only for one release: empty this list for the next version (TODO.md "Nach dem Release").
+local NEW_TAGS = { lowRank = true }
 local function newTag(parent, anchor, key)
   if not NEW_TAGS[key] then return end
-  local m = UI.NewMark(parent, "New in OneForAll 5.5.0.")
+  local m = UI.NewMark(parent, "New in OneForAll 5.6.1.")
   m:SetPoint("LEFT", anchor, "RIGHT", 5, 0)
   return m
 end
 
--- Shared drop-down list (one at a time); a click outside closes it.
-local ddMenu, ddCatcher
-openDropDown = function(owner, options, current, onPick)
-  if not ddMenu then
-    ddCatcher = CreateFrame("Button", nil, UIParent); ddCatcher:SetAllPoints(UIParent)
-    ddCatcher:SetFrameStrata("FULLSCREEN_DIALOG"); ddCatcher:SetFrameLevel(1)
-    ddCatcher:RegisterForClicks("AnyUp"); ddCatcher:Hide()
-    ddMenu = CreateFrame("Frame", nil, UIParent); ddMenu:SetFrameStrata("FULLSCREEN_DIALOG"); ddMenu:SetFrameLevel(20)
-    ddMenu:EnableMouse(true); ddMenu:Hide()
-    UI.FramedPanel(ddMenu)
-    ddMenu.rows = {}
-    ddCatcher:SetScript("OnClick", function() ddMenu:Hide() end)
-    ddMenu:SetScript("OnHide", function() ddCatcher:Hide() end)
-  end
-  if ddMenu:IsShown() and ddMenu.owner == owner then ddMenu:Hide(); return end
-  local w = owner:GetWidth() or 170
-  for _, r in ipairs(ddMenu.rows) do r:Hide() end
-  for i, o in ipairs(options) do
-    local r = ddMenu.rows[i]
-    if not r then
-      r = CreateFrame("Button", nil, ddMenu); r:SetHeight(22)
-      local hi = r:CreateTexture(nil, "HIGHLIGHT"); hi:SetAllPoints(); hi:SetColorTexture(FLT.SkinC(0.90, 0.66, 0.22, 0.18))
-      r.text = FLT.NewFS(r, nil, "OVERLAY", "GameFontHighlight"); r.text:SetPoint("LEFT", 22, 0)
-      r.check = r:CreateTexture(nil, "OVERLAY"); r.check:SetSize(14, 14); r.check:SetPoint("LEFT", 5, 0)
-      r.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check"); FLT.SkinBlizz(r)
-      ddMenu.rows[i] = r
-    end
-    r:ClearAllPoints(); r:SetPoint("TOPLEFT", 4, -4 - (i - 1) * 22); r:SetWidth(w - 8)
-    r.text:SetText(o.label)
-    local sel = (o.key == current)
-    r.check:SetShown(sel)
-    if sel then r.text:SetTextColor(FLT.SkinC(1, 0.82, 0.2)) else r.text:SetTextColor(0.92, 0.90, 0.84) end
-    r:SetScript("OnClick", function() ddMenu:Hide(); onPick(o.key) end)
-    r:Show()
-  end
-  ddMenu:SetSize(w, #options * 22 + 8)
-  ddMenu:ClearAllPoints(); ddMenu:SetPoint("TOPRIGHT", owner, "BOTTOMRIGHT", 0, -2)
-  ddMenu.owner = owner
-  ddCatcher:Show(); ddMenu:Show()
-end
+-- Shared drop-down list (UI.OpenDropDown in Widgets.lua)
+openDropDown = function(...) return UI.OpenDropDown(...) end
 
 
 -- Preview popup: a framed picture that shows what a feature looks like in game.
@@ -81,7 +43,7 @@ local function showPreview(key)
     f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
     UI.FramedPanel(f)
     f.title = FLT.NewFS(f, nil, "OVERLAY", "GameFontNormalLarge"); f.title:SetPoint("TOPLEFT", 16, -12); f.title:SetTextColor(FLT.SkinC(1, 0.82, 0.20))
-    local close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", -2, -2); FLT.SkinBlizz(close)
+    local close = UI.CloseButton(f); close:SetPoint("TOPRIGHT", -10, -10)
     f.pic = f:CreateTexture(nil, "ARTWORK"); f.pic:SetPoint("TOPLEFT", 16, -40)
     f.picFrame = CreateFrame("Frame", nil, f); f.picFrame:SetAllPoints(f.pic)
     UI.OrnateFrame(f.picFrame, f.picFrame, 10, 2, "OVERLAY", 1)
@@ -204,7 +166,7 @@ local function createQoLPanel(parent)
   local panel = CreateFrame("Frame", nil, parent)
   UI.PlacePanel(panel, parent)
   UI.TitleBand(panel, { emblem = UI.ASSET_ROOT .. "emblem_qol", art = UI.ASSET_ROOT .. "qol_banner",
-    title = "Quality of Life", subtitle = "Small helpers for everyday play. Everything is off until you switch it on.", fadeRight = 200 })
+    title = "Quality of Life", subtitle = "Small helpers for everyday play. Switch on what you like.", fadeRight = 200 })
 
   -- scrollable page below the title band
   local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate"))
@@ -365,6 +327,38 @@ local function createQoLPanel(parent)
   end
   feed:finish()
 
+  local spells = section(1, "Spells", "Interface\\Icons\\INV_Misc_Book_11")
+  spells:check("Check low spell ranks", "Looks for spells on your action bars that use a lower rank than one you already know, and offers to put the highest rank there. After a trainer visit it waits until you close the trainer window. Macros are not checked.", "lowRank")
+  do -- ranks kept on purpose ("Keep" in the popup) + check now
+    local LR = FLT.LowRank
+    local l = FLT.NewFS(spells.box, nil, "OVERLAY", "GameFontHighlight"); l:SetPoint("TOPLEFT", 40, spells.y - 5); l:SetText("Kept ranks")
+    local b = UI.GoldButton(spells.box, "", 110, 22, nil, 11); b:SetPoint("TOPRIGHT", -12, spells.y - 1)
+    local arrow = b:CreateTexture(nil, "OVERLAY"); arrow:SetSize(12, 12); arrow:SetPoint("RIGHT", -8, 0)
+    FLT.SetTex(arrow, UI.ASSET_ROOT .. "chevron"); arrow:SetTexCoord(0, 0.5, 0, 1)
+    local function show()
+      local n = LR and #LR.GetKept() or 0
+      b:SetLabel(n == 1 and "1 spell" or (n .. " spells"))
+    end
+    b:SetScript("OnClick", function(self)
+      if not LR then return end
+      local opts = LR.GetKept()
+      if #opts == 0 then opts = { { key = "__none", label = "|cff9d9d9dNothing kept|r" } }
+      else opts[#opts + 1] = { key = "__all", label = FLT.SkinHex("ffd35a") .. "Remove all|r" } end
+      openDropDown(self, opts, nil, function(k)
+        if k == "__all" then LR.ClearKept() elseif k ~= "__none" then LR.RemoveKept(k) end
+        show()
+      end, 260)
+    end)
+    hint(b, "Kept ranks", "Ranks you keep on purpose (Keep button in the popup). Click one to have it reported again.")
+    refreshers[#refreshers + 1] = show
+    spells.y = spells.y - 30
+    local now = UI.GoldButton(spells.box, "Check now", 110, 22, nil, 12); now:SetPoint("TOPLEFT", 16, spells.y - 2)
+    now:SetScript("OnClick", function() if LR then LR.Check("button") end end)
+    hint(now, "Check now", "Checks your action bars right away.")
+    spells.y = spells.y - 32
+  end
+  spells:finish()
+
   local quests = section(2, "Quests", "Interface\\Icons\\INV_Misc_Note_01")
   quests:check("Accept quests automatically", "Accepts quests when you talk to a quest giver.", "autoAccept")
   quests:check("Turn in quests automatically", "Turns in finished quests. If you can choose between rewards, you still pick yourself.", "autoTurnIn")
@@ -451,7 +445,7 @@ local function createQoLPanel(parent)
   page:SetHeight(math.max(-colY[1], -colY[2], -colY[3]) + 8)
 
   panel:SetScript("OnShow", function() for _, f in ipairs(refreshers) do f() end end)
-  panel:SetScript("OnHide", function() if ddMenu then ddMenu:Hide() end; if neverMenu then neverMenu:Hide() end end)
+  panel:SetScript("OnHide", function() UI.CloseDropDown(); if neverMenu then neverMenu:Hide() end end)
   panel:Hide()
   return panel
 end

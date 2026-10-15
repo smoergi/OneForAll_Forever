@@ -25,9 +25,33 @@ function FLT.SetSkin(name)
   ForeverCompanionDB.skin = (name == "silver") and "silver" or nil
 end
 
+-- Frame style: "classic" (ornate gold frames, bevelled buttons; default) or
+-- "modern" (plain lines with rounded corners). Independent of the colour, so
+-- there are four skins: Gold / Dark Silver x Classic / Modern. Needs a /reload.
+-- The switch sits in three places: OrnateFrame, Plate and FLT.SetTex (dividers).
+local function styleIsModern()
+  return type(ForeverCompanionDB) == "table" and ForeverCompanionDB.frameStyle == "modern"
+end
+FLT.FrameStyleIsModern = styleIsModern
+function FLT.GetFrameStyle() return styleIsModern() and "modern" or "classic" end
+function FLT.SetFrameStyle(name)
+  if type(ForeverCompanionDB) ~= "table" then return end
+  ForeverCompanionDB.frameStyle = (name == "modern") and "modern" or nil
+end
+-- skin keys = colour .. "_modern" for the modern style
+UI.SKINS = {
+  { key = "gold", label = "Gold Classic" }, { key = "silver", label = "Dark Silver Classic" },
+  { key = "gold_modern", label = "Gold Modern" }, { key = "silver_modern", label = "Dark Silver Modern" },
+}
+function FLT.GetSkinKey() return FLT.GetSkin() .. (styleIsModern() and "_modern" or "") end
+function UI.SkinLabel(key)
+  for _, sk in ipairs(UI.SKINS) do if sk.key == key then return sk.label end end
+  return key
+end
+
 local SILVER_TINT = { 0.94, 0.97, 1.02 }
-local SILVER_GAIN = 0.90 -- brightness of silver compared with the gold it replaces
-local SILVER_ART = 0.78  -- brightness of desaturated gold frame art
+local SILVER_GAIN = 1.00 -- brightness of silver compared with the gold it replaces (5.6.1: was 0.90)
+local SILVER_ART = 0.90  -- brightness of desaturated gold frame art (5.6.1: was 0.78)
 function FLT.SkinC(r, g, b, ...)
   if type(r) ~= "number" or type(g) ~= "number" or type(b) ~= "number" or not skinIsSilver() then return r, g, b, ... end
   local mx, mn = math.max(r, g, b), math.min(r, g, b)
@@ -48,7 +72,10 @@ local GOLD_ART = {
   talent_frame=true, talent_glow=true, frame_ring=true, frame_boss2=true, frame_badge=true, ring_gold=true,
   talent_button_border=true, icon_map=true, icon_back=true, icon_close=true, grip_resize=true, grip_height=true,
   minimap_icon=true, leather=true,
+  modern_frame=true, btn_m_normal=true, btn_m_active=true, divider_plain=true,
 }
+-- modern style: these textures are drawn in place of the ornate ones
+local MODERN_SWAP = { divider_ornate = "divider_plain" }
 -- Pixel snapping: switching it off (beta3/4) made thin gold lines darker and lighter
 -- with every pixel of window height. The game's default snapping keeps them crisp,
 -- so noSnap does nothing any more (kept as a hook, see DESIGN.md).
@@ -70,6 +97,10 @@ function UI.NewMark(parent, tip)
   return f
 end
 function FLT.SetTex(tex, path, ...)
+  if type(path) == "string" and styleIsModern() then
+    local swap = MODERN_SWAP[path:match("[Aa]ssets\\(.+)$") or ""]
+    if swap then path = ASSET_ROOT .. swap end
+  end
   tex:SetTexture(path, ...)
   noSnap(tex)
   if type(path) ~= "string" or not tex.SetVertexColor or not skinIsSilver() then return end
@@ -80,7 +111,7 @@ function FLT.SetTex(tex, path, ...)
     tex._ofaSilver = true
     tex:SetVertexColor(SILVER_ART * SILVER_TINT[1], SILVER_ART * SILVER_TINT[2], SILVER_ART * SILVER_TINT[3])
   elseif name:match("_banner$") or name:match("^Dungeons\\") then
-    tex:SetVertexColor(0.80, 0.80, 0.83)
+    tex:SetVertexColor(0.90, 0.90, 0.93)
   end
 end
 -- Blizzard template parts (scroll bars, check boxes, input boxes) are drawn
@@ -135,9 +166,93 @@ local LAYOUT = {
 }
 UI.LAYOUT = LAYOUT
 
+-- Window background opacity --------------------------------------------------
+-- Backgrounds register here (UI.MarkBG). Settings > Window turns down only the
+-- backgrounds inside the main window, so text, icons and pictures stay readable.
+-- "base" = the window's own background (takes the value as it is), "inner" =
+-- boxes, bands and rows on top of it: they fade faster, otherwise the stacked
+-- layers would look much more solid than the bare window (uneven look in beta2).
+-- Only textures are registered (weak keys: they live as long as their frame).
+-- RoundRect pieces fade through their vertex colour (BG_VC), others through SetAlpha.
+-- (beta4 registered the RoundRect tables themselves; nobody kept those tables, so the
+-- garbage collector removed them and their pieces stayed see-through at 100 %.)
+local BG = setmetatable({}, { __mode = "k" })     -- texture -> "base" | "inner"
+local BG_A = setmetatable({}, { __mode = "k" })   -- texture -> its own alpha when registered
+local BG_VC = setmetatable({}, { __mode = "k" })  -- RoundRect piece -> { r, g, b, a } (skinned)
+local BG_IN = setmetatable({}, { __mode = "k" })  -- object -> inside the main window?
+local bgAlpha = 1
+local function innerMul(a)
+  if a >= 0.999 then return 1 end
+  local x = math.max(0, math.min(1, (a - 0.3) / 0.7))
+  return x * x
+end
+local function insideWindow(obj)
+  local known = BG_IN[obj]
+  if known ~= nil then return known end
+  local win = UI.mainWindow
+  if not win then return false end
+  local p = obj._owner or (obj.GetParent and obj:GetParent())
+  for _ = 1, 40 do
+    if not p then break end
+    if p._ofaNoBG then break end -- popups inside the window keep their background
+    if p == win then BG_IN[obj] = true; return true end
+    p = p.GetParent and p:GetParent()
+  end
+  BG_IN[obj] = false
+  return false
+end
+local function mulFor(t)
+  local role = BG[t]
+  if not role or bgAlpha >= 0.999 or not insideWindow(t) then return 1 end
+  return (role == "base") and bgAlpha or innerMul(bgAlpha)
+end
+local function applyBG(t)
+  local m = mulFor(t)
+  local vc = BG_VC[t]
+  if vc then t:SetVertexColor(vc[1], vc[2], vc[3], vc[4] * m)
+  elseif t.SetAlpha then t:SetAlpha((BG_A[t] or 1) * m) end
+end
+local function markTex(t, role)
+  -- own alpha only the first time (a second call while faded would store the faded value)
+  if BG[t] == nil and not BG_VC[t] and t.GetAlpha then BG_A[t] = t:GetAlpha() or 1 end
+  BG[t] = role or "inner"
+  if bgAlpha < 0.999 then applyBG(t) end
+end
+-- obj: a texture, or a RoundRect / Card part (table with .pieces)
+function UI.MarkBG(obj, role)
+  if not obj then return obj end
+  if type(obj.pieces) == "table" then
+    for _, t in ipairs(obj.pieces) do markTex(t, role) end
+  else
+    markTex(obj, role)
+  end
+  return obj
+end
+-- shades over pictures (banner fades) must keep their alpha
+function UI.UnmarkBG(obj)
+  if not obj then return obj end
+  for _, t in ipairs(type(obj.pieces) == "table" and obj.pieces or { obj }) do
+    if BG[t] then
+      BG[t] = nil
+      if BG_VC[t] then applyBG(t) elseif t.SetAlpha then t:SetAlpha(BG_A[t] or 1) end
+      BG_A[t] = nil
+    end
+  end
+  return obj
+end
+-- only the modern style can be see-through (the classic leather/ornate look cannot)
+function UI.SetBackgroundAlpha(a)
+  a = math.max(0.05, math.min(1, tonumber(a) or 1))
+  if not styleIsModern() or a > 0.985 then a = 1 end
+  if math.abs(a - bgAlpha) < 0.001 then return end
+  bgAlpha = a
+  for t in pairs(BG) do applyBG(t) end
+end
+
 local function makeTexture(parent, layer, r, g, b, a)
   local t = parent:CreateTexture(nil, layer or "BACKGROUND")
   t:SetColorTexture(FLT.SkinC(r, g, b, a))
+  if layer == nil or layer == "BACKGROUND" or layer == "BORDER" then UI.MarkBG(t) end
   return noSnap(t)
 end
 
@@ -273,6 +388,8 @@ end
 local unpack = unpack or table.unpack
 local RR_TEX = ASSET_ROOT .. "rr_fill"
 local ORNATE_TEX = ASSET_ROOT .. "ornate_frame"
+local WINDOW_TEX = ASSET_ROOT .. "window_frame"
+local MODERN_TEX = ASSET_ROOT .. "modern_frame"
 
 local function sliceTex(owner, layer, sub, tex, l, r, t, b)
   local x = owner:CreateTexture(nil, layer, nil, sub)
@@ -280,8 +397,11 @@ local function sliceTex(owner, layer, sub, tex, l, r, t, b)
   return noSnap(x)
 end
 
-local function RoundRect(owner, anchor, layer, sub, c, inset, cr, cg, cb, ca)
+local RING_TEX = ASSET_ROOT .. "rr_ring_w"
+-- tex (optional): RING_TEX draws only the outline (no middle piece)
+local function RoundRect(owner, anchor, layer, sub, c, inset, cr, cg, cb, ca, tex)
   anchor = anchor or owner; inset = inset or 0
+  local RR_TEX = tex or RR_TEX
   local p = {}
   local A, B = 0.25, 0.75
   local tl = sliceTex(owner, layer, sub, RR_TEX, 0, A, 0, A); tl:SetSize(c, c); tl:SetPoint("TOPLEFT", anchor, "TOPLEFT", inset, -inset)
@@ -292,9 +412,18 @@ local function RoundRect(owner, anchor, layer, sub, c, inset, cr, cg, cb, ca)
   local bot = sliceTex(owner, layer, sub, RR_TEX, A, B, B, 1); bot:SetPoint("TOPLEFT", bl, "TOPRIGHT"); bot:SetPoint("BOTTOMRIGHT", br, "BOTTOMLEFT")
   local lef = sliceTex(owner, layer, sub, RR_TEX, 0, A, A, B); lef:SetPoint("TOPLEFT", tl, "BOTTOMLEFT"); lef:SetPoint("BOTTOMRIGHT", bl, "TOPRIGHT")
   local rig = sliceTex(owner, layer, sub, RR_TEX, B, 1, A, B); rig:SetPoint("TOPLEFT", tr, "BOTTOMLEFT"); rig:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
-  local mid = sliceTex(owner, layer, sub, RR_TEX, A, B, A, B); mid:SetPoint("TOPLEFT", tl, "BOTTOMRIGHT"); mid:SetPoint("BOTTOMRIGHT", br, "TOPLEFT")
-  p.pieces = { tl, tr, bl, br, top, bot, lef, rig, mid }
-  function p:SetColor(r, g, b, a) for _, t in ipairs(self.pieces) do t:SetVertexColor(FLT.SkinC(r, g, b, a or 1)) end end
+  p.pieces = { tl, tr, bl, br, top, bot, lef, rig }
+  if tex ~= RING_TEX then
+    local mid = sliceTex(owner, layer, sub, RR_TEX, A, B, A, B); mid:SetPoint("TOPLEFT", tl, "BOTTOMRIGHT"); mid:SetPoint("BOTTOMRIGHT", br, "TOPLEFT")
+    p.pieces[9] = mid
+  end
+  function p:SetColor(r, g, b, a)
+    local sr, sg, sb, sa = FLT.SkinC(r, g, b, a or 1)
+    for _, t in ipairs(self.pieces) do
+      BG_VC[t] = { sr, sg, sb, sa or 1 }
+      t:SetVertexColor(sr, sg, sb, (sa or 1) * mulFor(t)) -- window opacity (UI.MarkBG)
+    end
+  end
   function p:SetShown(v) for _, t in ipairs(self.pieces) do t:SetShown(v) end end
   p:SetColor(cr or 1, cg or 1, cb or 1, ca or 1)
   return p
@@ -303,8 +432,12 @@ end
 local function Card(owner, anchor, c, border, fill, layer, sub)
   layer = layer or "BACKGROUND"; sub = sub or 0
   local card = {}
-  card.border = RoundRect(owner, anchor, layer, sub, c, 0, unpack(border))
+  -- modern: the border is only a ring, so a see-through fill does not show a
+  -- filled border plate behind it (grey cards in 5.6.1-beta3)
+  local r_, g_, b_, a_ = unpack(border)
+  card.border = RoundRect(owner, anchor, layer, sub, c, 0, r_, g_, b_, a_, styleIsModern() and RING_TEX or nil)
   card.fill = RoundRect(owner, anchor, layer, sub + 1, math.max(1, c - 1), 1, unpack(fill))
+  UI.MarkBG(card.fill)
   function card:SetBorder(r, g, b, a) self.border:SetColor(r, g, b, a) end
   function card:SetFill(r, g, b, a) self.fill:SetColor(r, g, b, a) end
   return card
@@ -313,6 +446,26 @@ end
 local function OrnateFrame(owner, anchor, c, outset, layer, sub, tex)
   anchor = anchor or owner; outset = outset or 0; layer = layer or "OVERLAY"; sub = sub or 0
   tex = tex or ORNATE_TEX
+  if styleIsModern() then
+    -- plain rounded line on the anchor's edge (the ornate art needs room outside);
+    -- the window gets a slightly larger radius. Plain 9-slice of one outline (no
+    -- middle piece); same return value, so callers can tint the pieces as before.
+    -- outset 0: the line lies inside the anchor (scroll frames clip anything outside,
+    -- which hid the sides of the dungeon list boxes in 5.6.1-beta1)
+    if tex == WINDOW_TEX then c = 14 else c = 8 end
+    outset = 0
+    local A, B = 0.25, 0.75
+    local function piece(l, r, t, b) return sliceTex(owner, layer, sub, MODERN_TEX, l, r, t, b) end
+    local tl = piece(0, A, 0, A); tl:SetSize(c, c); tl:SetPoint("TOPLEFT", anchor, "TOPLEFT", -outset, outset)
+    local tr = piece(B, 1, 0, A); tr:SetSize(c, c); tr:SetPoint("TOPRIGHT", anchor, "TOPRIGHT", outset, outset)
+    local bl = piece(0, A, B, 1); bl:SetSize(c, c); bl:SetPoint("BOTTOMLEFT", anchor, "BOTTOMLEFT", -outset, -outset)
+    local br = piece(B, 1, B, 1); br:SetSize(c, c); br:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", outset, -outset)
+    local top = piece(A, B, 0, A); top:SetPoint("TOPLEFT", tl, "TOPRIGHT"); top:SetPoint("BOTTOMRIGHT", tr, "BOTTOMLEFT")
+    local bot = piece(A, B, B, 1); bot:SetPoint("TOPLEFT", bl, "TOPRIGHT"); bot:SetPoint("BOTTOMRIGHT", br, "BOTTOMLEFT")
+    local lef = piece(0, A, A, B); lef:SetPoint("TOPLEFT", tl, "BOTTOMLEFT"); lef:SetPoint("BOTTOMRIGHT", bl, "TOPRIGHT")
+    local rig = piece(B, 1, A, B); rig:SetPoint("TOPLEFT", tr, "BOTTOMLEFT"); rig:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
+    return { tl, tr, bl, br, top, bot, lef, rig }
+  end
   local function piece(l, r, t, b) return sliceTex(owner, layer, sub, tex, l, r, t, b) end
   local tl = piece(0, 0.25, 0, 0.5);    tl:SetSize(c, c); tl:SetPoint("TOPLEFT", anchor, "TOPLEFT", -outset, outset)
   local tr = piece(0.25, 0.5, 0, 0.5);  tr:SetSize(c, c); tr:SetPoint("TOPRIGHT", anchor, "TOPRIGHT", outset, outset)
@@ -350,12 +503,20 @@ end
 -- a warm gradient when active, a soft gold glow on hover.
 local BTN_NORMAL_TEX, BTN_ACTIVE_TEX = ASSET_ROOT .. "btn_normal", ASSET_ROOT .. "btn_active"
 local BTN_GLOW_TEX = ASSET_ROOT .. "btn_glow"
+local BTN_M_NORMAL_TEX, BTN_M_ACTIVE_TEX = ASSET_ROOT .. "btn_m_normal", ASSET_ROOT .. "btn_m_active"
 local function Plate(b, h)
   local c = math.min(11, math.floor(h * 0.42))
-  local glow = Nine(b, b, BTN_GLOW_TEX, c, math.floor(10 * c / 16 + 0.5), "BACKGROUND", -1); glow:SetShown(false)
-  local normal = Nine(b, b, BTN_NORMAL_TEX, c, 0, "BACKGROUND", 0)
-  local active = Nine(b, b, BTN_ACTIVE_TEX, c, 0, "BACKGROUND", 1); active:SetShown(false)
-  local hover = Nine(b, b, BTN_ACTIVE_TEX, c, 0, "HIGHLIGHT", 0); hover:SetAlpha(0.28)
+  local glowC = c
+  local normalTex, activeTex = BTN_NORMAL_TEX, BTN_ACTIVE_TEX
+  if styleIsModern() then
+    -- modern: flat plate with a thin rim and rounded corners
+    c = math.min(9, math.floor(h * 0.40))
+    normalTex, activeTex = BTN_M_NORMAL_TEX, BTN_M_ACTIVE_TEX
+  end
+  local glow = Nine(b, b, BTN_GLOW_TEX, glowC, math.floor(10 * glowC / 16 + 0.5), "BACKGROUND", -1); glow:SetShown(false)
+  local normal = Nine(b, b, normalTex, c, 0, "BACKGROUND", 0)
+  local active = Nine(b, b, activeTex, c, 0, "BACKGROUND", 1); active:SetShown(false)
+  local hover = Nine(b, b, activeTex, c, 0, "HIGHLIGHT", 0); hover:SetAlpha(0.28)
   local p = {}
   function p:SetActive(on)
     on = on and true or false
@@ -484,7 +645,7 @@ function UI.TitleBand(parent, opts)
     local art = band:CreateTexture(nil, "BORDER", nil, 0); art:SetPoint("TOPLEFT", 2, -2); art:SetPoint("BOTTOMRIGHT", -2, 2)
     FLT.SetTex(art, opts.art)
     if opts.mirror then art:SetTexCoord(1, 0, 0.18, 0.82) else art:SetTexCoord(0, 1, 0.18, 0.82) end
-    local shadeL = makeTexture(band, "BORDER", 0.045, 0.045, 0.058, 0.94); shadeL:SetDrawLayer("BORDER", 1)
+    local shadeL = UI.UnmarkBG(makeTexture(band, "BORDER", 0.045, 0.045, 0.058, 0.94)); shadeL:SetDrawLayer("BORDER", 1)
     shadeL:SetPoint("TOPLEFT", 2, -2); shadeL:SetPoint("BOTTOMLEFT", 2, 2); shadeL:SetWidth(opts.solid or 360)
     local fadeL = band:CreateTexture(nil, "BORDER", nil, 1); FLT.SetTex(fadeL, ASSET_ROOT .. "shade_lr"); fadeL:SetVertexColor(FLT.SkinC(0.18, 0.18, 0.23))
     fadeL:SetPoint("TOPLEFT", shadeL, "TOPRIGHT"); fadeL:SetPoint("BOTTOMLEFT", shadeL, "BOTTOMRIGHT"); fadeL:SetWidth(340)
@@ -560,9 +721,15 @@ end
 -- Dark panel with leather grain and a bronze ornate frame.
 function UI.FramedPanel(f, inset)
   inset = inset or 2
+  if styleIsModern() then
+    -- modern: flat background with the same rounded corners as the line
+    UI.MarkBG(RoundRect(f, f, "BACKGROUND", 0, 7, 1, 0.045, 0.045, 0.055, 0.96))
+    for _, t in ipairs(OrnateFrame(f, f, 12, 1, "OVERLAY", 3)) do t:SetVertexColor(FLT.SkinC(0.62, 0.52, 0.40, 0.9)) end
+    return
+  end
   local bg = makeTexture(f, "BACKGROUND", 0.040, 0.040, 0.050, 0.95); bg:SetPoint("TOPLEFT", inset, -inset); bg:SetPoint("BOTTOMRIGHT", -inset, inset)
   local lea = f:CreateTexture(nil, "BACKGROUND", nil, 1); lea:SetPoint("TOPLEFT", inset, -inset); lea:SetPoint("BOTTOMRIGHT", -inset, inset)
-  FLT.SetTex(lea, ASSET_ROOT .. "leather"); lea:SetVertexColor(FLT.SkinC(0.55, 0.50, 0.46)); lea:SetAlpha(0.55)
+  FLT.SetTex(lea, ASSET_ROOT .. "leather"); lea:SetVertexColor(FLT.SkinC(0.55, 0.50, 0.46)); lea:SetAlpha(0.55); UI.MarkBG(lea)
   for _, t in ipairs(OrnateFrame(f, f, 12, 1, "OVERLAY", 3)) do t:SetVertexColor(FLT.SkinC(0.62, 0.52, 0.40, 0.9)) end
 end
 
@@ -604,6 +771,73 @@ function UI.SectionTitle(parent, text, x, y, right)
   dv:SetPoint("TOPLEFT", t, "BOTTOMLEFT", -4, -1); dv:SetPoint("RIGHT", parent, "RIGHT", right or -20, 0)
   t.divider = dv
   return t
+end
+
+-- Close button in the addon style (top right of popups); onClick defaults to
+-- hiding the parent.
+function UI.CloseButton(parent, onClick)
+  local b = GoldButton(parent, "", 24, 20, ASSET_ROOT .. "icon_close", 11)
+  if b.icon then b.icon:ClearAllPoints(); b.icon:SetSize(14, 14); b.icon:SetPoint("CENTER", 0, 0) end
+  b:SetScript("OnMouseDown", nil); b:SetScript("OnMouseUp", nil)
+  b:SetScript("OnClick", onClick or function() parent:Hide() end)
+  b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(CLOSE or "Close"); GameTooltip:Show() end)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  return b
+end
+
+-- Puts our plate look on a Blizzard UIPanelButtonTemplate button (kept where the
+-- template is needed, e.g. secure buttons); its text stays its own.
+function UI.SkinBlizzButton(b, h)
+  if not b then return b end
+  for _, k in ipairs({ "Left", "Middle", "Right" }) do if type(b[k]) == "table" and b[k].SetAlpha then b[k]:SetAlpha(0) end end
+  for _, fn in ipairs({ "GetNormalTexture", "GetPushedTexture", "GetHighlightTexture", "GetDisabledTexture" }) do
+    local t = b[fn] and b[fn](b)
+    if t and t.SetAlpha then t:SetAlpha(0) end
+  end
+  Plate(b, h or (b.GetHeight and b:GetHeight()) or 22)
+  local fs = b.GetFontString and b:GetFontString()
+  if fs and fs.SetTextColor then fs:SetTextColor(FLT.SkinC(0.95, 0.82, 0.50)) end
+  return b
+end
+
+-- Horizontal slider in the addon style: thin framed track with a gold fill up
+-- to the knob, mouse wheel steps. onChange(value) runs on every change.
+-- Returns the Slider (SetValue / GetValue as usual).
+function UI.Slider(parent, w, minV, maxV, step, onChange)
+  local s = CreateFrame("Slider", nil, parent)
+  s:SetOrientation("HORIZONTAL"); s:SetSize(w, 18)
+  s:SetMinMaxValues(minV, maxV); s:SetValueStep(step)
+  if s.SetObeyStepOnDrag then s:SetObeyStepOnDrag(true) end
+  s:EnableMouse(true); s:EnableMouseWheel(true)
+  local track = CreateFrame("Frame", nil, s); track:SetHeight(6)
+  track:SetPoint("LEFT", 0, 0); track:SetPoint("RIGHT", 0, 0)
+  Card(track, track, 3, {0.55, 0.42, 0.20, 0.95}, {0.04, 0.04, 0.05, 0.95}, "BACKGROUND", 0)
+  local fill = makeTexture(track, "ARTWORK", 0.85, 0.64, 0.24, 0.75)
+  fill:SetPoint("TOPLEFT", 1, -1); fill:SetPoint("BOTTOMLEFT", 1, 1); fill:SetWidth(1)
+  local thumb = s:CreateTexture(nil, "OVERLAY"); thumb:SetSize(24, 24)
+  thumb:SetTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+  if skinIsSilver() and thumb.SetDesaturated then thumb:SetDesaturated(true) end
+  s:SetThumbTexture(thumb)
+  local TW = 24 -- thumb width: the thumb's centre moves from TW/2 to width - TW/2
+  local function update(v)
+    local lo, hi = s:GetMinMaxValues()
+    local f = (hi > lo) and ((v - lo) / (hi - lo)) or 0
+    local tw = (s:GetWidth() or w)
+    fill:SetWidth(math.max(1, TW / 2 + f * (tw - TW) - 1))
+  end
+  s:SetScript("OnValueChanged", function(self, v)
+    local lo, hi = self:GetMinMaxValues()
+    v = math.floor(v / step + 0.5) * step
+    if v > hi - step / 2 then v = hi elseif v < lo + step / 2 then v = lo end
+    update(v)
+    if onChange then onChange(v) end
+  end)
+  s:SetScript("OnMouseWheel", function(self, d)
+    local lo, hi = self:GetMinMaxValues()
+    self:SetValue(math.max(lo, math.min(hi, (self:GetValue() or lo) + d * step)))
+  end)
+  s:HookScript("OnShow", function(self) update(self:GetValue() or minV) end)
+  return s
 end
 
 -- Small gem marker (tinted stone in a gold rim). Returns a frame with
@@ -715,16 +949,64 @@ function UI.ShowBugReport()
 end
 
 -- Asks before switching the skin; the Reload button runs /reload securely.
+-- key: "gold", "silver", "gold_modern" or "silver_modern" (UI.SKINS)
 function UI.AskSkin(key)
-  key = (key == "silver") and "silver" or "gold"
-  if FLT.GetSkin() == key then return end
+  key = tostring(key or "gold")
+  local color = key:match("^silver") and "silver" or "gold"
+  local style = key:find("_modern", 1, true) and "modern" or "classic"
+  key = color .. (style == "modern" and "_modern" or "")
+  if FLT.GetSkinKey() == key then return end
   if InCombatLockdown and InCombatLockdown() then
     if FLT.Msg then FLT.Msg("The skin can be changed after combat.") end
     return
   end
-  local label = key == "silver" and "Dark Silver" or "Gold"
-  UI.Confirm("Switch to the " .. label .. " skin?\nYour interface will reload.", function() FLT.SetSkin(key) end, "Reload", "/reload")
+  UI.Confirm("Switch to the " .. UI.SkinLabel(key) .. " skin?\nYour interface will reload.",
+    function() FLT.SetSkin(color); FLT.SetFrameStyle(style) end, "Reload", "/reload")
 end
+
+-- Shared drop-down list (one at a time); a click outside closes it.
+-- options = { {key=, label=}, ... }; the current one gets a check mark.
+-- width: list width (default: the owner's width).
+local ddMenu, ddCatcher
+function UI.OpenDropDown(owner, options, current, onPick, width)
+  if not ddMenu then
+    ddCatcher = CreateFrame("Button", nil, UIParent); ddCatcher:SetAllPoints(UIParent)
+    ddCatcher:SetFrameStrata("FULLSCREEN_DIALOG"); ddCatcher:SetFrameLevel(1)
+    ddCatcher:RegisterForClicks("AnyUp"); ddCatcher:Hide()
+    ddMenu = CreateFrame("Frame", nil, UIParent); ddMenu:SetFrameStrata("FULLSCREEN_DIALOG"); ddMenu:SetFrameLevel(20)
+    ddMenu:EnableMouse(true); ddMenu:Hide()
+    UI.FramedPanel(ddMenu)
+    ddMenu.rows = {}
+    ddCatcher:SetScript("OnClick", function() ddMenu:Hide() end)
+    ddMenu:SetScript("OnHide", function() ddCatcher:Hide() end)
+  end
+  if ddMenu:IsShown() and ddMenu.owner == owner then ddMenu:Hide(); return end
+  local w = width or owner:GetWidth() or 170
+  for _, r in ipairs(ddMenu.rows) do r:Hide() end
+  for i, o in ipairs(options) do
+    local r = ddMenu.rows[i]
+    if not r then
+      r = CreateFrame("Button", nil, ddMenu); r:SetHeight(22)
+      local hi = r:CreateTexture(nil, "HIGHLIGHT"); hi:SetAllPoints(); hi:SetColorTexture(FLT.SkinC(0.90, 0.66, 0.22, 0.18))
+      r.text = FLT.NewFS(r, nil, "OVERLAY", "GameFontHighlight"); r.text:SetPoint("LEFT", 22, 0)
+      r.check = r:CreateTexture(nil, "OVERLAY"); r.check:SetSize(14, 14); r.check:SetPoint("LEFT", 5, 0)
+      r.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check"); FLT.SkinBlizz(r)
+      ddMenu.rows[i] = r
+    end
+    r:ClearAllPoints(); r:SetPoint("TOPLEFT", 4, -4 - (i - 1) * 22); r:SetWidth(w - 8)
+    r.text:SetText(o.label)
+    local sel = (o.key == current)
+    r.check:SetShown(sel)
+    if sel then r.text:SetTextColor(FLT.SkinC(1, 0.82, 0.2)) else r.text:SetTextColor(0.92, 0.90, 0.84) end
+    r:SetScript("OnClick", function() ddMenu:Hide(); onPick(o.key) end)
+    r:Show()
+  end
+  ddMenu:SetSize(w, #options * 22 + 8)
+  ddMenu:ClearAllPoints(); ddMenu:SetPoint("TOPRIGHT", owner, "BOTTOMRIGHT", 0, -2)
+  ddMenu.owner = owner
+  ddCatcher:Show(); ddMenu:Show()
+end
+function UI.CloseDropDown() if ddMenu then ddMenu:Hide() end end
 
 UI.GoldButton = GoldButton
 UI.RoundRect = RoundRect

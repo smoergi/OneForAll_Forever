@@ -64,6 +64,13 @@ local function worldDistance(mapID, playerPos, bookX, bookY)
 end
 
 local function makeBackdrop(frame)
+  -- same panel and frame as the other OneForAll popups (both frame styles)
+  local UI = FLT.UI
+  if UI and UI.FramedPanel and UI.OrnateFrame then
+    UI.FramedPanel(frame)
+    for _, t in ipairs(UI.OrnateFrame(frame, frame, 16, 3, "OVERLAY", 4)) do t:SetVertexColor(FLT.SkinC(1, 1, 1, 1)) end
+    return
+  end
   local bg = frame:CreateTexture(nil, "BACKGROUND")
   bg:SetAllPoints()
   bg:SetColorTexture(FLT.SkinC(0.035, 0.028, 0.018, 0.97))
@@ -124,6 +131,7 @@ local function createAlertFrame()
   map:SetSize(92, 25)
   map:SetPoint("BOTTOMLEFT", 82, 13)
   map:SetText("Open Map")
+  if FLT.UI and FLT.UI.SkinBlizzButton then FLT.UI.SkinBlizzButton(map, 25) end
   f.mapButton = map
 
   local dismiss = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
@@ -131,6 +139,7 @@ local function createAlertFrame()
   dismiss:SetPoint("LEFT", map, "RIGHT", 8, 0)
   dismiss:SetText("Dismiss")
   dismiss:SetScript("OnClick", function() f:Hide() end)
+  if FLT.UI and FLT.UI.SkinBlizzButton then FLT.UI.SkinBlizzButton(dismiss, 25) end
 
   f.dismissButton = dismiss
   -- Free button row for generic alerts (opts.buttons).
@@ -140,11 +149,13 @@ local function createAlertFrame()
     b:SetSize(100, 25)
     if i == 1 then b:SetPoint("BOTTOMLEFT", 82, 13) else b:SetPoint("LEFT", f.customButtons[i - 1], "RIGHT", 8, 0) end
     b:Hide()
+    if FLT.UI and FLT.UI.SkinBlizzButton then FLT.UI.SkinBlizzButton(b, 25) end
     f.customButtons[i] = b
   end
 
-  local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-  close:SetPoint("TOPRIGHT", 2, 2)
+  local close
+  if FLT.UI and FLT.UI.CloseButton then close = FLT.UI.CloseButton(f); close:SetPoint("TOPRIGHT", -10, -10)
+  else close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", 2, 2) end
 
   f:HookScript("OnHide", function() hideSecureTarget() end)
   f:Hide()
@@ -163,6 +174,7 @@ local function getSecureTarget()
   b:SetSize(84, 25); b:SetFrameStrata("FULLSCREEN_DIALOG"); b:SetFrameLevel(50)
   b:RegisterForClicks("AnyUp", "AnyDown")
   b:SetAttribute("type", "macro")
+  if FLT.UI and FLT.UI.SkinBlizzButton then FLT.UI.SkinBlizzButton(b, 25) end
   b:Hide()
   local ev = CreateFrame("Frame")
   ev:RegisterEvent("PLAYER_REGEN_ENABLED")

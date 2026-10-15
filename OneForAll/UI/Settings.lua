@@ -27,6 +27,9 @@ local function createSettingsPanel(parent)
   local page = CreateFrame("Frame", nil, sf); page:SetSize(COL_X[2] + COL_W + 4, 10); sf:SetScrollChild(page)
   UI.PlaceScrollBar(sf)
 
+  -- Yellow "!" (New) behind section titles, one release only: empty after the
+  -- release (TODO.md "Nach dem Release"). 5.6.1: skins and window opacity.
+  local NEW_SECTIONS = { ["Window"] = true, ["Skin"] = true }
   local refreshers = {}
   local colY = { -4, -4 }
 
@@ -43,6 +46,8 @@ local function createSettingsPanel(parent)
       local m = box:CreateMaskTexture(); FLT.SetTex(m, UI.ASSET_ROOT .. "talent_icon_mask2", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE"); m:SetAllPoints(ic); ic:AddMaskTexture(m)
     end
     local t = FLT.NewFS(box, nil, "OVERLAY", "GameFontNormal"); t:SetPoint("LEFT", ic, "RIGHT", 8, 0); t:SetText(label); t:SetTextColor(FLT.SkinC(unpack(GOLD)))
+    -- yellow "!" for sections that are new since the last live release (NEW_SECTIONS)
+    if NEW_SECTIONS[label] then local m = UI.NewMark(box, "New in OneForAll 5.6.1."); m:SetPoint("LEFT", t, "RIGHT", 5, 0) end
 
     local s = { y = -40, rowMax = -40, box = box }
     function s:check(text, hint, get, set, x, compact)
@@ -112,6 +117,7 @@ local function createSettingsPanel(parent)
     local b = CreateFrame("Button", nil, parent); b:SetSize(20, 20); b:SetPoint("TOPLEFT", x, y)
     b:SetNormalTexture(tex .. "-Up"); b:SetPushedTexture(tex .. "-Down"); b:SetDisabledTexture(tex .. "-Disabled")
     b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    FLT.SkinBlizz(b) -- grey arrows in Dark Silver
     b:SetScript("OnClick", function() if cell.key and UI.MoveTab then UI.MoveTab(cell.key, dir); refreshCells() end end)
     b:SetScript("OnEnter", function(btn) GameTooltip:SetOwner(btn, "ANCHOR_RIGHT"); GameTooltip:AddLine(tip, 1, 0.82, 0); GameTooltip:Show() end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -217,22 +223,21 @@ local function createSettingsPanel(parent)
     function(v) shareCfg().emote = v end); alerts:nextRow()
   alerts:finish()
 
-  -- Skin: gold (default) or silver; applied on the next /reload.
+  -- Skin: Gold / Dark Silver x Classic / Modern (UI.SKINS); applied on the next /reload.
   local look = section(2, "Skin", "Interface\\Icons\\INV_Misc_Gem_Pearl_04")
   local skinButtons = {}
-  local SKINS = { { key = "gold", label = "Gold" }, { key = "silver", label = "Dark Silver" } }
-  for i, sk in ipairs(SKINS) do
+  for i, sk in ipairs(UI.SKINS) do
     local key = sk.key
-    local b = look:button(sk.label, 110, function()
+    local b = look:button(sk.label, 150, function()
       UI.AskSkin(key)
-    end, (i - 1) * 120)
+    end, ((i - 1) % 2) * 160)
     skinButtons[key] = b
+    if i % 2 == 0 then look:nextRow() end
   end
   refreshers[#refreshers + 1] = function()
-    for key, b in pairs(skinButtons) do b:SetActive(FLT.GetSkin() == key) end
+    for key, b in pairs(skinButtons) do b:SetActive(FLT.GetSkinKey() == key) end
   end
-  look:nextRow()
-  look:text("Dark Silver turns the gold frames, buttons and highlights grey and dims the pictures a little. Switching reloads the interface.")
+  look:text("Dark Silver turns the gold frames, buttons and highlights grey and dims the pictures a little. Modern uses plain frames and buttons with rounded corners. Switching reloads the interface.")
   look:finish()
 
   local win = section(1, "Window", "Interface\\Icons\\INV_Misc_Spyglass_02")
@@ -245,6 +250,31 @@ local function createSettingsPanel(parent)
   rb:SetScript("OnLeave", function() GameTooltip:Hide() end)
   win:button("Noteworthy changes", 160, function() if FLT.ShowNews then FLT.ShowNews() end end, 192)
   win:nextRow()
+  -- window opacity (backgrounds only, applies at once); modern style only
+  local function opacityRow(label, tip, minV, get, set)
+    local box = win.box
+    local l = FLT.NewFS(box, nil, "OVERLAY", "GameFontHighlight"); l:SetPoint("TOPLEFT", 14, win.y - 6); l:SetText(label)
+    local val = FLT.NewFS(box, nil, "OVERLAY", "GameFontHighlight"); val:SetTextColor(FLT.SkinC(1, 0.82, 0.2))
+    local sl = UI.Slider(box, 200, minV, 100, 5, function(v)
+      val:SetText(v .. " %")
+      set(v / 100)
+    end)
+    sl:SetPoint("TOPLEFT", 190, win.y - 5)
+    val:SetPoint("LEFT", sl, "RIGHT", 12, 0)
+    sl:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(label, 1, 0.82, 0)
+      GameTooltip:AddLine(tip, 1, 1, 1, true); GameTooltip:Show()
+    end)
+    sl:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    refreshers[#refreshers + 1] = function()
+      local v = math.floor((get() or 1) * 100 + 0.5)
+      sl:SetValue(v); val:SetText(v .. " %")
+    end
+    win.rowMax = math.min(win.rowMax, win.y - 30); win:nextRow()
+  end
+  if FLT.FrameStyleIsModern and FLT.FrameStyleIsModern() then opacityRow("Window opacity", "Lets the world shine through the window's backgrounds. Text and pictures stay solid. Mouse wheel or drag.", 70,
+    function() return UI.GetWindowAlpha and UI.GetWindowAlpha() end,
+    function(a) if UI.SetWindowAlpha then UI.SetWindowAlpha(a) end end) end
   win:finish()
 
   local bottom = math.min(colY[1], colY[2])

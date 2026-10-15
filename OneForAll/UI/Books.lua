@@ -63,20 +63,12 @@ local function showBookRewardsPopup(frame)
     p:SetFrameStrata("DIALOG")
     p:SetFrameLevel((frame:GetFrameLevel() or 1) + 30)
     p:EnableMouse(true)
-
-    local shadow = makeTexture(p, "BACKGROUND", 0, 0, 0, 0.88)
-    shadow:SetPoint("TOPLEFT", -5, 5); shadow:SetPoint("BOTTOMRIGHT", 5, -5)
-    local bg = makeTexture(p, "BACKGROUND", 0.025, 0.022, 0.018, 0.99); bg:SetAllPoints()
-    local inner = makeTexture(p, "BORDER", 0.11, 0.075, 0.025, 0.72)
-    inner:SetPoint("TOPLEFT", 3, -3); inner:SetPoint("BOTTOMRIGHT", -3, 3)
-    for _,spec in ipairs({
-      {"TOPLEFT","TOPRIGHT",nil,2}, {"BOTTOMLEFT","BOTTOMRIGHT",nil,2},
-      {"TOPLEFT","BOTTOMLEFT",2,nil}, {"TOPRIGHT","BOTTOMRIGHT",2,nil},
-    }) do
-      local e=makeTexture(p,"ARTWORK",0.75,0.52,0.14,0.90)
-      e:SetPoint(spec[1],p,spec[1]); e:SetPoint(spec[2],p,spec[2])
-      if spec[3] then e:SetWidth(spec[3]) end; if spec[4] then e:SetHeight(spec[4]) end
-    end
+    -- movable like the other popups; same panel and frame as they have
+    p:SetMovable(true); p:SetClampedToScreen(true); p:RegisterForDrag("LeftButton")
+    p:SetScript("OnDragStart", p.StartMoving); p:SetScript("OnDragStop", p.StopMovingOrSizing)
+    p._ofaNoBG = true -- keeps its background when the window opacity is turned down
+    UI.FramedPanel(p)
+    for _, t in ipairs(UI.OrnateFrame(p, p, 16, 3, "OVERLAY", 4)) do t:SetVertexColor(FLT.SkinC(1, 1, 1, 1)) end
 
     local iconBG = CreateFrame("Frame", nil, p); iconBG:SetSize(48,48); iconBG:SetPoint("TOPLEFT",18,-16)
     local ibg=makeTexture(iconBG,"BACKGROUND",0.13,0.09,0.03,1); ibg:SetAllPoints()
@@ -124,15 +116,15 @@ local function showBookRewardsPopup(frame)
     local note=FLT.NewFS(p, nil,"OVERLAY","GameFontDisableSmall"); note:SetPoint("TOPLEFT",24,y-2); note:SetPoint("RIGHT",-24,0); note:SetJustifyH("LEFT")
     note:SetText("The book count for the third tier is not confirmed yet. WoW Forever is still in beta, so rewards may change. Ctrl-click an item to try it on.")
 
-    UI.OrnateFrame(p, p, 18, 3, "OVERLAY", 3)
     local okay=UI.GoldButton(p,"Okay",120,26,nil,13); okay:SetPoint("BOTTOM",0,18); okay:SetScript("OnClick",function() p:Hide() end)
-    local close=CreateFrame("Button",nil,p,"UIPanelCloseButton"); close:SetPoint("TOPRIGHT",-4,-4)
+    local close=UI.CloseButton(p); close:SetPoint("TOPRIGHT",-10,-10)
     p:SetScript("OnHide",function() GameTooltip:Hide() end)
     p:Hide()
   end
   -- item quality may only be known now (client cache)
   local H=FLT.UI.DungeonHelpers
   for _,e in ipairs(bookRewardsPopup.itemTexts or {}) do if H and H.colorDungeonItemText then H.colorDungeonItemText(e[1],e[2],0.12,1,0) end end
+  bookRewardsPopup:ClearAllPoints(); bookRewardsPopup:SetPoint("CENTER", frame, "CENTER", 0, 8)
   bookRewardsPopup:Show()
 end
 

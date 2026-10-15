@@ -64,6 +64,26 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+5.6.1 - Modern skins and low spell ranks
+------------------------------------------------------------
+- Two new skins: Gold Modern and Dark Silver Modern, with plain frames,
+  dividers, buttons and boss rings with rounded corners. The brush button in
+  the title bar opens a list of all four skins (also in Settings > Skin).
+  This version switches everyone once to Gold Modern - pick another skin any
+  time.
+- Modern skins: Window opacity in Settings > Window (70-100 %, starts at
+  95 %). Only the backgrounds fade, text and pictures stay solid.
+- Dark Silver is a little brighter.
+- New Quality of Life option "Check low spell ranks" (on): finds spells on
+  your action bars that use a lower rank than one you already know and puts
+  the highest rank there with one click. After a trainer visit it waits
+  until you close the trainer. "Keep" leaves a rank you use on purpose alone.
+- Class trainer window: shows everything your class can still learn up to
+  level 60. The level bars no longer show an arrow.
+- All popups share one look with the addon's own close button; the library
+  books popup can be moved.
+- A small click sound when you switch tabs.
+
 5.6.0 - Armory and dungeon maps
 ------------------------------------------------------------
 - New Armory tab (replaces General): raid, dungeon, PvP, crafted and world

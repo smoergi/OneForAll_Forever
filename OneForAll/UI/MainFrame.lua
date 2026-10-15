@@ -339,9 +339,21 @@ local function makeTab(parent, text, w, h)
   return b
 end
 
--- Ornate gold window frame (Assets\window_frame) drawn over the template's
--- border; the template's own border is hidden.
+-- Ornate gold window frame (Assets\window_frame; plain rounded line in the modern
+-- style, see OrnateFrame) drawn over the template's border; the template's own border is hidden.
 local function decorateWindow()
+  if FLT.FrameStyleIsModern and FLT.FrameStyleIsModern() then
+    -- modern: the template's backgrounds have square corners that stick out of the
+    -- rounded line, so they are hidden and replaced by an own rounded background
+    for _, r in ipairs({ frame:GetRegions() }) do
+      if r.GetObjectType and r:GetObjectType() == "Texture" then r:SetAlpha(0) end
+    end
+    if type(frame.Inset) == "table" and type(frame.Inset.NineSlice) == "table" then frame.Inset.NineSlice:SetAlpha(0) end
+    UI.MarkBG(UI.RoundRect(frame, frame, "BACKGROUND", -8, 12, 1, 0.065, 0.058, 0.048, 0.97), "base")
+  else
+    if type(frame.Bg) == "table" then UI.MarkBG(frame.Bg, "base") end
+  end
+  if type(frame.Inset) == "table" and type(frame.Inset.Bg) == "table" then UI.MarkBG(frame.Inset.Bg, "base") end
   if type(frame.NineSlice) == "table" then frame.NineSlice:SetAlpha(0) end
   for _, k in ipairs({ "TopLeftCorner", "TopRightCorner", "BotLeftCorner", "BotRightCorner", "TopBorder", "BottomBorder", "LeftBorder", "RightBorder" }) do
     if type(frame[k]) == "table" and frame[k].SetAlpha then frame[k]:SetAlpha(0) end
@@ -349,11 +361,13 @@ local function decorateWindow()
   -- own opaque title bar (the template's bar leaves a see-through strip)
   if type(frame.TitleBg) == "table" and frame.TitleBg.SetAlpha then frame.TitleBg:SetAlpha(0) end
   local bar = frame:CreateTexture(nil, "BORDER", nil, 1)
-  bar:SetPoint("TOPLEFT", 3, -3); bar:SetPoint("TOPRIGHT", -3, -3); bar:SetHeight(25)
-  bar:SetColorTexture(FLT.SkinC(0.055, 0.047, 0.038, 1))
+  -- modern: 1 px further in so its square corners stay under the rounded window line
+  local pad = (FLT.FrameStyleIsModern and FLT.FrameStyleIsModern()) and 4 or 3
+  bar:SetPoint("TOPLEFT", pad, -pad); bar:SetPoint("TOPRIGHT", -pad, -pad); bar:SetHeight(28 - pad)
+  bar:SetColorTexture(FLT.SkinC(0.055, 0.047, 0.038, 1)); UI.MarkBG(bar, "base")
   local barShine = frame:CreateTexture(nil, "BORDER", nil, 2)
   barShine:SetPoint("TOPLEFT", bar, "TOPLEFT"); barShine:SetPoint("TOPRIGHT", bar, "TOPRIGHT"); barShine:SetHeight(11)
-  barShine:SetColorTexture(FLT.SkinC(1, 0.85, 0.45, 0.04))
+  barShine:SetColorTexture(FLT.SkinC(1, 0.85, 0.45, 0.04)); UI.MarkBG(barShine, "base")
   local barLine = frame:CreateTexture(nil, "BORDER", nil, 3)
   barLine:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 6, 0); barLine:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", -6, 0); barLine:SetHeight(1)
   barLine:SetColorTexture(FLT.SkinC(0.72, 0.50, 0.12, 0.75))
@@ -377,21 +391,23 @@ local function decorateWindow()
   close:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(CLOSE or "Close"); GameTooltip:Show() end)
   close:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-  -- skin switch left of the close button: sun = Gold, moon = Silver
-  local silver = FLT.GetSkin() == "silver"
-  local skinBtn = UI.GoldButton(frame, "", 24, 20, UI.ASSET_ROOT .. (silver and "icon_moon" or "icon_sun"), 11)
+  -- skin menu left of the close button (brush): Gold / Dark Silver x Classic / Modern
+  local skinBtn = UI.GoldButton(frame, "", 24, 20, UI.ASSET_ROOT .. "icon_brush", 11)
   skinBtn:SetPoint("RIGHT", close, "LEFT", -6, 0)
   skinBtn:SetFrameLevel(frame:GetFrameLevel() + 25)
   if skinBtn.icon then
     skinBtn.icon:ClearAllPoints(); skinBtn.icon:SetSize(14, 14); skinBtn.icon:SetPoint("CENTER", 0, 0)
-    if silver then skinBtn.icon:SetVertexColor(0.80, 0.83, 0.88) else skinBtn.icon:SetVertexColor(1, 0.80, 0.30) end
+    skinBtn.icon:SetVertexColor(FLT.SkinC(1, 0.80, 0.30))
   end
   skinBtn:SetScript("OnMouseDown", nil); skinBtn:SetScript("OnMouseUp", nil)
-  skinBtn:SetScript("OnClick", function() UI.AskSkin(silver and "gold" or "silver") end)
+  skinBtn:SetScript("OnClick", function(self)
+    GameTooltip:Hide()
+    UI.OpenDropDown(self, UI.SKINS, FLT.GetSkinKey(), function(key) UI.AskSkin(key) end, 170)
+  end)
   skinBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:SetText(silver and "Skin: Dark Silver" or "Skin: Gold")
-    GameTooltip:AddLine(silver and "Click to switch to Gold." or "Click to switch to Dark Silver.", 1, 1, 1)
+    GameTooltip:SetText("Skin: " .. UI.SkinLabel(FLT.GetSkinKey()))
+    GameTooltip:AddLine("Click to choose a skin.", 1, 1, 1)
     GameTooltip:Show()
   end)
   skinBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -417,6 +433,7 @@ end
 
 local function createUI()
   frame = CreateFrame("Frame", "OneForAllFrame", UIParent, "BasicFrameTemplateWithInset")
+  UI.mainWindow = frame -- backgrounds inside it follow the window opacity (UI.MarkBG)
   frame:SetSize(BASE_W, BASE_H)
   frame:SetMovable(true); frame:EnableMouse(true); frame:RegisterForDrag("LeftButton")
   -- Stay above other addons' frames (waypoint arrows, raid frames ...);
@@ -432,6 +449,8 @@ local function createUI()
 
   local db = windowDB()
   frame:SetScale(clampScale(db.scale or 1))
+  db.moveAlpha = nil -- "opacity while moving" (5.6.1-beta3) was removed again
+  frame:HookScript("OnShow", function() UI.ApplyWindowAlpha() end)
   if db.left and db.top then
     frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", db.left, db.top)
   else
@@ -469,7 +488,13 @@ local function createUI()
       end)
       b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     end
-    b:SetScript("OnClick", function() setPanelTab(key) end)
+    b:SetScript("OnClick", function()
+      -- same small click sound as the Dungeons | Raids switch (only when the tab changes)
+      if key ~= activeTab and PlaySound and type(SOUNDKIT) == "table" and SOUNDKIT.IG_CHARACTER_INFO_TAB then
+        pcall(PlaySound, SOUNDKIT.IG_CHARACTER_INFO_TAB)
+      end
+      setPanelTab(key)
+    end)
     tabButtons[key] = b
   end
   UI.LayoutTabs()
@@ -495,6 +520,26 @@ end
 
 -- /ofa scale [value]: without a value resets to 100 %; accepts 0.6-1.4 or 60-140.
 function UI.ResetWindow() FLT:SetWindowScale(nil) end
+
+-- Window opacity (Settings > Window, modern style only): only the backgrounds
+-- (UI.MarkBG), text and pictures stay solid. 70-100 %, saved account-wide in
+-- ForeverCompanionDB.window.alpha; not set yet = 95 % (user 15.10.). The classic
+-- style is always solid (no slider there).
+local MIN_ALPHA, DEFAULT_ALPHA = 0.7, 0.95
+local function modern() return FLT.FrameStyleIsModern and FLT.FrameStyleIsModern() end
+function UI.GetWindowAlpha()
+  if not modern() then return 1 end
+  return math.max(MIN_ALPHA, math.min(1, tonumber(windowDB().alpha) or DEFAULT_ALPHA))
+end
+function UI.ApplyWindowAlpha()
+  if UI.SetBackgroundAlpha then UI.SetBackgroundAlpha(UI.GetWindowAlpha()) end
+end
+function UI.SetWindowAlpha(a)
+  a = math.max(MIN_ALPHA, math.min(1, tonumber(a) or 1))
+  if a > 0.985 then a = 1 end
+  windowDB().alpha = a
+  UI.ApplyWindowAlpha()
+end
 
 function FLT:SetWindowScale(value)
   local s = tonumber(value) or 1

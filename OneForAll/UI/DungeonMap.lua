@@ -108,11 +108,16 @@ function UI.CreateDungeonMap(parent)
     p.icon = p:CreateTexture(nil, "ARTWORK"); p.icon:SetSize(14, 14); p.icon:SetPoint("CENTER")
     p.num = FLT.NewFS(p, nil, "OVERLAY", "GameFontNormalSmall"); p.num:SetPoint("CENTER", 0, 0)
     -- boss portrait in the gold boss ring (same as Bosses & Loot), shown instead of the disc
-    p.boss = UI.CreateBossFrame and UI.CreateBossFrame(p, 34, false)
+    p.boss = UI.CreateBossFrame and UI.CreateBossFrame(p, 34, false, true)
     if p.boss then p.boss:SetPoint("CENTER"); p.boss:Hide() end
     p.label = FLT.NewFS(p, nil, "OVERLAY", "GameFontHighlightSmall"); p.label:SetPoint("TOP", p, "BOTTOM", 0, -3)
     p.label:SetShadowColor(0, 0, 0, 1); p.label:SetShadowOffset(1, -1)
-    local hl = p:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); FLT.SetTex(hl, UI.ASSET_ROOT .. "ring_gold"); hl:SetBlendMode("ADD")
+    local hl = p:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetBlendMode("ADD")
+    if FLT.FrameStyleIsModern and FLT.FrameStyleIsModern() then
+      FLT.SetTex(hl, UI.ASSET_ROOT .. "ring_plain"); hl:SetVertexColor(FLT.SkinC(1, 0.85, 0.45, 0.8)) -- matches the plain boss ring
+    else
+      FLT.SetTex(hl, UI.ASSET_ROOT .. "ring_gold")
+    end
     p:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(self.title, 1, 0.82, 0)
       if self.tip then GameTooltip:AddLine(self.tip, 1, 1, 1, true) end
