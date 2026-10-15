@@ -122,12 +122,13 @@ local ev = CreateFrame("Frame")
 for _, e in ipairs({ "TRAINER_SHOW", "TRAINER_UPDATE", "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "PLAYER_LEVEL_UP" }) do
   pcall(ev.RegisterEvent, ev, e)
 end
-ev:SetScript("OnEvent", function(_, event)
+local function onEventSafe(_, event)
   if event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" then readTrainer()
   elseif FLT.RefreshTrainerSpells then
     if C_Timer and C_Timer.After then C_Timer.After(0.3, FLT.RefreshTrainerSpells) else FLT.RefreshTrainerSpells() end
   end
-end)
+end
+ev:SetScript("OnEvent", function(...) FLT.SafeCall("Trainer", onEventSafe, ...) end)
 
 -- the list: { level, spellID, name, rank, cost or nil, icon, quest, talent }, sorted by level.
 -- Own class: only what is not known yet, up to AHEAD levels ahead, own race only.

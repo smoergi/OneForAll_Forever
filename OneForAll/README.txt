@@ -21,6 +21,7 @@ Commands
 /oneforall cheapest     Show the cheapest item in your bags
 /oneforall buttons      List the minimap buttons the button collector holds
 /oneforall trainer      Show what the last class trainer visit read
+/oneforall errors       Show errors OneForAll caught (for bug reports); "errors clear" empties the list
 /oneforall mem          Show how much memory OneForAll uses right now
 /oneforall thanks       Show the last buffs seen by "Thanks for buffs"
 /oneforall talentdump    Save all talent IDs to the SavedVariables (for the addon author)
@@ -62,6 +63,15 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 
 Changelog (newest first)
 ========================
+
+5.5.1 - combat errors fixed
+------------------------------------------------------------
+- Fixed Lua errors in combat when nameplates are shown ("secret" values in
+  boss portraits and class colours). Class colours no longer touch nameplate
+  health bars.
+- Event handlers are protected: if something goes wrong, the error is caught
+  instead of popping up again and again. /ofa errors lists the caught errors
+  (with version and client language) for bug reports.
 
 5.5.0 - raids, trainer spells, minimap buttons
 ------------------------------------------------------------
