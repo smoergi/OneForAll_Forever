@@ -204,7 +204,7 @@ local function createQoLPanel(parent)
   local panel = CreateFrame("Frame", nil, parent)
   UI.PlacePanel(panel, parent)
   UI.TitleBand(panel, { emblem = UI.ASSET_ROOT .. "emblem_qol", art = UI.ASSET_ROOT .. "qol_banner",
-    title = "Quality of Life", subtitle = "Small helpers for everyday play. Everything is off until you switch it on. Hold Shift to pause the automations.", fadeRight = 200 })
+    title = "Quality of Life", subtitle = "Small helpers for everyday play. Everything is off until you switch it on.", fadeRight = 200 })
 
   -- scrollable page below the title band
   local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate"))
@@ -456,4 +456,4 @@ local function createQoLPanel(parent)
   return panel
 end
 
-UI.RegisterPanel({ key="qol", label="Quality of Life", order=8, tabWidth=140, create=createQoLPanel })
+UI.RegisterPanel({ key="qol", label="Quality of Life", order=4, tabWidth=140, create=createQoLPanel })

@@ -207,6 +207,9 @@ local TAB_BANNERS = {
   general={
     texture=ASSET_ROOT.."general_banner",
   },
+  armory={
+    texture=ASSET_ROOT.."armory_banner",
+  },
   settings={
     texture=ASSET_ROOT.."settings_banner",
   },
@@ -496,7 +499,7 @@ function UI.TitleBand(parent, opts)
   title:SetPoint("TOPLEFT", 66, -9)
   local sub = FLT.NewFS(band, nil, "OVERLAY", "GameFontHighlightSmall")
   sub:SetPoint("TOPLEFT", 67, -34); sub:SetText(opts.subtitle or ""); sub:SetTextColor(FLT.SkinC(0.80, 0.77, 0.70))
-  band.subtitle = sub
+  band.subtitle, band.title = sub, title
   return band
 end
 

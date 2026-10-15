@@ -325,4 +325,4 @@ local function createBooksPanel(frame)
   return panel
 end
 
-UI.RegisterPanel({ key="books", label="Library Books", order=3, tabWidth=132, create=createBooksPanel })
+UI.RegisterPanel({ key="books", label="Library Books", order=6, tabWidth=132, create=createBooksPanel })

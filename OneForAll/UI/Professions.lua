@@ -858,4 +858,4 @@ local function createProfessionPanel(parent)
 end
 
 
-UI.RegisterPanel({ key="professions", label="Professions", order=5, tabWidth=132, create=createProfessionPanel })
+UI.RegisterPanel({ key="professions", label="Professions", order=3, tabWidth=132, create=createProfessionPanel })

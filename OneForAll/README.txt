@@ -2,7 +2,7 @@ OneForAll
 =========
 
 Standalone WoW Forever companion addon: dungeons (bosses, loot, quests),
-Library Books tracker, Merchant's Favor recipes, camping buffs, hunter pets
+armory (item sets, reputation rewards), Library Books tracker, Merchant's Favor recipes, camping buffs, hunter pets
 and an in-addon talent planner. No other addons are required.
 
 Commands
@@ -63,6 +63,24 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 
 Changelog (newest first)
 ========================
+
+5.6.0 - Armory and dungeon maps
+------------------------------------------------------------
+- New Armory tab (replaces General): raid, dungeon, PvP, crafted and world
+  sets with class filter, owned pieces (bags, bank, equipped), set bonuses,
+  required level and where each piece drops ("Show" opens the boss in
+  Dungeons & Raids). Sets that are not in WoW Forever yet are marked. PvP
+  includes the rank 14 weapons.
+- Reputation rewards of every faction grouped by standing, with your standing
+  and the vendor on the map.
+- Dungeon maps for all dungeons and raids: boss portraits (click for the
+  loot), entrance, zoom and drag. Inside a dungeon the world map key (M) opens
+  its map (Settings > Dungeons | Raids). Map layout from Forever Simple World
+  Map by Tarolg.
+- New tab order (Armory, Dungeons & Raids, Professions, Quality of Life,
+  Talent Trees, Library Books, Hunter Pets); the window opens on the tab you
+  used last.
+- New banners for Armory and Talent Trees.
 
 5.5.1 - combat errors fixed
 ------------------------------------------------------------

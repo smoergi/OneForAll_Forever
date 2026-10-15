@@ -192,3 +192,25 @@ Generated with tools/dungeon-gen/raids.py and tools/trainer-gen/trainer_spells.p
 - Raid descriptions: written for OneForAll.
 - Profession trainers (Professions overview, "Nearest trainers"): QuestieDB
   Forever NPC data (title, trainer flag, faction, position).
+
+
+2026-10-15 Armory (OneForAll 5.6.0)
+===============================================================================
+Generated with tools/armory-gen/armory.py:
+- Item sets: WoW Forever client database (ItemSet, Item, ItemSparse, Faction;
+  wago.tools DB2 export, product "wowf").
+- Item names, qualities, class restrictions and set bonus texts: Wowhead
+  tooltip API (Forever, fallback Classic).
+- Sources of set pieces: our own dungeon loot, quest reward and profession
+  data (see above). A set without a known source in Forever is marked
+  "Not in Forever yet" (or "Source not known yet" for sets made for Forever).
+- Reputation rewards: required faction and standing from ItemSparse and the
+  Wowhead tooltip; vendors from Wowhead Forever item pages ("Sold by");
+  vendor positions from QuestieDB Forever and Wowhead Forever NPC pages.
+
+2026-10-15 Dungeon maps (OneForAll 5.6.0)
+===============================================================================
+- Map layout (room picture positions, sizes and turns, boss and entrance
+  positions): Forever Simple World Map 0.30.2 by Tarolg (MIT, used with the author's
+  agreement; see THIRD_PARTY_LICENSES.txt), extracted with
+  tools/dungeon-maps/fwm_maps.lua. The pictures are the client's minimap images.
