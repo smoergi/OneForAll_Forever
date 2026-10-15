@@ -265,7 +265,7 @@ local ev = CreateFrame("Frame")
 ev:RegisterEvent("PLAYER_LOGIN")
 ev:RegisterEvent("ADDON_LOADED")
 local pending = false
-ev:SetScript("OnEvent", function(_, event)
+local function onEventSafe(_, event)
   if event == "PLAYER_LOGIN" then
     if C_Timer and C_Timer.After then
       C_Timer.After(1, FLT.MinimapCollectorRefresh)
@@ -278,7 +278,8 @@ ev:SetScript("OnEvent", function(_, event)
     pending = true
     C_Timer.After(2, function() pending = false; scan() end)
   end
-end)
+end
+ev:SetScript("OnEvent", function(...) FLT.SafeCall("Collector", onEventSafe, ...) end)
 
 if FLT.QoL and FLT.QoL.On then
   FLT.QoL.On("mmCollect", FLT.MinimapCollectorRefresh)

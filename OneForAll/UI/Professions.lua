@@ -599,8 +599,6 @@ local function createProfessionPanel(parent)
   local layoutTrainers
   local TRAINER_ORDER={"Alchemy","Blacksmithing","Enchanting","Engineering","Leatherworking","Tailoring","Cooking","First Aid","Fishing","Herbalism","Mining","Skinning"}
   local trainerTitle=sectionTitle("Nearest trainers",-520)
-  -- new in 5.5.0: remove after the release (see TODO.md)
-  if UI.NewMark then local nm=UI.NewMark(homeView,"New in OneForAll 5.5.0: the closest trainer of every profession, with a map button."); nm:SetPoint("LEFT",trainerTitle,"RIGHT",6,0) end
   local trainerBox=CreateFrame("Frame",nil,homeView); trainerBox:SetSize(784,4*24+12)
   UI.FramedPanel(trainerBox)
   -- thin gold lines between the three columns

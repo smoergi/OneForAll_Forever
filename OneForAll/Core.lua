@@ -7,6 +7,37 @@ local function msg(text)
 end
 FLT.Msg = msg
 
+-- Safe calls for event handlers: an error is caught instead of popping up again and
+-- again (e.g. in combat, when the Forever client hands out "secret" values). The
+-- last errors are kept in ForeverCompanionDB.errors; /ofa errors prints them so
+-- players can copy them into a bug report.
+local errorSaid = false
+local function logError(tag, err)
+  local db = type(ForeverCompanionDB) == "table" and ForeverCompanionDB
+  if db then
+    db.errors = db.errors or {}
+    local ver = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")) or (GetAddOnMetadata and GetAddOnMetadata(ADDON, "Version")) or "?"
+    local line = string.format("%s | %s | %s | %s | %s", date and date("%Y-%m-%d %H:%M") or "", tostring(ver), GetLocale and GetLocale() or "?", tostring(tag), tostring(err))
+    if db.errors[1] ~= line then table.insert(db.errors, 1, line) end
+    while #db.errors > 20 do table.remove(db.errors) end
+  end
+  if not errorSaid then
+    errorSaid = true
+    msg("An error was caught and the feature skipped. Type /ofa errors to see it (for a bug report).")
+  end
+end
+function FLT.SafeCall(tag, fn, ...)
+  local ok, err = pcall(fn, ...)
+  if not ok then logError(tag, err) end
+  return ok
+end
+-- true when any of the values is a "secret" (newer clients hide some values in combat)
+function FLT.IsSecret(...)
+  if not issecretvalue then return false end
+  for i = 1, select("#", ...) do if issecretvalue((select(i, ...))) then return true end end
+  return false
+end
+
 local function numSlots(bag)
   if C_Container and C_Container.GetContainerNumSlots then return C_Container.GetContainerNumSlots(bag) or 0 end
   if GetContainerNumSlots then return GetContainerNumSlots(bag) or 0 end
@@ -249,6 +280,15 @@ SlashCmdList.ONEFORALL = function(cmd)
     if FLT.PrintTrainerDebug then FLT.PrintTrainerDebug() end
   elseif cmd == "buttons" then
     if FLT.PrintMinimapCollector then FLT.PrintMinimapCollector() end
+  elseif cmd == "errors" then
+    local list = type(ForeverCompanionDB) == "table" and ForeverCompanionDB.errors
+    if not list or #list == 0 then msg("No errors caught.") else
+      msg(#list .. " caught error(s), newest first (date | version | client language | where | error):")
+      for i = 1, math.min(10, #list) do msg("  " .. list[i]) end
+    end
+  elseif cmd == "errors clear" then
+    if type(ForeverCompanionDB) == "table" then ForeverCompanionDB.errors = nil end
+    msg("Caught errors cleared.")
   elseif cmd == "bug" then
     if FLT.UI and FLT.UI.ShowBugReport then FLT.UI.ShowBugReport() end
   elseif cmd == "cheapest" then

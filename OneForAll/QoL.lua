@@ -458,8 +458,14 @@ end
 local function colorBar(bar, unit)
   if not bar or not bar.SetStatusBarColor then return end
   unit = unit or bar.unit
-  if not QoL.Get("classColors") or not unit or not (UnitIsPlayer and UnitIsPlayer(unit)) then restoreBar(bar); return end
+  -- only the player, target, focus and party frames: nameplate bars are left alone
+  -- (their values are hidden in combat and touching them taints the nameplates)
+  if type(unit) ~= "string" or FLT.IsSecret(unit) or unit:find("^nameplate") then return end
+  local isPlayer = UnitIsPlayer and UnitIsPlayer(unit)
+  if FLT.IsSecret(isPlayer) then return end
+  if not QoL.Get("classColors") or not isPlayer then restoreBar(bar); return end
   local _, cls = UnitClass(unit)
+  if FLT.IsSecret(cls) then return end
   local c = cls and (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS or {})[cls]
   if not c then restoreBar(bar); return end
   if not bar.ofaColored and bar.GetStatusBarColor then
@@ -473,10 +479,10 @@ local function colorBar(bar, unit)
 end
 local function setupClassColors()
   if type(UnitFrameHealthBar_Update) == "function" and hooksecurefunc then
-    hooksecurefunc("UnitFrameHealthBar_Update", function(bar, unit) colorBar(bar, unit) end)
+    hooksecurefunc("UnitFrameHealthBar_Update", function(bar, unit) FLT.SafeCall("ClassColors", colorBar, bar, unit) end)
   end
   if type(HealthBar_OnValueChanged) == "function" and hooksecurefunc then
-    hooksecurefunc("HealthBar_OnValueChanged", function(bar) colorBar(bar) end)
+    hooksecurefunc("HealthBar_OnValueChanged", function(bar) FLT.SafeCall("ClassColors", colorBar, bar) end)
   end
 end
 local function refreshClassColors()
@@ -1449,7 +1455,9 @@ local EVENTS = {
 for _, e in ipairs(EVENTS) do pcall(ev.RegisterEvent, ev, e) end
 if ev.RegisterUnitEvent then pcall(ev.RegisterUnitEvent, ev, "UNIT_AURA", "player") else pcall(ev.RegisterEvent, ev, "UNIT_AURA") end
 
-ev:SetScript("OnEvent", function(_, event, ...)
+local function onEventSafe(_, event, ...)
+  -- chat texts can be "secret" in combat on newer clients: nothing to read then
+  if (event:find("^CHAT_MSG") or event == "UI_ERROR_MESSAGE") and FLT.IsSecret(...) then return end
   if event == "PLAYER_LOGIN" then
     migrate()
     setupClassColors(); setupTooltips(); setupMovable(); setupCopyButtons()
@@ -1499,7 +1507,8 @@ ev:SetScript("OnEvent", function(_, event, ...)
     elseif not QoL.Get("questXP") then updateXP() end
   elseif event == "PLAYER_TARGET_CHANGED" or event == "GROUP_ROSTER_UPDATE" then refreshClassColors()
   end
-end)
+end
+ev:SetScript("OnEvent", function(...) FLT.SafeCall("QoL", onEventSafe, ...) end)
 
 -- live reaction to switches in the tab
 on("cameraZoom", applyCamera)

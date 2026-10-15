@@ -539,7 +539,9 @@ ev:RegisterEvent("QUEST_LOG_UPDATE")
 ev:RegisterEvent("UNIT_QUEST_LOG_CHANGED")
 ev:RegisterEvent("CHAT_MSG_SYSTEM")
 ev:RegisterEvent("CHAT_MSG_ADDON")
-ev:SetScript("OnEvent", function(_, event, ...)
+local function onEventSafe(_, event, ...)
+  -- chat texts can be "secret" in combat on newer clients: nothing to read then
+  if (event:find("^CHAT_MSG") or event == "UI_ERROR_MESSAGE") and FLT.IsSecret(...) then return end
   if event == "PLAYER_LOGIN" then
     if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then pcall(C_ChatInfo.RegisterAddonMessagePrefix, PREFIX) end
   elseif event == "CHAT_MSG_SYSTEM" then
@@ -562,4 +564,5 @@ ev:SetScript("OnEvent", function(_, event, ...)
   else
     if currentDungeon then schedule(1) end
   end
-end)
+end
+ev:SetScript("OnEvent", function(...) FLT.SafeCall("QuestShare", onEventSafe, ...) end)

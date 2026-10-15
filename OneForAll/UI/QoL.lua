@@ -13,7 +13,7 @@ local openDropDown -- below
 
 -- Yellow "!" (tooltip "New") next to options added since the last live release (5.4.4).
 -- Only for the 5.5.0 release: empty this list for the next version.
-local NEW_TAGS = { mmCollect = true, mmDir = true, bagsNever = true }
+local NEW_TAGS = {}
 local function newTag(parent, anchor, key)
   if not NEW_TAGS[key] then return end
   local m = UI.NewMark(parent, "New in OneForAll 5.5.0.")

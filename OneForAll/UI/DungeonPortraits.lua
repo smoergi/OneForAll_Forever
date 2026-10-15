@@ -125,12 +125,14 @@ do
   local probe
   local function learn(unit)
     if not (UnitExists and UnitExists(unit) and UnitGUID) then return end
-    local kind, _, _, _, _, id = strsplit("-", UnitGUID(unit) or "")
+    local guid = UnitGUID(unit)
+    if not guid or (FLT.IsSecret and FLT.IsSecret(guid)) then return end -- hidden in combat on newer clients
+    local kind, _, _, _, _, id = strsplit("-", guid)
     id = tonumber(id)
     if kind ~= "Creature" or not id then return end
     if not bossNpc then buildBossSet() end
     if not bossNpc[id] then return end
-    if UnitLevel then remember(id, "level", UnitLevel(unit)) end
+    if UnitLevel then local lv = UnitLevel(unit); if not (FLT.IsSecret and FLT.IsSecret(lv)) then remember(id, "level", lv) end end
     if UnitCreatureType then
       local ok, ctype = pcall(UnitCreatureType, unit)
       if ok and type(ctype) == "string" and ctype ~= "" and not (issecretvalue and issecretvalue(ctype)) then remember(id, "ctype", ctype) end
@@ -160,9 +162,8 @@ do
   local ev = CreateFrame("Frame")
   for _, e in ipairs({"PLAYER_TARGET_CHANGED", "UPDATE_MOUSEOVER_UNIT", "NAME_PLATE_UNIT_ADDED"}) do pcall(ev.RegisterEvent, ev, e) end
   ev:SetScript("OnEvent", function(_, event, unit)
-    if event == "PLAYER_TARGET_CHANGED" then learn("target")
-    elseif event == "UPDATE_MOUSEOVER_UNIT" then learn("mouseover")
-    else learn(unit) end
+    local u = (event == "PLAYER_TARGET_CHANGED" and "target") or (event == "UPDATE_MOUSEOVER_UNIT" and "mouseover") or unit
+    if FLT.SafeCall then FLT.SafeCall("BossLearn", learn, u) else pcall(learn, u) end
   end)
 end
 
