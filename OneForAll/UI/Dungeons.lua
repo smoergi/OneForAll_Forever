@@ -221,7 +221,7 @@ local function createDungeonPanel(parent)
     local h=CreateFrame("Button",nil,band); h:SetPoint("TOPLEFT",x,0); h:SetSize(w,58)
     local a=h:CreateTexture(nil,"BORDER",nil,0); a:SetPoint("TOPLEFT",2,-2); a:SetPoint("BOTTOMRIGHT",-2,2)
     FLT.SetTex(a, ASSET_ROOT..art); a:SetTexCoord(0,1,0.0625,0.9375)
-    local sh=makeTexture(h,"BORDER",0.045,0.045,0.058,0.88); sh:SetDrawLayer("BORDER",1); sh:SetPoint("TOPLEFT",2,-2); sh:SetPoint("BOTTOMLEFT",2,2); sh:SetWidth(120)
+    local sh=UI.UnmarkBG(makeTexture(h,"BORDER",0.045,0.045,0.058,0.88)); sh:SetDrawLayer("BORDER",1); sh:SetPoint("TOPLEFT",2,-2); sh:SetPoint("BOTTOMLEFT",2,2); sh:SetWidth(120)
     local fade=h:CreateTexture(nil,"BORDER",nil,1); FLT.SetTex(fade, ASSET_ROOT.."shade_lr"); fade:SetVertexColor(FLT.SkinC(0.18,0.18,0.23))
     fade:SetPoint("TOPLEFT",sh,"TOPRIGHT"); fade:SetPoint("BOTTOMLEFT",sh,"BOTTOMRIGHT"); fade:SetWidth(240)
     local dim=h:CreateTexture(nil,"ARTWORK",nil,0); dim:SetPoint("TOPLEFT",2,-2); dim:SetPoint("BOTTOMRIGHT",-2,2); dim:SetColorTexture(0,0,0,0.62)
@@ -736,7 +736,6 @@ local function createDungeonPanel(parent)
   local questsBtn=UI.GoldButton(dband,"Quests",120,26,nil,13); questsBtn:SetPoint("RIGHT",-14,0)
   local keyBtn=UI.GoldButton(dband,"Key",110,26,nil,13); keyBtn:SetPoint("RIGHT",-14,0); keyBtn:Hide()
   local mapBtn=UI.GoldButton(dband,"Map",84,26,ASSET_ROOT.."icon_map",13); mapBtn:SetPoint("RIGHT",bossesBtn,"LEFT",-6,0); mapBtn:Hide()
-  do local mark=UI.NewMark(mapBtn,"Dungeon maps: boss portraits, entrance, zoom. Inside a dungeon, M opens the map."); mark:SetPoint("BOTTOMRIGHT",mapBtn,"TOPRIGHT",2,-6) end
 
   -- Rounded card background with an automatic border colour (lighter than
   -- the fill); keeps the SetColorTexture() calls of the list code working.
@@ -914,7 +913,7 @@ local function createDungeonPanel(parent)
       local b=dynFrame("Button",bchild); b:SetSize(LAYOUT.QUEST_ROW_WIDTH,50); b:SetPoint("TOPLEFT",0,by); by=by-52
       local bg=cardBg(b,0.068,0.070,0.080,0.95)
       local hi=makeTexture(b,"HIGHLIGHT",0.62,0.44,0.16,0.045); hi:SetPoint("TOPLEFT",1,-1); hi:SetPoint("BOTTOMRIGHT",-1,1)
-      local bframe=UI.CreateBossFrame(b,42,false); bframe:SetPoint("LEFT",5,1)
+      local bframe=UI.CreateBossFrame(b,42,false,true); bframe:SetPoint("LEFT",5,1)
       local icon=bframe.portrait; setBossPortrait(icon,d,boss)
       -- Number and name are separate so the level line lines up exactly
       -- under the first letter of the boss name.

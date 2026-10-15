@@ -2,8 +2,8 @@ local _, FLT = ...
 local UI = FLT.UI
 
 -- "What can I learn next": spells and ranks a class trainer teaches. For your
--- own class only what you do not know yet, for your level now and the next
--- levels; any other class can be picked at the top and shows its whole list.
+-- own class everything you do not know yet up to level 60 (own race only);
+-- any other class can be picked at the top and shows its whole list.
 -- Opened from the spellbook button in the Talent Trees tab.
 -- Spell list: Data/TrainerSpells.lua (generated from the Forever client data).
 -- Known spells are read from your spellbook. Training costs are not in the
@@ -11,7 +11,6 @@ local UI = FLT.UI
 -- (ForeverCompanionDB.trainerCosts[class]["Name|rank"] = { c = copper, l = level }).
 -- Spells taught by a quest instead of the trainer get a yellow "!".
 
-local AHEAD = 10      -- levels shown beyond the current one (own class)
 local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
 local QUEST_TEX = "Interface\\GossipFrame\\AvailableQuestIcon"
 local CLASSES = {
@@ -131,7 +130,7 @@ end
 ev:SetScript("OnEvent", function(...) FLT.SafeCall("Trainer", onEventSafe, ...) end)
 
 -- the list: { level, spellID, name, rank, cost or nil, icon, quest, talent }, sorted by level.
--- Own class: only what is not known yet, up to AHEAD levels ahead, own race only.
+-- Own class: only what is not known yet (up to level 60), own race only.
 -- Other classes: everything.
 local function spellList(cid)
   local c = classByID(cid)
@@ -141,7 +140,7 @@ local function spellList(cid)
   local raceID = tonumber((select(3, UnitRace("player"))))
   local raceBit = raceID and 2 ^ (raceID - 1) or 0
   local level = UnitLevel("player") or 1
-  local maxLevel = own and math.min(60, level + AHEAD) or 60
+  local maxLevel = 60
   local db = costsDB(c and c.token)
   local out = {}
   for _, s in ipairs(list) do
@@ -187,7 +186,7 @@ local function createFrame()
   do local font, _, flags = f.title:GetFont(); if font then f.title:SetFont(font, 20, flags) end end
   f.sub = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlight"); f.sub:SetPoint("TOPLEFT", f.title, "BOTTOMLEFT", 0, -5)
   f.sub:SetTextColor(0.85, 0.82, 0.74)
-  local close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", -4, -4); FLT.SkinBlizz(close)
+  local close = UI.CloseButton(f); close:SetPoint("TOPRIGHT", -12, -12)
 
   -- class picker: one crest per class
   f.classButtons = {}
@@ -276,7 +275,7 @@ local function getRow(f, i)
   return r
 end
 
--- level band: warm gold bar with a thin ornate frame and a chevron
+-- level band: warm gold bar with a thin frame (not collapsible, so no chevron)
 local HEAD_H = 30
 local function getHead(f, i)
   local h = f.heads[i]
@@ -293,9 +292,7 @@ local function getHead(f, i)
     base:SetColorTexture(r1, g1, b1, 0.92)
   end
   for _, tx in ipairs(UI.OrnateFrame(h, h, 8, 1, "OVERLAY", 1) or {}) do tx:SetVertexColor(FLT.SkinC(0.70, 0.56, 0.32, 0.85)) end
-  local ch = h:CreateTexture(nil, "ARTWORK"); ch:SetSize(14, 14); ch:SetPoint("LEFT", 10, 0)
-  FLT.SetTex(ch, UI.ASSET_ROOT .. "chevron"); ch:SetTexCoord(0, 0.5, 0, 1)
-  h.text = FLT.NewFS(h, nil, "OVERLAY", "GameFontNormalLarge"); h.text:SetPoint("LEFT", 30, 0)
+  h.text = FLT.NewFS(h, nil, "OVERLAY", "GameFontNormalLarge"); h.text:SetPoint("LEFT", 12, 0)
   do local font, _, flags = h.text:GetFont(); if font then h.text:SetFont(font, 15, flags) end end
   h.right = FLT.NewFS(h, nil, "OVERLAY", "GameFontHighlightSmall"); h.right:SetPoint("RIGHT", -12, 0)
   f.heads[i] = h
@@ -320,7 +317,7 @@ function FLT.RefreshTrainerSpells()
   local l, r, tt, b = classIconCoords(c.token)
   f.crest:SetTexture(CLASS_TEX); if l then f.crest:SetTexCoord(l, r, tt, b) end
   f.title:SetText("Class trainer - " .. c.name)
-  if own then f.sub:SetText("Spells and ranks you have not learned yet, up to level " .. math.min(60, level + AHEAD))
+  if own then f.sub:SetText("Spells and ranks you have not learned yet, up to level 60")
   else f.sub:SetText("Everything this trainer teaches, level 1 to 60") end
   for id, btn in pairs(f.classButtons) do
     local on = id == c.id
@@ -369,7 +366,7 @@ function FLT.RefreshTrainerSpells()
   end
   if #list == 0 then
     local h = getHead(f, 1); h:ClearAllPoints(); h:SetPoint("TOPLEFT", 0, 0)
-    h.text:SetText("Nothing new in the next levels"); h.text:SetTextColor(0.75, 0.75, 0.75); h.right:SetText(""); h:Show()
+    h.text:SetText("Nothing left to learn"); h.text:SetTextColor(0.75, 0.75, 0.75); h.right:SetText(""); h:Show()
     y = -HEAD_H
   end
   f.child:SetHeight(math.max(10, -y + 4))

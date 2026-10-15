@@ -201,10 +201,6 @@ local function createArmoryPanel(parent)
 
   local band = UI.TitleBand(panel, { emblem = UI.ASSET_ROOT .. "emblem_armory", art = UI.ASSET_ROOT .. "armory_banner",
     title = "Armory", subtitle = "Item sets and reputation rewards in WoW Forever, and which pieces you already own.", fadeRight = 60 })
-  if band.title then
-    local mark = UI.NewMark(band, "The Armory replaces the General tab: item sets and reputation rewards. Mounts, legendaries and a gear planner follow later.")
-    mark:SetPoint("LEFT", band.title, "RIGHT", 6, 2)
-  end
 
   local nav = CreateFrame("Frame", nil, panel)
   nav:SetPoint("TOPLEFT", 8, -74); nav:SetPoint("BOTTOMLEFT", 8, 4); nav:SetWidth(164)

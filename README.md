@@ -8,7 +8,8 @@ All-in-one companion addon for **WoW Forever**. No other addons required.
 - **Professions** – Merchant's Favor recipes, who in your guild (or on your other characters) knows a recipe, the nearest trainer of every profession
 - **Talent planner** – plan your talents with two saved presets per class; class trainer window with the spells you can learn next
 - **Hunter pets** – where to tame which family, which abilities a pet can learn
-- **Quality of Life** – optional helpers (auto repair, sell junk, quest XP on the experience bar, item compare with Shift, minimap button collector and more), all off by default
+- **Quality of Life** – optional helpers you switch on as you like (auto repair, sell junk, quest XP on the experience bar, item compare with Shift, minimap button collector, low spell ranks on your action bars and more)
+- **Skins** – Gold or Dark Silver, each in a Classic (ornate) or Modern (plain, rounded) look; the Modern skins can be made see-through
 
 ## Download
 

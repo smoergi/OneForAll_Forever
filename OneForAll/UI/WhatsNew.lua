@@ -5,23 +5,22 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 -- "Noteworthy changes" popup. Shown once per account after logging in with a
 -- new NEWS_ID (change it for the next release with news). /ofa news reopens it.
 
-local NEWS_ID = "5.6.0"
+local NEWS_ID = "5.6.1"
 
+-- image (optional): picture under the lines = { tex, shown width, shown height, texcoord right, texcoord bottom }
+-- (made by tools/art/proc_news.py from the user's screenshots in source_images/news)
 local NEWS = {
-  { icon = "Interface\\AddOns\\OneForAll\\Assets\\emblem_armory", title = "Armory", tab = "armory", button = "Open Armory",
+  { icon = "Interface\\Icons\\INV_Misc_Gem_Pearl_04", title = "New look: Modern skins", tab = "settings", button = "Open Settings",
     lines = {
-      "New tab instead of General: raid, dungeon, PvP, crafted and world sets for your class, with the pieces you already own, set bonuses and where each piece drops.",
-      "Reputation rewards of every faction, grouped by standing, with your standing and the vendor on the map. The data is still incomplete and will grow.",
-    } },
-  { icon = "Interface\\Icons\\INV_Misc_Map_01", title = "Dungeon maps", tab = "dungeons", button = "Open Dungeons & Raids",
+      "Two new skins, Gold Modern and Dark Silver Modern, with plain frames and rounded corners. Pick your skin with the brush button in the title bar or in Settings > Skin.",
+      "In the Modern skins the window can be made see-through: Settings > Window > Window opacity. Dark Silver is a little brighter.",
+    },
+    image = { "news_skins", 234, 147, 1, 0.6289 } },
+  { icon = "Interface\\Icons\\INV_Misc_Book_11", title = "Check low spell ranks", tab = "qol", button = "Open Quality of Life",
     lines = {
-      "Every dungeon now has a Map with boss portraits (click one for its loot) and the entrance. Zoom with the mouse wheel, drag to move.",
-      "Inside a dungeon the world map key (M) opens its map. You can turn this off in Settings > Dungeons | Raids. Map layout: Forever Simple World Map by Tarolg.",
-    } },
-  { icon = "Interface\\Icons\\INV_Misc_Gear_01", title = "Tabs", tab = "settings", button = "Open Settings",
-    lines = {
-      "New tab order: Armory, Dungeons & Raids, Professions, Quality of Life, Talent Trees, Library Books, Hunter Pets. The window opens on the tab you used last.",
-    } },
+      "New option in Quality of Life: finds spells on your action bars that still use an older rank than you know and updates them with one click. After a trainer visit it waits until you close the trainer.",
+    },
+    image = { "news_lowrank", 380, 166, 1, 0.8711 } },
 }
 
 local frame
@@ -51,7 +50,7 @@ local function create()
   local ver = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); ver:SetPoint("TOPLEFT", 54, -30)
   ver:SetText("Version " .. addonVersion())
 
-  local close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", -4, -4)
+  local close = UI.CloseButton(f); close:SetPoint("TOPRIGHT", -12, -12)
 
   local _, class = UnitClass and UnitClass("player")
   local y = -70
@@ -76,6 +75,14 @@ local function create()
         local t = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); t:SetPoint("TOPLEFT", 76, ly)
         t:SetWidth(460); t:SetJustifyH("LEFT"); t:SetText(line); t:SetTextColor(FLT.SkinC(0.90, 0.88, 0.82))
         ly = ly - math.max(16, (t:GetStringHeight() or 12) + 5)
+      end
+      if entry.image then
+        local im = entry.image
+        local pic = f:CreateTexture(nil, "ARTWORK"); pic:SetSize(im[2], im[3]); pic:SetPoint("TOPLEFT", 76, ly - 4)
+        FLT.SetTex(pic, UI.ASSET_ROOT .. im[1]); pic:SetTexCoord(0, im[4], 0, im[5])
+        local pf = CreateFrame("Frame", nil, f); pf:SetAllPoints(pic)
+        UI.OrnateFrame(pf, pf, 10, 2, "OVERLAY", 1)
+        ly = ly - im[3] - 12
       end
       y = ly - 14
     end

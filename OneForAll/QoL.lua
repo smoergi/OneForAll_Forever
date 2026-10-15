@@ -1,8 +1,9 @@
 local _, FLT = ...
 
 -- Quality of Life: small automations and tooltip additions. Every feature has
--- its own switch in the Quality of Life tab and is OFF by default, so it does
--- not clash with other QoL addons. Holding Shift pauses the automations
+-- its own switch in the Quality of Life tab. The default (on/off) is decided by
+-- the user per option (DEFAULTS); most are off so they do not clash with other
+-- QoL addons. Holding Shift pauses the automations
 -- (repair, junk, quests, invites, duels).
 -- Settings: ForeverCompanionDB.qol[key].
 
@@ -13,6 +14,7 @@ local DEFAULTS = {
   lootFeedQuality = 1, lootFeedMoney = true,
   inviteMode = "friendsguild", keywordMode = "friendsguild", keyword = "inv", duelMode = "friendsguild",
   durabilityPct = 20, mmDir = "auto",
+  lowRank = true, -- on by default (user 15.10.)
 }
 
 local function db()

@@ -213,6 +213,13 @@ f:SetScript("OnEvent", function(_, event, arg1)
     ForeverCompanionDB.talentPlans = ForeverCompanionDB.talentPlans or {}
     FLT.bankItems = char.bankItems
     if ForeverCompanionDB.nearbyAlertsEnabled == nil then ForeverCompanionDB.nearbyAlertsEnabled = true end
+    -- 5.6.1: everyone starts once with the Gold Modern skin (user 15.10.); a skin
+    -- picked afterwards is kept (the flag makes this a one-time switch).
+    if not ForeverCompanionDB.skinDefault561 then
+      ForeverCompanionDB.skinDefault561 = true
+      ForeverCompanionDB.skin = nil            -- gold
+      ForeverCompanionDB.frameStyle = "modern"
+    end
   elseif event == "PLAYER_LOGIN" then
     FLT:Refresh()
     if FLT.CreateMinimapButton then FLT:CreateMinimapButton() end
