@@ -218,6 +218,38 @@ local function referenceLayout(configID, all, classID, st)
   return placed,unmatched
 end
 
+-- Points spent per talent tree of the active talents { tree1, tree2, tree3 } (Gear Planner Value picks the
+-- tree with the most points). Forever: the trait tree of the active config, nodes placed into trees with
+-- TalentData.lua like the planner does; older clients: GetTalentTabInfo. nil when nothing can be read.
+function FLT.TalentPointsPerTree()
+  local _, _, classID = UnitClass("player")
+  if classID and C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_Traits and C_Traits.GetConfigInfo then
+    local ok, configID = pcall(C_ClassTalents.GetActiveConfigID)
+    if ok and configID then
+      local _, all = collectNodes(configID)
+      local placed = referenceLayout(configID, all, classID, { entries = {} })
+      if placed then
+        local pts = { 0, 0, 0 }
+        for _, p in ipairs(placed) do
+          local ni = p.node.info
+          pts[p.tree] = (pts[p.tree] or 0) + (ni.currentRank or ni.ranksPurchased or 0)
+        end
+        return pts
+      end
+    end
+  end
+  if GetTalentTabInfo then
+    local pts = {}
+    for i = 1, 3 do
+      local ok, a, b, c, d, e = pcall(GetTalentTabInfo, i)
+      if not ok then return nil end
+      -- Classic Era: name, icon, pointsSpent, file; later clients: id, name, description, icon, pointsSpent
+      pts[i] = (type(a) == "string" and tonumber(c)) or tonumber(e) or 0
+    end
+    return pts
+  end
+end
+
 -- /ofa talentdump: records node ID, entry ID and spell ID of every talent of
 -- all classes (via the same preview API the planner uses) into
 -- OneForAllDB.talentDump. Used to make TalentData.lua independent of the

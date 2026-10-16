@@ -156,7 +156,14 @@ function LM.Refresh()
   local scale = 1
   local sc = WorldMapFrame.ScrollContainer
   if sc.GetCanvasScale then scale = 1 / math.max(0.1, sc:GetCanvasScale() or 1) end
-  local level = child:GetFrameLevel() + 30
+  -- frame level: the map's own top pin level when the client has the manager, at least child + 500; in the
+  -- Barrens the icons were hidden under the map's area highlight although they got the mouse (5.6.3)
+  local level = child:GetFrameLevel() + 500
+  local mgr = WorldMapFrame.GetPinFrameLevelsManager and WorldMapFrame:GetPinFrameLevelsManager()
+  if mgr and mgr.GetValidFrameLevel then
+    local ok, l = pcall(mgr.GetValidFrameLevel, mgr, "PIN_FRAME_LEVEL_TOPMOST")
+    if ok and type(l) == "number" and l > level then level = l end
+  end
   for _, e in ipairs(list) do
     local k = KINDS[e.kind]
     if Q(k.key) ~= false then

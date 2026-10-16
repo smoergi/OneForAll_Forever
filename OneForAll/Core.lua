@@ -339,12 +339,21 @@ SlashCmdList.ONEFORALL = function(cmd)
     msg(#parts > 0 and ("Known pet abilities: " .. table.concat(parts, ", ")) or "No pet abilities found yet - summon your pet and try again.")
   elseif cmd == "news" then
     if FLT.ShowNews then FLT.ShowNews() end
+  elseif cmd == "channel" then
+    local st = FLT.RecipeShareStatus and FLT.RecipeShareStatus()
+    if not st then return end
+    if not st.enabled then msg("Recipe sharing with other OneForAll users is off (Settings).") return end
+    msg(string.format("Recipe channel: %s. Other users online: %d, players with known recipes: %d. Own status sent: %s.%s",
+      st.channel and ("joined as channel " .. st.channel) or ("not joined (" .. st.tries .. " tries)"),
+      st.online, st.known, st.lastStatus and (st.lastStatus .. " s ago") or "not yet",
+      st.queued > 0 and (" Waiting to send: " .. st.queued .. ".") or ""))
   elseif cmd == "profscan" then
     if not FLT.ScanProfessions then return end
     local r = FLT.ScanProfessions()
     local l = r.last or {}
     msg(string.format("Profession scan: new API %s, old API %s, profession API %s. Last: %s, %d recipes read, %d matched, skill %s.",
       tostring(r.newAPI), tostring(r.oldAPI), tostring(r.profAPI), tostring(l.prof or "none"), l.count or 0, l.matched or 0, tostring(l.skill)))
+    if l.foreign then msg("The last profession window showed another player's recipes (a link or guild member) - not stored.") end
     local st = l.stats
     if st then msg(string.format("Recipe list: %d ids, learned %d, not learned %d, no flag %d, no info %d.", st.ids, st.yes, st.no, st.noField, st.noInfo)) end
   elseif cmd == "talentdump" then

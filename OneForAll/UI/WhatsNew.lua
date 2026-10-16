@@ -4,30 +4,21 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 
 -- "Noteworthy changes" popup. Shown once per account after logging in with a
 -- new NEWS_ID (change it for the next release with news). /ofa news reopens it.
--- One popup per minor line (user 16.10.): NEWS_ID "5.6" collects the news of all 5.6.x versions and
--- is shown only to players coming from before 5.6 (whoever saw the 5.6.1 popup does not get it again).
+-- 5.6.3 (user 16.10.): the popup was emptied and only shows the Gear Planner; NEWS_ID "5.6.3" so that
+-- everyone who saw the "5.6" popup gets it once.
 
-local NEWS_ID = "5.6"
+local NEWS_ID = "5.6.3"
 
--- image (optional): picture under the lines = { tex, shown width, shown height, texcoord right, texcoord bottom }
--- (made by tools/art/proc_news.py from the user's screenshots in source_images/news)
+-- images (optional): pictures in a row under the lines, each { tex, shown width, shown height, texcoord right,
+-- texcoord bottom } (made by tools/art/proc_news.py from the user's screenshots in source_images/news)
 local NEWS = {
-  { icon = "Interface\\Icons\\INV_Misc_Gem_Pearl_04", title = "New look: Modern skins", tab = "settings", button = "Open Settings",
+  { icon = "Interface\\Icons\\INV_Chest_Plate06", title = "Gear Planner", tab = "armory", button = "Open Armory",
     lines = {
-      "Two new skins, Gold Modern and Dark Silver Modern, with plain frames and rounded corners. Pick your skin with the brush button in the title bar or in Settings > Skin.",
-      "In the Modern skins the window can be made see-through: Settings > Window > Window opacity. Dark Silver is a little brighter.",
+      "Armory > Gear Planner: click a slot of your character to see items that are better than what you wear, from dungeons, quests, reputation and crafting - only what your class can use, in your level range.",
+      "Every item shows how much better it is in %, weighted for your talent spec. Item tooltips show it too: green arrow \"Upgrade\", red arrow \"Downgrade\".",
+      "Star items for your wishlist, right-click to try them on, follow quest chains and jump to the boss that drops an item.",
     },
-    image = { "news_skins", 234, 147, 1, 0.6289 } },
-  { icon = "Interface\\Icons\\INV_Misc_Book_11", title = "Check low spell ranks", tab = "qol", button = "Open Quality of Life",
-    lines = {
-      "New option in Quality of Life: finds spells on your action bars that still use an older rank than you know and updates them with one click. After a trainer visit it waits until you close the trainer.",
-    },
-    image = { "news_lowrank", 380, 166, 1, 0.8711 } },
-  { icon = "Interface\\Icons\\INV_Misc_Map_01", title = "Map Landmarks", tab = "qol", button = "Open Quality of Life",
-    lines = {
-      "Icons on the world map for dungeon and raid entrances, flight masters, zeppelins and ships. Click an entrance to open that dungeon in OneForAll; the other icons show where they go.",
-      "Quality of Life > World map switches it off or hides single parts.",
-    } },
+    images = { { "news_gear_tooltip", 176, 145, 1, 0.8242 }, { "news_gear_list", 274, 154, 0.8848, 0.9961 } } },
 }
 
 local frame
@@ -83,13 +74,16 @@ local function create()
         t:SetWidth(460); t:SetJustifyH("LEFT"); t:SetText(line); t:SetTextColor(FLT.SkinC(0.90, 0.88, 0.82))
         ly = ly - math.max(16, (t:GetStringHeight() or 12) + 5)
       end
-      if entry.image then
-        local im = entry.image
-        local pic = f:CreateTexture(nil, "ARTWORK"); pic:SetSize(im[2], im[3]); pic:SetPoint("TOPLEFT", 76, ly - 4)
-        FLT.SetTex(pic, UI.ASSET_ROOT .. im[1]); pic:SetTexCoord(0, im[4], 0, im[5])
-        local pf = CreateFrame("Frame", nil, f); pf:SetAllPoints(pic)
-        UI.OrnateFrame(pf, pf, 10, 2, "OVERLAY", 1)
-        ly = ly - im[3] - 12
+      if entry.images then
+        local x, hmax = 76, 0
+        for _, im in ipairs(entry.images) do
+          local pic = f:CreateTexture(nil, "ARTWORK"); pic:SetSize(im[2], im[3]); pic:SetPoint("TOPLEFT", x, ly - 4)
+          FLT.SetTex(pic, UI.ASSET_ROOT .. im[1]); pic:SetTexCoord(0, im[4], 0, im[5])
+          local pf = CreateFrame("Frame", nil, f); pf:SetAllPoints(pic)
+          UI.OrnateFrame(pf, pf, 10, 2, "OVERLAY", 1)
+          x = x + im[2] + 10; hmax = math.max(hmax, im[3])
+        end
+        ly = ly - hmax - 12
       end
       y = ly - 14
     end

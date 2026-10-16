@@ -2,6 +2,7 @@
 
 All-in-one companion addon for **WoW Forever**. No other addons required.
 
+- **Gear Planner** – click a slot of your character to see upgrades from dungeons, quests, reputation and crafting that your class can use, with the gain in % for your talent spec (also in item tooltips), a wishlist, quest chains and the boss that drops an item
 - **Armory** – item sets for your class (raid, dungeon, PvP, crafted, world) with the pieces you own, set bonuses and where they drop; reputation rewards by standing
 - **Dungeons & Raids** – dungeon maps with boss portraits (M inside a dungeon), bosses, loot with drop chances, quests with quest chains and map pins, dungeon keys and raid attunements
 - **Library Books** – which books you have, still need, and where to find them

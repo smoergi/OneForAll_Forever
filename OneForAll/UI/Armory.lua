@@ -210,7 +210,7 @@ local function createArmoryPanel(parent)
 
   local views = {}
   local navButtons = {}
-  local current -- "home", group key or "rep"
+  local current -- "gear", group key or "rep"
   local show -- forward
 
   local function hideViews() for _, v in pairs(views) do v:Hide() end end
@@ -322,8 +322,8 @@ local function createArmoryPanel(parent)
   end
 
   refreshSets = function(keepScroll)
-    if not views.sets:IsShown() and current ~= "home" then return end
-    if current == "home" then if views.home.refresh then views.home.refresh() end return end
+    if current == "gear" then return end
+    if not views.sets:IsShown() then return end
     local list = filteredSets(current)
     for _, r in ipairs(setRows) do r:Hide() end
     for _, h in ipairs(headRows) do h:Hide() end
@@ -685,116 +685,16 @@ local function createArmoryPanel(parent)
     rdetail:SetHeight(-y)
   end
 
-  -- OVERVIEW ---------------------------------------------------------------
-  local home = CreateFrame("Frame", nil, body); home:SetAllPoints(); home:Hide()
-  views.home = home
-  local hsf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, home, "UIPanelScrollFrameTemplate"))
-  hsf:SetPoint("TOPLEFT", 0, -36); hsf:SetPoint("BOTTOMRIGHT", -22, 0)
-  local hchild = CreateFrame("Frame", nil, hsf); hchild:SetSize(780, 1); hsf:SetScrollChild(hchild)
-  UI.AutoHideScrollBar(hsf)
-  local hTitle = UI.SectionTitle(hchild, "Sets", 4, -2, -4)
-  local tiles = {}
-  for i, g in ipairs(GROUPS) do
-    local t = CreateFrame("Button", nil, hchild); t:SetSize(252, 58)
-    t:SetPoint("TOPLEFT", 4 + ((i - 1) % 3) * 260, -30 - math.floor((i - 1) / 3) * 64)
-    UI.CardRow(t)
-    local ic = t:CreateTexture(nil, "ARTWORK"); ic:SetSize(36, 36); ic:SetPoint("LEFT", 10, 0); FLT.SetTex(ic, g.icon)
-    t.label = newText(t, "GameFontNormal", 190, GOLD); t.label:SetPoint("TOPLEFT", 54, -10); t.label:SetText(g.label)
-    t.info = newText(t, "GameFontHighlightSmall", 190, TEXT); t.info:SetPoint("TOPLEFT", 54, -28)
-    t.info2 = newText(t, "GameFontHighlightSmall", 190, DIM); t.info2:SetPoint("TOPLEFT", 54, -42)
-    t:SetScript("OnClick", function() show(g.key) end)
-    t.group = g.key
-    tiles[i] = t
-  end
-  do -- Reputation tile in the free sixth slot
-    local t = CreateFrame("Button", nil, hchild); t:SetSize(252, 58); t:SetPoint("TOPLEFT", 4 + 2 * 260, -94)
-    UI.CardRow(t)
-    local ic = t:CreateTexture(nil, "ARTWORK"); ic:SetSize(36, 36); ic:SetPoint("LEFT", 10, 0); FLT.SetTex(ic, "Interface\\Icons\\INV_Misc_Note_02")
-    t.label = newText(t, "GameFontNormal", 190, GOLD); t.label:SetPoint("TOPLEFT", 54, -10); t.label:SetText("Reputation Rewards")
-    t.info = newText(t, "GameFontHighlightSmall", 190, TEXT); t.info:SetPoint("TOPLEFT", 54, -28)
-    t.info2 = newText(t, "GameFontHighlightSmall", 190, DIM); t.info2:SetPoint("TOPLEFT", 54, -42)
-    t:SetScript("OnClick", function() show("rep") end)
-    t.rep = true
-    tiles[#tiles + 1] = t
-  end
-  local closeTitle = UI.SectionTitle(hchild, "Closest to complete", 4, -170, -4)
-  local closeRows = {}
-  local closeEmpty = newText(hchild, "GameFontDisableSmall", 700); closeEmpty:SetPoint("TOPLEFT", 8, -200)
-  closeEmpty:SetText("You do not own a piece of an obtainable set for this class yet. Browse the set categories to see where they drop.")
-  local laterTitle = UI.SectionTitle(hchild, "Coming later", 4, -400, -4)
-  local later = newText(hchild, "GameFontHighlightSmall", 760, DIM); later:SetWordWrap(true)
-  local beta = CreateFrame("Frame", nil, hchild); beta:SetSize(772, 66)
-  UI.FramedPanel(beta)
-  local bic = beta:CreateTexture(nil, "ARTWORK"); bic:SetSize(34, 34); bic:SetPoint("LEFT", 14, 0); FLT.SetTex(bic, "Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew")
-  local bt = UI.SmallCaps(beta, "Beta data", 15, 11, {1, 0.72, 0.16}); bt:SetPoint("TOPLEFT", 60, -10)
-  local bb = newText(beta, "GameFontHighlightSmall", 690, {0.92, 0.86, 0.72}); bb:SetPoint("TOPLEFT", 60, -30); bb:SetWordWrap(true)
-  bb:SetText("The Armory is new and its data is still very incomplete: many sources, levels, vendors and Forever item changes are missing or may be wrong. Everything will be filled in with the next versions.")
-  later:SetText("Mounts, PvP reputation rewards, legendary items with their quest lines and a gear planner (wish list per slot) will follow in later versions. Sets marked \"Not in Forever yet\" become obtainable when their raid, event or PvP ranks arrive in WoW Forever.")
-
-  home.refresh = function()
-    local cls = P.class or nil
-    for _, t in ipairs(tiles) do
-      if t.rep then
-        local n, items = 0, 0
-        for _, f in ipairs(FLT.ARMORY_REPUTATION or {}) do if f.st ~= 0 and factionVisible(f) then n = n + 1; items = items + #f.i end end
-        t.info:SetText(string.format("%d factions, %d rewards", n, items))
-        t.info2:SetText("Gear, recipes and more by standing")
-      else
-        local ok, unk, notyet, ownedP = 0, 0, 0, 0
-        for _, s in ipairs(FLT.ARMORY_SETS or {}) do
-          if s.g == t.group and setForClass(s, cls) then
-            if s.st == 1 then ok = ok + 1; ownedP = ownedP + (setProgress(s)) elseif s.st == 2 then unk = unk + 1 else notyet = notyet + 1 end
-          end
-        end
-        t.info:SetText(string.format("%d obtainable", ok) .. (unk > 0 and string.format(",  %d new without source", unk) or ""))
-        t.info2:SetText(notyet > 0 and string.format("%d not in Forever yet", notyet) or (ownedP > 0 and string.format("%d pieces owned", ownedP) or " "))
-      end
-    end
-    -- closest sets: obtainable, at least one piece owned, highest share first
-    local cands = {}
-    for _, s in ipairs(FLT.ARMORY_SETS or {}) do
-      if s.st == 1 and setForClass(s, cls) then
-        local owned, _, total = setProgress(s)
-        if owned > 0 and owned < total then cands[#cands + 1] = { s = s, o = owned, t = total } end
-      end
-    end
-    table.sort(cands, function(a, b) if a.o / a.t ~= b.o / b.t then return a.o / a.t > b.o / b.t end return a.s.n < b.s.n end)
-    for _, r in ipairs(closeRows) do r:Hide() end
-    local y = -200
-    for i = 1, math.min(6, #cands) do
-      local c = cands[i]
-      local r = closeRows[i]
-      if not r then
-        r = CreateFrame("Button", nil, hchild); r:SetSize(380, 38)
-        r.card = UI.CardRow(r)
-        r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(28, 28); r.icon:SetPoint("LEFT", 6, 0)
-        r.name = newText(r, "GameFontHighlight", 300); r.name:SetPoint("TOPLEFT", 42, -5)
-        r.sub = newText(r, "GameFontHighlightSmall", 320, DIM); r.sub:SetPoint("TOPLEFT", 42, -21)
-        r:SetScript("OnClick", function(self) selectedSet[self.s.g] = self.s.id; show(self.s.g) end)
-        closeRows[i] = r
-      end
-      r:ClearAllPoints(); r:SetPoint("TOPLEFT", 4 + ((i - 1) % 2) * 388, y - math.floor((i - 1) / 2) * 42); r:Show()
-      r.s = c.s
-      local first = setIcon(c.s)
-      setItemIcon(r.icon, first[1], first[5])
-      r.name:SetText(c.s.n); r.name:SetTextColor(qualityColor(first[4]))
-      r.sub:SetText(string.format("%d / %d owned  ·  %s", c.o, c.t, c.s.sub or GROUP_LABEL[c.s.g]))
-    end
-    closeEmpty:SetShown(#cands == 0)
-    local rowsH = #cands > 0 and math.ceil(math.min(6, #cands) / 2) * 42 or 24
-    laterTitle:ClearAllPoints(); laterTitle:SetPoint("TOPLEFT", 4, -200 - rowsH - 14)
-    later:ClearAllPoints(); later:SetPoint("TOPLEFT", 8, -200 - rowsH - 42)
-    beta:ClearAllPoints(); beta:SetPoint("TOPLEFT", 4, -200 - rowsH - 92)
-    hchild:SetHeight(200 + rowsH + 170)
-  end
+  -- GEAR PLANNER (UI/GearPlanner.lua) -----------------------------------------
+  local gear = UI.CreateGearPlanner(body)
+  views.gear = gear
 
   -- NAVIGATION ---------------------------------------------------------------
   show = function(key)
     current = key
     hideViews(); setNav(key)
-    filterBar:SetShown(key ~= "rep")
-    filterBar.hide:SetShown(key ~= "home"); filterBar.hideLabel:SetShown(key ~= "home")
-    if key == "home" then home:Show(); home.refresh()
+    filterBar:SetShown(key ~= "rep" and key ~= "gear")
+    if key == "gear" then gear:Show(); gear:Refresh()
     elseif key == "rep" then repView:Show(); refreshRep()
     else setView:Show(); refreshSets() end
   end
@@ -809,13 +709,13 @@ local function createArmoryPanel(parent)
     local sep = nav:CreateTexture(nil, "ARTWORK"); FLT.SetTex(sep, UI.ASSET_ROOT .. "divider_ornate"); sep:SetHeight(12)
     sep:SetPoint("TOPLEFT", 6, navY + 6); sep:SetPoint("TOPRIGHT", -6, navY + 6); navY = navY - 8
   end
-  navButton("home", "Overview", "Interface\\Icons\\INV_Misc_Book_09"); navY = navY - 2
+  navButton("gear", "Gear Planner", "Interface\\Icons\\INV_Misc_Note_05"); navY = navY - 2
   divider()
   for _, g in ipairs(GROUPS) do navButton(g.key, g.label, g.icon) end
   divider()
   navButton("rep", "Reputation", "Interface\\Icons\\INV_Misc_Note_02")
   divider()
-  for _, l in ipairs({ { "Mounts", "Interface\\Icons\\Ability_Mount_RidingHorse" }, { "Legendaries", "Interface\\Icons\\INV_Staff_Medivh" }, { "Gear Planner", "Interface\\Icons\\INV_Misc_Note_05" } }) do
+  for _, l in ipairs({ { "Mounts", "Interface\\Icons\\Ability_Mount_RidingHorse" }, { "Legendaries", "Interface\\Icons\\INV_Staff_Medivh" } }) do
     local b = UI.NavButton(nav, l[1], 144, 27, l[2]); b:SetPoint("TOPLEFT", 10, navY); navY = navY - 32
     b._label:SetTextColor(0.5, 0.5, 0.5); if b.icon then FLT.Desat(b.icon, true); b.icon:SetAlpha(0.5) end
     b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(l[1], 1, 0.82, 0); GameTooltip:AddLine("Coming in a later version.", 1, 1, 1); GameTooltip:Show() end)
@@ -823,25 +723,27 @@ local function createArmoryPanel(parent)
   end
 
   -- Item names and ownership arrive later: redraw (throttled) while visible.
-  local pending = false
+  local pending, gearChanged = false, false
   local function redraw()
     pending = false
+    local changed = gearChanged; gearChanged = false
     if not panel:IsVisible() then return end
-    if current == "rep" then refreshRep(true) elseif current then refreshSets(true) end
+    if current == "rep" then refreshRep(true) elseif current == "gear" then gear:Refresh(changed) elseif current then refreshSets(true) end
   end
   local ev = CreateFrame("Frame", nil, panel)
   ev:RegisterEvent("GET_ITEM_INFO_RECEIVED")
   ev:RegisterEvent("BAG_UPDATE_DELAYED")
   ev:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
   ev:RegisterEvent("UPDATE_FACTION")
-  ev:SetScript("OnEvent", function()
+  ev:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_EQUIPMENT_CHANGED" then gearChanged = true end
     if pending or not panel:IsVisible() then return end
     pending = true
     if C_Timer and C_Timer.After then C_Timer.After(0.4, function() FLT.SafeCall("Armory", redraw) end) else redraw() end
   end)
   panel.Refresh = function() if panel:IsVisible() and current then show(current) end end
 
-  show("home")
+  show("gear")
   panel:Hide()
   return panel
 end
