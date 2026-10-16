@@ -9,6 +9,11 @@ local _, FLT = ...
 --   OneForAllDB.guildRecipes[guild][member]  = { t = time, [prof] = {spellID=true} }
 --   OneForAllDB.playerRecipes[player]        = { t = time, [prof] = {spellID=true} }
 -- Own characters in the same guild are stored too, so alts show up as well.
+-- 5.6.3 (reliability, user 16.10.): a hello on the channel makes the others answer with their status
+-- (so they show as online right after login), players whose recipes we don't have yet are asked once
+-- by whisper, the channel join is retried, throttled messages are sent again, the list of
+-- professions is sent along (dropped professions disappear) and the channel moves to the end of the
+-- channel list (so /1 stays General). /ofa channel shows the state.
 
 local PREFIX = "OFAPR"
 local CHANNEL = "OFAShare"
@@ -19,6 +24,8 @@ local REBROADCAST = 30 * 60   -- re-send own recipes to the channel every 30 min
 local PLAYER_EXPIRE = 60 * 24 * 3600 -- forget other players after 60 days
 local STATUS_EVERY = 10 * 60  -- heartbeat with the current zone
 local ONLINE_WINDOW = 12 * 60 -- other players count as online if heard from within this time
+local ASK_AGAIN = 10 * 60     -- ask a player for his recipes at most every 10 min (whisper)
+local JOIN_RETRY = 60         -- retry the channel join every minute while it failed
 
 local scheduleStatus -- forward declaration (defined further down)
 
@@ -138,7 +145,9 @@ function FLT.RequestGuildRoster()
   if C_GuildInfo and C_GuildInfo.GuildRoster then pcall(C_GuildInfo.GuildRoster) elseif GuildRoster then pcall(GuildRoster) end
 end
 
--- Current zone of other OneForAll users (this session only): [name] = {zone, inst, t}
+-- Current zone of other OneForAll users: [name] = {zone, inst, level, class, t}. Kept in OneForAllDB.shareStatus
+-- (5.6.3), so after a /reload players heard within ONLINE_WINDOW still count as online - users of older
+-- versions don't answer the hello, they only send their status every 10 minutes.
 local status = {}
 
 -- Guild members that know a recipe (without the player): list of {name, online, zone}.
@@ -200,14 +209,40 @@ local function hideChannelFromChat()
   end
 end
 
-local function joinChannel()
-  if not shareEnabled() or channelID() then hideChannelFromChat(); return end
-  if JoinTemporaryChannel then pcall(JoinTemporaryChannel, CHANNEL)
-  elseif JoinChannelByName then pcall(JoinChannelByName, CHANNEL) end
-  if C_Timer and C_Timer.After then C_Timer.After(1, hideChannelFromChat) end
+-- Move our channel behind all others, so /1 stays General (it may have been joined first).
+local function moveChannelToEnd()
+  local id = channelID()
+  local swap = C_ChatInfo and C_ChatInfo.SwapChatChannelsByChannelIndex
+  if not (id and swap and GetChannelList) then return end
+  if InCombatLockdown and InCombatLockdown() then return end
+  local last = 0
+  local list = { GetChannelList() }
+  for _, v in ipairs(list) do if type(v) == "number" and v > last then last = v end end -- id, name(, disabled) ...
+  for i = id, last - 1 do if not pcall(swap, i, i + 1) then break end end
 end
 
+local onChannelReady -- forward (defined with the sending code)
+local joinTries, joinTimer = 0, false
+local function joinChannel()
+  if not shareEnabled() then return end
+  if channelID() then hideChannelFromChat(); onChannelReady(); return end
+  if JoinTemporaryChannel then pcall(JoinTemporaryChannel, CHANNEL)
+  elseif JoinChannelByName then pcall(JoinChannelByName, CHANNEL) end
+  joinTries = joinTries + 1
+  if not (C_Timer and C_Timer.After) then return end
+  -- the join takes a moment; look again, and retry every minute while it failed
+  C_Timer.After(3, function()
+    if channelID() then hideChannelFromChat(); onChannelReady()
+    elseif not joinTimer and shareEnabled() then
+      joinTimer = true
+      C_Timer.After(JOIN_RETRY, function() joinTimer = false; joinChannel() end)
+    end
+  end)
+end
+
+local channelReady = false -- set once the channel is there (onChannelReady)
 local function leaveChannel()
+  channelReady = false
   if channelID() and LeaveChannelByName then pcall(LeaveChannelByName, CHANNEL) end
 end
 
@@ -226,27 +261,45 @@ end
 -- ---------------------------------------------------------------------------
 -- Sending
 -- ---------------------------------------------------------------------------
-local queues = { GUILD = {}, CHANNEL = {} }
-local sending = { GUILD = false, CHANNEL = false }
+-- queues per way: GUILD, CHANNEL and WHISPER (items { msg, target, tries })
+local queues = { GUILD = {}, CHANNEL = {}, WHISPER = {} }
+local sending = { GUILD = false, CHANNEL = false, WHISPER = false }
+local GAP = { GUILD = GUILD_GAP, CHANNEL = CHANNEL_GAP, WHISPER = GUILD_GAP }
+
+-- true when the game took the message; nil/true/0 = sent, false or another code = throttled or refused
+local function accepted(ok, res)
+  if not ok then return false end
+  return res == nil or res == true or res == 0
+end
 
 local function pump(dist)
-  local msg = table.remove(queues[dist], 1)
-  if not msg then sending[dist] = false; return end
-  if C_ChatInfo and C_ChatInfo.SendAddonMessage then
+  local item = table.remove(queues[dist], 1)
+  if not item then sending[dist] = false; return end
+  local gap = GAP[dist]
+  local send = C_ChatInfo and C_ChatInfo.SendAddonMessage
+  if send then
+    local ok, res
     if dist == "GUILD" then
-      if guildName() then pcall(C_ChatInfo.SendAddonMessage, PREFIX, msg, "GUILD") end
+      if guildName() then ok, res = pcall(send, PREFIX, item[1], "GUILD") else ok, res = true, nil end
+    elseif dist == "WHISPER" then
+      ok, res = pcall(send, PREFIX, item[1], "WHISPER", item[2])
     else
       local id = channelID()
-      if id and shareEnabled() then pcall(C_ChatInfo.SendAddonMessage, PREFIX, msg, "CHANNEL", id) end
+      if id and shareEnabled() then ok, res = pcall(send, PREFIX, item[1], "CHANNEL", id) else ok, res = true, nil end
+    end
+    -- throttled: try the same message again a little later (3 tries)
+    if not accepted(ok, res) and (item[3] or 0) < 3 then
+      item[3] = (item[3] or 0) + 1
+      table.insert(queues[dist], 1, item)
+      gap = gap * 4
     end
   end
-  local gap = dist == "GUILD" and GUILD_GAP or CHANNEL_GAP
   if C_Timer and C_Timer.After then C_Timer.After(gap, function() pump(dist) end) else pump(dist) end
 end
 
-local function send(dist, msg)
+local function send(dist, msg, target)
   local q = queues[dist]
-  q[#q + 1] = msg
+  q[#q + 1] = { msg, target }
   if not sending[dist] then sending[dist] = true; pump(dist) end
 end
 
@@ -286,23 +339,30 @@ local lastSent = { GUILD = 0, CHANNEL = 0 }
 local pending = { GUILD = false, CHANNEL = false }
 local lastSentCount = -1
 
-local function broadcast(dist)
-  pending[dist] = false
+-- dist GUILD / CHANNEL, or WHISPER with target (answer to a question)
+local function broadcast(dist, target)
+  if dist ~= "WHISPER" then pending[dist] = false end
   if dist == "GUILD" and not guildName() then return end
   if dist == "CHANNEL" and not (shareEnabled() and channelID()) then return end
   local own = ownRecipes()
-  for prof, known in pairs(own) do
+  -- which professions we have (5.6.3): receivers drop the ones that are not in the list
+  local profs = {}
+  for prof in pairs(own) do profs[#profs + 1] = prof end
+  table.sort(profs)
+  send(dist, "P\t" .. table.concat(profs, ","), target)
+  for _, prof in ipairs(profs) do
     local ids = {}
-    for s in pairs(known) do ids[#ids + 1] = enc(s) end
+    for s in pairs(own[prof]) do ids[#ids + 1] = enc(s) end
     table.sort(ids)
-    send(dist, "B\t" .. prof)
+    send(dist, "B\t" .. prof, target)
     local chunk = ""
     for _, id in ipairs(ids) do
-      if #chunk + #id + 1 > MAX_LEN - #prof - 3 then send(dist, "D\t" .. prof .. "\t" .. chunk); chunk = "" end
+      if #chunk + #id + 1 > MAX_LEN - #prof - 3 then send(dist, "D\t" .. prof .. "\t" .. chunk, target); chunk = "" end
       chunk = (chunk == "" and id) or (chunk .. "," .. id)
     end
-    if chunk ~= "" then send(dist, "D\t" .. prof .. "\t" .. chunk) end
+    if chunk ~= "" then send(dist, "D\t" .. prof .. "\t" .. chunk, target) end
   end
+  if dist == "WHISPER" then return end
   lastSent[dist] = GetTime and GetTime() or 0
   lastSentCount = countKnown()
 end
@@ -363,9 +423,11 @@ local function learnOwnName(name)
   end
 end
 
+local asked, answered = {}, {} -- [name] = time (this session)
 local function onAddonMessage(prefix, msg, channel, sender)
   if prefix ~= PREFIX or type(msg) ~= "string" then return end
-  if channel ~= "GUILD" and channel ~= "CHANNEL" then return end
+  if channel ~= "GUILD" and channel ~= "CHANNEL" and channel ~= "WHISPER" then return end
+  if channel ~= "GUILD" and not shareEnabled() then return end
   local who = shortName(sender)
   if not who then return end
   local kind, prof, data = msg:match("^(%a)\t?([^\t]*)\t?(.*)$")
@@ -374,10 +436,20 @@ local function onAddonMessage(prefix, msg, channel, sender)
   if token and token == SESSION then learnOwnName(who); return end
   if isMe(who) then return end
   if kind == "H" then
-    -- only guild members ask; the channel relies on login + periodic broadcasts
     if channel == "GUILD" then
       local t = GetTime and GetTime() or 0
       if t - lastSent.GUILD > 20 then scheduleBroadcast("GUILD", 3 + math.random() * 7) end
+    elseif channel == "CHANNEL" then
+      -- someone joined: tell him we are here (spread out, at most every 30 s, see scheduleStatus)
+      scheduleStatus(2 + math.random() * 10)
+    end
+    return
+  end
+  if kind == "Q" then
+    -- a player asks for our recipes (whisper): answer at most every 10 min per player
+    if channel == "WHISPER" and (now() - (answered[who] or 0)) > ASK_AGAIN then
+      answered[who] = now()
+      broadcast("WHISPER", sender)
     end
     return
   end
@@ -397,19 +469,35 @@ local function onAddonMessage(prefix, msg, channel, sender)
         if ok and info and info.name and info.name ~= "" then zone = info.name end
       end
       status[who] = {zone = zone, inst = inst ~= "" and inst ~= "none" and inst or nil, level = level, class = class, t = now()}
+      -- no recipes of this player yet (new user, or forgotten): ask him once by whisper
+      local pdb = playerDB()
+      if pdb and not pdb[who] and rosterInfo(who) == nil and (now() - (asked[who] or 0)) > ASK_AGAIN then
+        asked[who] = now()
+        send("WHISPER", "Q", sender)
+      end
       refreshSoon()
     end
     return
   end
-  if channel == "CHANNEL" then
+  if channel ~= "GUILD" then
     local st = status[who]
     if st then st.t = now() else status[who] = {t = now()} end
   end
-  if not (prof and FLT.PROFESSION_RECIPES and FLT.PROFESSION_RECIPES[prof]) then return end
   local db
-  if channel == "GUILD" then db = guildDB(true)
-  elseif shareEnabled() then db = playerDB() end
+  if channel == "GUILD" then db = guildDB(true) else db = playerDB() end
   if not db then return end
+  if kind == "P" then
+    -- list of the sender's professions: forget the ones he no longer has
+    local rec = db[who]
+    if type(rec) == "table" then
+      local has = {}
+      for p in (prof or ""):gmatch("[^,]+") do has[p] = true end
+      for key in pairs(rec) do if FLT.PROFESSION_RECIPES and FLT.PROFESSION_RECIPES[key] and not has[key] then rec[key] = nil end end
+      refreshSoon()
+    end
+    return
+  end
+  if not (prof and FLT.PROFESSION_RECIPES and FLT.PROFESSION_RECIPES[prof]) then return end
   db[who] = db[who] or {}
   local rec = db[who]
   rec.t = now()
@@ -456,8 +544,32 @@ local function heartbeat()
   if C_Timer and C_Timer.After then C_Timer.After(STATUS_EVERY, heartbeat) end
 end
 
+-- the channel is there (after login or a later retry): move it to the end, say hello, send our data once
+onChannelReady = function()
+  if channelReady then return end
+  channelReady = true
+  moveChannelToEnd()
+  send("CHANNEL", "H\t" .. SESSION)
+  scheduleStatus(3)
+  scheduleBroadcast("CHANNEL", 6)
+end
+
+-- /ofa channel
+function FLT.RecipeShareStatus()
+  local online, known = 0, 0
+  local t = now()
+  for _, st in pairs(status) do if (t - (st.t or 0)) < ONLINE_WINDOW then online = online + 1 end end
+  for _ in pairs(playerDB() or {}) do known = known + 1 end
+  local last = lastStatus > -100 and math.floor((GetTime and GetTime() or 0) - lastStatus) or nil
+  return {
+    enabled = shareEnabled(), channel = channelID(), tries = joinTries, online = online, known = known,
+    lastStatus = last, queued = #queues.CHANNEL + #queues.WHISPER,
+  }
+end
+
 local function periodic()
-  scheduleBroadcast("CHANNEL", 0)
+  -- the first run right after login is skipped when the channel join already sent everything
+  if (GetTime and GetTime() or 0) - lastSent.CHANNEL > 60 then scheduleBroadcast("CHANNEL", 0) end
   if C_Timer and C_Timer.After then C_Timer.After(REBROADCAST, periodic) end
 end
 
@@ -479,6 +591,13 @@ ev:SetScript("OnEvent", function(_, event, ...)
   elseif event == "PLAYER_LOGIN" then
     if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then pcall(C_ChatInfo.RegisterAddonMessagePrefix, PREFIX) end
     pruneOldPlayers()
+    if type(OneForAllDB) == "table" then
+      local saved, t = OneForAllDB.shareStatus, now()
+      if type(saved) == "table" then
+        for name, st in pairs(saved) do if type(st) == "table" and (t - (st.t or 0)) < ONLINE_WINDOW then status[name] = st end end
+      end
+      OneForAllDB.shareStatus = status
+    end
     if C_Timer and C_Timer.After then
       -- guild info and channels are only ready a few seconds after login
       C_Timer.After(12, function()

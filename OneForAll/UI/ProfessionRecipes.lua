@@ -56,27 +56,35 @@ local function profFromName(name, skillLine)
   return nil
 end
 
-local function readSkillLines()
+-- calls fn(prof, rank, maxRank) for every profession the character has; returns true if a list was readable
+local function eachOwnProfession(fn)
+  local any = false
   -- Old skill list API
   if GetNumSkillLines and GetSkillLineInfo then
+    any = true
     for i = 1, GetNumSkillLines() or 0 do
       local name, isHeader, _, rank, _, _, maxRank = GetSkillLineInfo(i)
       local prof = not isHeader and profFromName(name)
-      if prof and rank then local p = profDB(prof); p.skill = rank; p.maxSkill = maxRank end
+      if prof and rank then fn(prof, rank, maxRank) end
     end
   end
   -- Modern profession API (profession book)
   if GetProfessions and GetProfessionInfo then
+    any = true
     local list = {GetProfessions()}
     for k = 1, 6 do
       local idx = list[k]
       if idx then
         local ok, name, _, rank, maxRank, _, _, skillLine = pcall(GetProfessionInfo, idx)
         local prof = ok and profFromName(name, skillLine)
-        if prof and rank then local p = profDB(prof); p.skill = rank; p.maxSkill = maxRank end
+        if prof and rank then fn(prof, rank, maxRank) end
       end
     end
   end
+  return any
+end
+local function readSkillLines()
+  eachOwnProfession(function(prof, rank, maxRank) local p = profDB(prof); p.skill = rank; p.maxSkill = maxRank end)
 end
 
 local browser -- set when created; refreshed after scans
@@ -118,7 +126,20 @@ local function cleanAllProfessions()
   for prof in pairs(FLT.PROFESSION_RECIPES or {}) do cleanImplausible(prof) end
 end
 
+-- The trade skill window can also show someone else's recipes: a profession link from chat, a guild
+-- member's profession or an NPC crafter. Those must not be stored as our own (bug report 16.10.:
+-- a linked Enchanting 225 showed up as known until the own window was opened again).
+local function call(fn) if type(fn) ~= "function" then return nil end local ok, v = pcall(fn); return ok and v end
+local function foreignTradeSkill()
+  local T = C_TradeSkillUI
+  if T and (call(T.IsTradeSkillLinked) or call(T.IsTradeSkillGuild) or call(T.IsTradeSkillGuildMember) or call(T.IsNPCCrafting)) then
+    return true
+  end
+  return call(IsTradeSkillLinked) or call(IsTradeSkillGuild) or false
+end
+
 local function scanTradeSkill()
+  if foreignTradeSkill() then lastScan = {foreign = true}; return end
   local prof, rank, maxRank, hint
   local known = {}
   local fullList = false -- the new API lists every recipe, independent of the window's filters
@@ -211,6 +232,12 @@ local function scanTradeSkill()
     end
   end
   if not prof then lastScan = {count = #known, items = #itemLinks}; return end
+  -- second guard: the window shows a profession we don't have, or a different skill than ours
+  do
+    local own
+    local readable = eachOwnProfession(function(p2, r2) if p2 == prof then own = r2 end end)
+    if readable and (own == nil or (rank and rank > 0 and own ~= rank)) then lastScan = {foreign = true, prof = prof}; return end
+  end
 
   local p = profDB(prof)
   if rank and rank > 0 then p.skill, p.maxSkill = rank, maxRank end

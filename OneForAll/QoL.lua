@@ -16,6 +16,7 @@ local DEFAULTS = {
   durabilityPct = 20, mmDir = "auto",
   lowRank = true, -- on by default (user 15.10.)
   mapLandmarks = true, lmDungeons = true, lmFlight = true, lmTransport = true, -- Map Landmarks: on with all parts (user 16.10.)
+  gearValue = true, -- Gear Planner Value in item tooltips: on (user 16.10.)
 }
 
 local function db()
@@ -301,7 +302,7 @@ QoL.DUEL_OPTIONS = {
 -- combat, at most once per THANKS_PLAYER_CD per player and one every THANKS_GAP s.
 -- The combat log cannot be used: registering COMBAT_LOG_EVENT_UNFILTERED is
 -- forbidden in the Forever client (5.5.0-beta11). /ofa thanks shows what happened.
-local THANKS_DELAY, THANKS_GAP, THANKS_PLAYER_CD = 3, 3, 300
+local THANKS_DELAY, THANKS_GAP, THANKS_PLAYER_CD = 1, 3, 300 -- 1 s delay (user 16.10.)
 local THANKS_MIN_DURATION, THANKS_FRESH, THANKS_SETTLE = 120, 3, 6
 local thanked, thanksPending, lastThanks, settleUntil = {}, {}, 0, 0
 local thanksLog = {} -- last few buffs for /ofa thanks
@@ -798,6 +799,7 @@ local function addItemLines(tt, link)
     local drops = bossDrops(id)
     if drops then tt:AddLine("Drops from: " .. nameList(drops, 2), 0.95, 0.80, 0.45, true) end
   end
+  if QoL.Get("gearValue") and FLT.GearValue then FLT.GearValue.TooltipLine(tt, id) end
   if QoL.Get("recipeTip") then
     local r = recipeByItem(id)
     if r then
@@ -847,7 +849,7 @@ local function setupTooltips()
     pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetUnit", function(tt) pcall(addTargetLine, tt) end)
   end
   local function handler(tt)
-    if not (QoL.Get("bossDrops") or QoL.Get("recipeTip")) then return end
+    if not (QoL.Get("bossDrops") or QoL.Get("recipeTip") or QoL.Get("gearValue")) then return end
     if not tt or not tt.GetItem then return end
     local _, link = tt:GetItem()
     addItemLines(tt, link)

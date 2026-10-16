@@ -1037,7 +1037,7 @@ local function createDungeonPanel(parent)
           local ic=row:CreateTexture(nil,"ARTWORK"); ic:SetSize(30,30); ic:SetPoint("LEFT",9,0); FLT.SetTex(ic, dungeonItemIcon(rec))
           -- Classic drop chance on the right (Data\DungeonDropChance.lua)
           local chance=FLT.GetDropChance and FLT.GetDropChance(d.name,isTrash and "Trash" or (boss and boss.name),rec.id)
-          local textW=chance and 380 or 445
+          local textW=chance and 340 or 410
           local nm=FLT.NewFS(row, nil,"OVERLAY","GameFontNormal"); nm:SetPoint("TOPLEFT",50,-8); nm:SetWidth(textW); nm:SetJustifyH("LEFT"); nm:SetText(rec.name); colorDungeonItemText(nm,rec,0.55,0.78,1.00)
           host.items[#host.items+1]={text=nm,icon=ic,rec=rec,r=0.55,g=0.78,b=1.00}
           if rec.slot then local sl=FLT.NewFS(row, nil,"OVERLAY","GameFontDisableSmall"); sl:SetPoint("TOPLEFT",50,-27); sl:SetWidth(textW); sl:SetJustifyH("LEFT"); sl:SetText(rec.slot) end
@@ -1051,6 +1051,8 @@ local function createDungeonPanel(parent)
             end)
             chHover:SetScript("OnLeave",function() GameTooltip:Hide() end)
           end
+          -- wishlist star for gear (Gear Planner, 5.6.3), left of the drop chance
+          if rec.id and UI.WishStar then local st=UI.WishStar(row); st:SetPoint("RIGHT",chance and -64 or -14,0); st:SetItem(rec.id) end
           row:SetScript("OnEnter",function(self)
             showLootTooltip(self,rec,isTrash and "Dungeon trash loot" or "Dungeon loot")
             -- SetHyperlink may finish loading live Forever item data on first hover.
@@ -1428,9 +1430,10 @@ local function createDungeonPanel(parent)
           cardBg(reward,0.055,0.067,0.080,(ri%2==0) and 0.96 or 0.88)
           local rhi=makeTexture(reward,"HIGHLIGHT",0.22,0.34,0.46,0.20); rhi:SetAllPoints()
           local ric=reward:CreateTexture(nil,"ARTWORK"); ric:SetSize(32,32); ric:SetPoint("LEFT",9,0); FLT.SetTex(ric, dungeonItemIcon(rec))
-          local rw=FLT.NewFS(reward, nil,"OVERLAY","GameFontHighlight"); rw:SetPoint(rec.slot and "TOPLEFT" or "LEFT",50,rec.slot and -7 or 0); rw:SetWidth(360); rw:SetJustifyH("LEFT"); rw:SetText(rec.name)
+          local rw=FLT.NewFS(reward, nil,"OVERLAY","GameFontHighlight"); rw:SetPoint(rec.slot and "TOPLEFT" or "LEFT",50,rec.slot and -7 or 0); rw:SetWidth(330); rw:SetJustifyH("LEFT"); rw:SetText(rec.name)
           pane.items[#pane.items+1]={text=rw,icon=ric,rec=rec,r=0.92,g=0.90,b=0.84}
-          if rec.slot then local sl=FLT.NewFS(reward, nil,"OVERLAY","GameFontDisableSmall"); sl:SetPoint("TOPLEFT",50,-27); sl:SetWidth(360); sl:SetJustifyH("LEFT"); sl:SetText(rec.slot) end
+          if rec.slot then local sl=FLT.NewFS(reward, nil,"OVERLAY","GameFontDisableSmall"); sl:SetPoint("TOPLEFT",50,-27); sl:SetWidth(330); sl:SetJustifyH("LEFT"); sl:SetText(rec.slot) end
+          if rec.id and UI.WishStar then local st=UI.WishStar(reward); st:SetPoint("RIGHT",-12,0); st:SetItem(rec.id) end
           reward:SetScript("OnEnter",function(self) showLootTooltip(self,rec,label) end); reward:SetScript("OnLeave",function() GameTooltip:Hide() end)
           reward:RegisterForClicks("LeftButtonUp"); reward:SetScript("OnClick",function(_,button) handleDungeonItemClick(rec,button) end)
         end

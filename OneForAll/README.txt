@@ -17,6 +17,7 @@ Commands
 /oneforall tabs reset    Show the default tabs again for this character
 /oneforall share test    Preview the quest share popup without a group
 /oneforall share         Open the quest share popup (inside a dungeon, in a group)
+/oneforall channel      State of the recipe channel with other OneForAll users
 /oneforall bug          Show the link for bug reports and ideas
 /oneforall cheapest     Show the cheapest item in your bags
 /oneforall buttons      List the minimap buttons the button collector holds
@@ -63,6 +64,34 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 
 Changelog (newest first)
 ========================
+
+5.6.3 - Gear Planner
+------------------------------------------------------------
+- Armory: new Gear Planner as the first page (the Overview is gone). Your
+  character on the left (mouse wheel zooms, drag turns it, right-click an
+  item to try it on); click a slot to see upgrades for it from dungeon loot,
+  quest rewards of all quests, set pieces, reputation gear and crafted
+  items - only what your class and faction can use, in a level range you
+  choose ("My lvl" / "All").
+- Every item shows how much better it is than what you wear, in %, for
+  your talent spec (stat weights from Sharpie's Gear Judge). Item tooltips
+  show it too: "OFA" with a green arrow "Upgrade: 30%" or a red arrow
+  "Downgrade: 12%" (Quality of Life > Tooltips > Gear Value).
+- Wishlist: the star on items in the Gear Planner and in Dungeons & Raids
+  (loot and quest rewards). Search over all items.
+- Quest rewards are marked with a yellow "!"; the map button shows the quest
+  giver, "Chain" opens the whole quest chain (green = done, yellow = in your
+  quest log). The dungeon swirl opens the boss that drops an item.
+- Recipes of other OneForAll users: players show up right after login and
+  stay after a /reload, new players are asked for their recipes directly,
+  the channel join and throttled messages are retried, and dropped
+  professions disappear. The hidden channel moves to the end of your channel
+  list, so /1 is General again. /ofa channel shows the state.
+- Fixed: opening another player's profession from a chat link no longer
+  marks those recipes as known by you.
+- Dungeon maps: the entrance is shown as the dungeon (or raid) swirl.
+- Map Landmarks: icons stay above other addons' map icons.
+- "Thank players who buff you" thanks after 1 second instead of 3.
 
 5.6.2 - Map Landmarks, talents of the October 15 patch
 ------------------------------------------------------------

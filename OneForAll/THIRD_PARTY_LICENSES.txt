@@ -36,7 +36,8 @@ OneForAll continues to read live talent icons/tooltips/node data from the WoW Fo
 --- QuestieDB / Questie ---
 Quest data (givers, turn-ins, prerequisites, chains), NPC/object spawn coordinates
 (hunter pet tame locations, recipe sources, dungeon quests and keys, flight masters and
-zeppelin masters for Map Landmarks) were generated
+zeppelin masters for Map Landmarks, gear quest rewards with their quest givers and chains for the
+Gear Planner in Data/QuestRewards.lua) were generated
 from the QuestieDB Forever data, which is derived from Questie.
 Sources: https://github.com/Questie/questiedb and https://github.com/Questie/Questie
 License: GNU General Public License v3.0 (https://www.gnu.org/licenses/gpl-3.0.html)
@@ -52,6 +53,33 @@ The room pictures themselves are the game client's own minimap images.
 MIT License
 
 Copyright (c) 2026 Tarolg
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--- Sharpie's Gear Judge (Forever Edition) ---
+The stat weights of the gear planner ("Value", Data/GearWeights.lua) are taken from Sharpie's Gear Judge
+3.2.3 (Forever Edition) by Supersharpie: the level-60 profiles and leveling curves of every class
+(Classes/Forever/*.lua and Classes/Forever/Curves/*.lua), converted to OneForAll's format. No code was taken.
+
+MIT License
+
+Copyright (c) 2025 Supersharpie
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

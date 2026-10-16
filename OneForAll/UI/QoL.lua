@@ -14,7 +14,7 @@ local openDropDown -- below
 -- Yellow "!" (tooltip "New") next to options added since the last live release.
 -- Kept for all 5.x versions of a minor line (5.6.0 ... 5.6.x); emptied when the next minor line
 -- (5.7.0) starts (TODO.md "Neu-Markierungen").
-local NEW_TAGS = { lowRank = "5.6.1", mapLandmarks = "5.6.2" }
+local NEW_TAGS = { lowRank = "5.6.1", mapLandmarks = "5.6.2", gearValue = "5.6.3" }
 -- placed left of the checkbox (or of the label when there is none), user 16.10.
 local function newTag(parent, anchor, key, dx)
   if not NEW_TAGS[key] then return end
@@ -380,12 +380,13 @@ local function createQoLPanel(parent)
     social.y = social.y - 30
   end
   social:choice("Allow duels from", "Duel requests from everyone else are declined automatically. Off: OneForAll does nothing with duels.", "duelMode", Q.DUEL_OPTIONS, "duelOn")
-  social:check("Thank players who buff you", "Sends a /thank emote to players outside your group or raid who give you a buff that lasts longer than 2 minutes. It comes 3 seconds later, not in combat, at most once every 5 minutes per player. Your target is not changed. /ofa thanks shows the last buffs.", "thanksBuff")
+  social:check("Thank players who buff you", "Sends a /thank emote to players outside your group or raid who give you a buff that lasts longer than 2 minutes. It comes 1 second later, not in combat, at most once every 5 minutes per player. Your target is not changed. /ofa thanks shows the last buffs.", "thanksBuff")
   social:finish()
 
   -- RIGHT COLUMN ---------------------------------------------------------------
   local tips = section(2, "Tooltips", "Interface\\Icons\\INV_Misc_Spyglass_03")
   tips:check("Boss drops", "Shows which dungeon boss drops an item.", "bossDrops")
+  tips:check("Gear Value", "On gear you can use: its Value for your talent spec (the stats weighted like Armory > Gear Planner does) and how much better (green) or worse (red) it is than what you wear.", "gearValue")
   tips:check("Recipes: who knows it", "On recipe items: whether you, one of your other characters or a guild member already knows the recipe.", "recipeTip")
   tips:check("Compare items only with Shift", "Item tooltips no longer show your equipped item next to them automatically; hold Shift to compare.", nil, nil,
     function() return Q.GetCompareShift() end, function(v) Q.SetCompareShift(v) end)

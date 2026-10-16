@@ -197,9 +197,13 @@ function UI.CreateDungeonMap(parent)
       n = n + 1
       local p = pin(n); p:Show()
       p.u, p.v, p.title, p.tip = m.entrance[1], m.entrance[2], "Entrance", nil
-      p.num:Hide(); p.icon:Show(); p.icon:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"); p.label:SetText("")
+      -- the dungeon / raid swirl of the world map (same as Map Landmarks, user 16.10.)
+      p.num:Hide(); p.label:SetText(""); p.icon:Show(); p.icon:ClearAllPoints(); p.icon:SetAllPoints(p)
+      if not (p.icon.SetAtlas and pcall(p.icon.SetAtlas, p.icon, (d and d.raid) and "raid" or "dungeon")) then
+        p.icon:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"); p.icon:SetTexCoord(0, 1, 0, 1)
+      end
       if p.boss then p.boss:Hide() end
-      p.disc:Show(); p.ring:Show(); p:SetSize(26, 26)
+      p.disc:Hide(); p.ring:Hide(); p:SetSize(42, 42)
       p:SetScript("OnClick", nil)
     end
     note:SetText(#(m.bosses or {}) == 0 and "Boss positions are not known yet for this dungeon." or "")
