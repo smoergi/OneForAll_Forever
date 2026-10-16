@@ -34,9 +34,9 @@ local lastGroupSize = 0
 local lastShareQuest        -- questID of the last share started from the popup
 
 local function settings()
-  if type(ForeverCompanionDB) ~= "table" then return {} end
-  ForeverCompanionDB.questShare = ForeverCompanionDB.questShare or {}
-  local s = ForeverCompanionDB.questShare
+  if type(OneForAllDB) ~= "table" then return {} end
+  OneForAllDB.questShare = OneForAllDB.questShare or {}
+  local s = OneForAllDB.questShare
   if s.popup == nil then s.popup = true end
   if s.emote == nil then s.emote = true end
   return s

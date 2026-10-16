@@ -8,6 +8,7 @@ All-in-one companion addon for **WoW Forever**. No other addons required.
 - **Professions** – Merchant's Favor recipes, who in your guild (or on your other characters) knows a recipe, the nearest trainer of every profession
 - **Talent planner** – plan your talents with two saved presets per class; class trainer window with the spells you can learn next
 - **Hunter pets** – where to tame which family, which abilities a pet can learn
+- **Map Landmarks** – dungeon and raid entrances, flight masters, zeppelins and ships on the world map; click an entrance to open that dungeon
 - **Quality of Life** – optional helpers you switch on as you like (auto repair, sell junk, quest XP on the experience bar, item compare with Shift, minimap button collector, low spell ranks on your action bars and more)
 - **Skins** – Gold or Dark Silver, each in a Classic (ornate) or Modern (plain, rounded) look; the Modern skins can be made see-through
 
@@ -19,7 +20,8 @@ Open the addon with `/ofa` or the minimap button. All commands are listed in `On
 
 ## Bug reports and ideas
 
-Please open an [issue](../../issues) with a short description and, if possible, a screenshot.
+Please open an [issue](../../issues) or leave a comment on [CurseForge](https://www.curseforge.com/wow/addons/oneforall-forever) with a short description and, if possible, a screenshot.
+The bug button in the addon's title bar shows both links and your recent errors to copy.
 `/ofa where` prints your current map and coordinates, which helps with wrong map pins.
 
 ## License

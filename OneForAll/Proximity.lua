@@ -290,7 +290,7 @@ function FLT:ShowNearbyBookAlert(book, distance)
 end
 
 function FLT:SetNearbyAlertsEnabled(enabled)
-  ForeverCompanionDB.nearbyAlertsEnabled = enabled and true or false
+  OneForAllDB.nearbyAlertsEnabled = enabled and true or false
   if not enabled then
     wipe(activeNearby)
     if alertFrame then alertFrame:Hide() end
@@ -299,7 +299,7 @@ function FLT:SetNearbyAlertsEnabled(enabled)
 end
 
 function FLT:IsNearbyAlertsEnabled()
-  return ForeverCompanionDB and ForeverCompanionDB.nearbyAlertsEnabled ~= false
+  return OneForAllDB and OneForAllDB.nearbyAlertsEnabled ~= false
 end
 
 -- The check runs once a second, so it avoids creating new tables where it

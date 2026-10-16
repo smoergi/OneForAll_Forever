@@ -42,7 +42,7 @@ local loginTime
 
 local function now() return GetTime and GetTime() or 0 end
 local function enabled()
-  return not (type(ForeverCompanionDB) == "table" and ForeverCompanionDB.versionNotice == false)
+  return not (type(OneForAllDB) == "table" and OneForAllDB.versionNotice == false)
 end
 
 local function announce(v)
@@ -57,11 +57,11 @@ local function confirmed(v)
   if not enabled() then return end
   if loginTime and now() - loginTime <= LOGIN_WINDOW then
     announce(v)
-  elseif type(ForeverCompanionDB) == "table" then
+  elseif type(OneForAllDB) == "table" then
     -- too late in the session: remember it for the next login
-    local old = parse(ForeverCompanionDB.pendingNewVersion, false)
+    local old = parse(OneForAllDB.pendingNewVersion, false)
     local t = parse(v, false)
-    if not old or newer(t, old) then ForeverCompanionDB.pendingNewVersion = v end
+    if not old or newer(t, old) then OneForAllDB.pendingNewVersion = v end
   end
 end
 
@@ -124,9 +124,9 @@ ev:SetScript("OnEvent", function(_, event, prefix, msg, channel, sender)
     if C_Timer and C_Timer.After then
       -- a newer version seen in an earlier session
       C_Timer.After(8, function()
-        if type(ForeverCompanionDB) ~= "table" then return end
-        local p = ForeverCompanionDB.pendingNewVersion
-        ForeverCompanionDB.pendingNewVersion = nil
+        if type(OneForAllDB) ~= "table" then return end
+        local p = OneForAllDB.pendingNewVersion
+        OneForAllDB.pendingNewVersion = nil
         local t = parse(p, false)
         if t and newer(t, mine) and enabled() then announce(p) end
       end)

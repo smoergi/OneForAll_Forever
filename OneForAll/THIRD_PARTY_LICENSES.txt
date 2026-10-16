@@ -35,7 +35,8 @@ OneForAll continues to read live talent icons/tooltips/node data from the WoW Fo
 
 --- QuestieDB / Questie ---
 Quest data (givers, turn-ins, prerequisites, chains), NPC/object spawn coordinates
-(hunter pet tame locations, recipe sources, dungeon quests and keys) were generated
+(hunter pet tame locations, recipe sources, dungeon quests and keys, flight masters and
+zeppelin masters for Map Landmarks) were generated
 from the QuestieDB Forever data, which is derived from Questie.
 Sources: https://github.com/Questie/questiedb and https://github.com/Questie/Questie
 License: GNU General Public License v3.0 (https://www.gnu.org/licenses/gpl-3.0.html)

@@ -8,7 +8,7 @@ local UI = FLT.UI
 -- window is closed (you usually learn several spells), otherwise a few seconds
 -- after the last spell was learned. Runs out of combat only.
 -- Spells you keep low on purpose (downranking): "Keep" puts that rank on a
--- list (ForeverCompanionDB.qol.lowRankKeep[spellID] = true), managed in the tab.
+-- list (OneForAllDB.qol.lowRankKeep[spellID] = true), managed in the tab.
 -- Macros are not checked, only spells placed on the bars directly.
 
 local LR = {}
@@ -24,10 +24,10 @@ local function inCombat() return InCombatLockdown and InCombatLockdown() end
 local function msg(text) if FLT.Msg then FLT.Msg(text) end end
 
 local function keepList()
-  if type(ForeverCompanionDB) ~= "table" then return {} end
-  ForeverCompanionDB.qol = ForeverCompanionDB.qol or {}
-  ForeverCompanionDB.qol.lowRankKeep = ForeverCompanionDB.qol.lowRankKeep or {}
-  return ForeverCompanionDB.qol.lowRankKeep
+  if type(OneForAllDB) ~= "table" then return {} end
+  OneForAllDB.qol = OneForAllDB.qol or {}
+  OneForAllDB.qol.lowRankKeep = OneForAllDB.qol.lowRankKeep or {}
+  return OneForAllDB.qol.lowRankKeep
 end
 
 local function rankOf(sub)
@@ -296,7 +296,7 @@ function LR.GetKept()
 end
 function LR.RemoveKept(id) keepList()[id] = nil end
 function LR.ClearKept()
-  if type(ForeverCompanionDB) == "table" and ForeverCompanionDB.qol then ForeverCompanionDB.qol.lowRankKeep = {} end
+  if type(OneForAllDB) == "table" and OneForAllDB.qol then OneForAllDB.qol.lowRankKeep = {} end
 end
 -- test hooks
 LR._bestRanks, LR._update, LR._onEvent = bestRanks, update, onEvent

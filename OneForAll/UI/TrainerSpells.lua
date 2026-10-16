@@ -8,7 +8,7 @@ local UI = FLT.UI
 -- Spell list: Data/TrainerSpells.lua (generated from the Forever client data).
 -- Known spells are read from your spellbook. Training costs are not in the
 -- client data: they are remembered when you open a class trainer
--- (ForeverCompanionDB.trainerCosts[class]["Name|rank"] = { c = copper, l = level }).
+-- (OneForAllDB.trainerCosts[class]["Name|rank"] = { c = copper, l = level }).
 -- Spells taught by a quest instead of the trainer get a yellow "!".
 
 local CLASS_TEX = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
@@ -34,10 +34,10 @@ local function classIconCoords(token)
 end
 
 local function costsDB(token)
-  if type(ForeverCompanionDB) ~= "table" or not token then return {} end
-  ForeverCompanionDB.trainerCosts = ForeverCompanionDB.trainerCosts or {}
-  ForeverCompanionDB.trainerCosts[token] = ForeverCompanionDB.trainerCosts[token] or {}
-  return ForeverCompanionDB.trainerCosts[token]
+  if type(OneForAllDB) ~= "table" or not token then return {} end
+  OneForAllDB.trainerCosts = OneForAllDB.trainerCosts or {}
+  OneForAllDB.trainerCosts[token] = OneForAllDB.trainerCosts[token] or {}
+  return OneForAllDB.trainerCosts[token]
 end
 
 local function rankOf(text)

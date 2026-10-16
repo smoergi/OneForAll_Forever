@@ -7,7 +7,7 @@ local unpack = unpack or table.unpack
 -- not tied to the minimap and can be dragged anywhere. Switching it off puts
 -- every button back where it was. Blizzard's own minimap elements (tracking,
 -- mail, calendar, zoom ...) and map pins are left alone.
--- Setting: QoL "mmCollect"; position: ForeverCompanionDB.qol.mmCollectPos.
+-- Setting: QoL "mmCollect"; position: OneForAllDB.qol.mmCollectPos.
 
 local collector, bar
 local collected = {}   -- frame -> saved state while it sits in the bar
@@ -16,6 +16,7 @@ local PER_ROW = 8
 local SLOT = 34
 local PAD = 6      -- left / right
 local PADY = 4     -- top / bottom: one row is exactly as high as the 42 px button
+local SCALE = 0.9  -- button and bar 10 % smaller than designed (user 16.10.)
 
 -- the real methods, taken from a plain frame (collected buttons get no-op
 -- SetPoint/ClearAllPoints so their own addon cannot pull them back)
@@ -34,9 +35,9 @@ local SKIP_WORD = { "Pin", "Questie", "HandyNotes", "GatherMate", "TomTom", "Arr
 local function qol() return FLT.QoL end
 local function enabled() return qol() and qol().Get("mmCollect") and true or false end
 local function db()
-  if type(ForeverCompanionDB) ~= "table" then return nil end
-  ForeverCompanionDB.qol = ForeverCompanionDB.qol or {}
-  return ForeverCompanionDB.qol
+  if type(OneForAllDB) ~= "table" then return nil end
+  OneForAllDB.qol = OneForAllDB.qol or {}
+  return OneForAllDB.qol
 end
 
 local function isCandidate(f)
@@ -158,14 +159,16 @@ end
 local function savePos()
   local d = db(); if not d or not collector then return end
   local p, _, rp, x, y = collector:GetPoint(1)
-  d.mmCollectPos = { p, rp, x, y }
+  d.mmCollectPos = { p, rp, x, y, SCALE } -- offsets are in the button's scale
 end
 
 local function placeCollector()
   local d = db()
   local pos = d and d.mmCollectPos
   collector:ClearAllPoints()
-  if pos and pos[1] then collector:SetPoint(pos[1], UIParent, pos[2] or pos[1], pos[3] or 0, pos[4] or 0)
+  -- positions saved before 5.6.2 were taken at scale 1: same place on screen at the new scale
+  local k = (pos and pos[5]) and 1 or (1 / SCALE)
+  if pos and pos[1] then collector:SetPoint(pos[1], UIParent, pos[2] or pos[1], (pos[3] or 0) * k, (pos[4] or 0) * k)
   else collector:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -232, -36) end
 end
 
@@ -177,7 +180,7 @@ end
 local function create()
   if collector then return end
   collector = CreateFrame("Button", "OneForAllMinimapCollector", UIParent)
-  collector:SetSize(42, 42)
+  collector:SetSize(42, 42); collector:SetScale(SCALE)
   collector:SetFrameStrata("MEDIUM"); collector:SetFrameLevel(20)
   collector:SetMovable(true); collector:SetClampedToScreen(true)
   collector:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -198,6 +201,7 @@ local function create()
   bar = CreateFrame("Frame", "OneForAllMinimapCollectorBar", UIParent)
   -- MEDIUM like LibDBIcon buttons (their strata/level may be fixed), low level so they draw on top
   bar:SetFrameStrata("MEDIUM"); bar:SetFrameLevel(2); bar:SetClampedToScreen(true); bar:EnableMouse(true); bar:Hide()
+  bar:SetScale(SCALE)
   -- smooth gold rim like the ring of the OneForAll button, dark inside
   if UI.RoundRect then
     UI.RoundRect(bar, bar, "BACKGROUND", 0, 10, 0, 0.95, 0.76, 0.32, 1)     -- thin gold rim

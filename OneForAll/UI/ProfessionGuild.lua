@@ -6,8 +6,8 @@ local _, FLT = ...
 --   * GUILD: guild members (shown with a green check)
 --   * a hidden custom chat channel: all other OneForAll users (blue check)
 -- Stored account-wide:
---   ForeverCompanionDB.guildRecipes[guild][member]  = { t = time, [prof] = {spellID=true} }
---   ForeverCompanionDB.playerRecipes[player]        = { t = time, [prof] = {spellID=true} }
+--   OneForAllDB.guildRecipes[guild][member]  = { t = time, [prof] = {spellID=true} }
+--   OneForAllDB.playerRecipes[player]        = { t = time, [prof] = {spellID=true} }
 -- Own characters in the same guild are stored too, so alts show up as well.
 
 local PREFIX = "OFAPR"
@@ -44,7 +44,7 @@ local function firstName()
   return n and shortName(n) or nil
 end
 local function myName()
-  if type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.fullName then return ForeverCompanionCharDB.fullName end
+  if type(OneForAllCharDB) == "table" and OneForAllCharDB.fullName then return OneForAllCharDB.fullName end
   return nil
 end
 local function isMe(name)
@@ -58,22 +58,22 @@ local function isMe(name)
 end
 
 local function shareEnabled()
-  return not (type(ForeverCompanionDB) == "table" and ForeverCompanionDB.recipeShareChannel == false)
+  return not (type(OneForAllDB) == "table" and OneForAllDB.recipeShareChannel == false)
 end
 
 local function guildDB(create)
   local g = guildName()
-  if not g or type(ForeverCompanionDB) ~= "table" then return nil end
-  ForeverCompanionDB.guildRecipes = ForeverCompanionDB.guildRecipes or {}
-  local t = ForeverCompanionDB.guildRecipes[g]
-  if not t and create then t = {}; ForeverCompanionDB.guildRecipes[g] = t end
+  if not g or type(OneForAllDB) ~= "table" then return nil end
+  OneForAllDB.guildRecipes = OneForAllDB.guildRecipes or {}
+  local t = OneForAllDB.guildRecipes[g]
+  if not t and create then t = {}; OneForAllDB.guildRecipes[g] = t end
   return t
 end
 
 local function playerDB()
-  if type(ForeverCompanionDB) ~= "table" then return nil end
-  ForeverCompanionDB.playerRecipes = ForeverCompanionDB.playerRecipes or {}
-  return ForeverCompanionDB.playerRecipes
+  if type(OneForAllDB) ~= "table" then return nil end
+  OneForAllDB.playerRecipes = OneForAllDB.playerRecipes or {}
+  return OneForAllDB.playerRecipes
 end
 
 -- base36 encoding keeps the messages short
@@ -106,8 +106,8 @@ local function readRoster()
         local _, myClass = UnitClass and UnitClass("player")
         mine = f and (short == f or short:sub(1, #f + 1) == f .. " ") and level == (UnitLevel and UnitLevel("player")) and classFile == myClass
       end
-      if mine and type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.fullName ~= short then
-        ForeverCompanionCharDB.fullName = short
+      if mine and type(OneForAllCharDB) == "table" and OneForAllCharDB.fullName ~= short then
+        OneForAllCharDB.fullName = short
         selfIdentified()
       end
       roster[short:lower()] = {online = online and true or false, zone = zone, level = level, class = classFile}
@@ -253,8 +253,8 @@ end
 -- Store own known recipes in the guild table (for alts) and return them.
 local function ownRecipes()
   local out = {}
-  if type(ForeverCompanionCharDB) ~= "table" or type(ForeverCompanionCharDB.professions) ~= "table" then return out end
-  for prof, p in pairs(ForeverCompanionCharDB.professions) do
+  if type(OneForAllCharDB) ~= "table" or type(OneForAllCharDB.professions) ~= "table" then return out end
+  for prof, p in pairs(OneForAllCharDB.professions) do
     if FLT.PROFESSION_RECIPES and FLT.PROFESSION_RECIPES[prof] and type(p.known) == "table" and next(p.known) then
       out[prof] = p.known
     end
@@ -274,8 +274,8 @@ end
 
 local function countKnown()
   local total = 0
-  if type(ForeverCompanionCharDB) == "table" and type(ForeverCompanionCharDB.professions) == "table" then
-    for _, p in pairs(ForeverCompanionCharDB.professions) do
+  if type(OneForAllCharDB) == "table" and type(OneForAllCharDB.professions) == "table" then
+    for _, p in pairs(OneForAllCharDB.professions) do
       if type(p.known) == "table" then for _ in pairs(p.known) do total = total + 1 end end
     end
   end
@@ -325,8 +325,8 @@ end
 -- Settings toggle for the channel sharing.
 function FLT.IsRecipeShareEnabled() return shareEnabled() end
 function FLT.SetRecipeShareEnabled(v)
-  if type(ForeverCompanionDB) ~= "table" then return end
-  ForeverCompanionDB.recipeShareChannel = v and true or false
+  if type(OneForAllDB) ~= "table" then return end
+  OneForAllDB.recipeShareChannel = v and true or false
   if v then joinChannel(); scheduleBroadcast("CHANNEL", 3); scheduleStatus(4) else leaveChannel() end
   refreshBrowser()
 end
@@ -351,12 +351,12 @@ end
 -- us the full name of the current character (also without a guild).
 local SESSION = string.format("%x%x", math.random(0, 0xFFFFFF), math.floor((GetTime and GetTime() or 0) * 1000) % 0xFFFFFF)
 local function learnOwnName(name)
-  if type(ForeverCompanionCharDB) ~= "table" or not name then return end
+  if type(OneForAllCharDB) ~= "table" or not name then return end
   local pdb = playerDB()
   if pdb then pdb[name] = nil end
   status[name] = nil
-  if ForeverCompanionCharDB.fullName ~= name then
-    ForeverCompanionCharDB.fullName = name
+  if OneForAllCharDB.fullName ~= name then
+    OneForAllCharDB.fullName = name
     selfIdentified()
   else
     refreshSoon()

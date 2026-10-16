@@ -12,12 +12,14 @@ local COL_X = { 8, 342, 676 }
 local openDropDown -- below
 
 -- Yellow "!" (tooltip "New") next to options added since the last live release.
--- Only for one release: empty this list for the next version (TODO.md "Nach dem Release").
-local NEW_TAGS = { lowRank = true }
-local function newTag(parent, anchor, key)
+-- Kept for all 5.x versions of a minor line (5.6.0 ... 5.6.x); emptied when the next minor line
+-- (5.7.0) starts (TODO.md "Neu-Markierungen").
+local NEW_TAGS = { lowRank = "5.6.1", mapLandmarks = "5.6.2" }
+-- placed left of the checkbox (or of the label when there is none), user 16.10.
+local function newTag(parent, anchor, key, dx)
   if not NEW_TAGS[key] then return end
-  local m = UI.NewMark(parent, "New in OneForAll 5.6.1.")
-  m:SetPoint("LEFT", anchor, "RIGHT", 5, 0)
+  local m = UI.NewMark(parent, "New in OneForAll " .. NEW_TAGS[key] .. ".")
+  m:SetPoint("RIGHT", anchor, "LEFT", dx or -2, 0)
   return m
 end
 
@@ -216,10 +218,8 @@ local function createQoLPanel(parent)
         pb:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
         pb:SetScript("OnClick", function() showPreview(key) end)
         hint(pb, "Show preview", "A picture of how it looks in the game.")
-        newTag(box, pb, key)
-      elseif key then
-        newTag(box, l, key)
       end
+      if key then newTag(box, cb, key, 4) end -- the checkbox art has a transparent margin
       self.y = self.y - 28
       return cb, l
     end
@@ -237,7 +237,7 @@ local function createQoLPanel(parent)
         l:SetPoint("TOPLEFT", 16, self.y - 5)
       end
       l:SetText(text)
-      newTag(box, l, key)
+      newTag(box, cb or l, key, cb and 4 or -2)
       local b = UI.GoldButton(box, "", 128, 22, nil, 11); b:SetPoint("TOPRIGHT", -12, self.y - 1)
       local arrow = b:CreateTexture(nil, "OVERLAY"); arrow:SetSize(12, 12); arrow:SetPoint("RIGHT", -8, 0)
       FLT.SetTex(arrow, UI.ASSET_ROOT .. "chevron"); arrow:SetTexCoord(0, 0.5, 0, 1)
@@ -380,7 +380,7 @@ local function createQoLPanel(parent)
     social.y = social.y - 30
   end
   social:choice("Allow duels from", "Duel requests from everyone else are declined automatically. Off: OneForAll does nothing with duels.", "duelMode", Q.DUEL_OPTIONS, "duelOn")
-  social:check("Thank players who buff you", "Sends a /thank emote to players outside your group or raid who buff you (not in combat, at most once every few minutes per player). Works best with friendly nameplates switched on (Shift+V): the game only names the caster when you can see him as a nameplate, target or mouseover.", "thanksBuff")
+  social:check("Thank players who buff you", "Sends a /thank emote to players outside your group or raid who give you a buff that lasts longer than 2 minutes. It comes 3 seconds later, not in combat, at most once every 5 minutes per player. Your target is not changed. /ofa thanks shows the last buffs.", "thanksBuff")
   social:finish()
 
   -- RIGHT COLUMN ---------------------------------------------------------------
@@ -433,6 +433,13 @@ local function createQoLPanel(parent)
     hint(rb, "Reset button position", "Puts the minimap button collector back to its default place next to the minimap.")
   end
   iface:finish()
+
+  local world = section(2, "World map", "Interface\\Icons\\INV_Misc_Map_01")
+  world:check("Map Landmarks", "Icons on the world map for dungeon and raid entrances, flight masters, zeppelins and ships (your faction and neutral ones). Click an entrance to open that dungeon in OneForAll, Shift-click it for a map pin. Zeppelins, ships and flight masters show where they go and set a map pin on click.", "mapLandmarks")
+  world:check("Dungeon & raid entrances", nil, "lmDungeons", 24)
+  world:check("Flight masters", nil, "lmFlight", 24)
+  world:check("Zeppelins & ships", nil, "lmTransport", 24)
+  world:finish()
 
   local frames = section(2, "Unit frames", "Interface\\Icons\\INV_Misc_Head_Human_01")
   frames:check("Class colors: player, target & party", "Colors the health bars of players in their class color. NPCs keep their normal color.", "classColors")

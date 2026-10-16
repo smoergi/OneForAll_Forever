@@ -10,9 +10,9 @@ local UNKNOWN_PORTRAIT = "Interface\\Icons\\INV_Misc_QuestionMark"
 
 -- account-wide store for what we learn about bosses in game
 local function bossStore()
-  if type(ForeverCompanionDB) ~= "table" then return nil end
-  local s = ForeverCompanionDB.bossInfo
-  if type(s) ~= "table" then s = {}; ForeverCompanionDB.bossInfo = s end
+  if type(OneForAllDB) ~= "table" then return nil end
+  local s = OneForAllDB.bossInfo
+  if type(s) ~= "table" then s = {}; OneForAllDB.bossInfo = s end
   return s
 end
 local function learned(npcID, field)
@@ -91,7 +91,8 @@ end
 -- Boss level: static table (QuestieDB) or learned in game.
 function FLT:GetBossLevel(boss)
   if not boss then return nil end
-  local lv = boss.npcID and FLT.BOSS_LEVELS and FLT.BOSS_LEVELS[boss.npcID]
+  local B = FLT.BOSS_LEVELS
+  local lv = B and ((boss.npcID and B[boss.npcID]) or (boss.name and B[boss.name]))
   if lv then return lv end
   local lv2 = learned(boss.npcID, "level")
   if lv2 then return (lv2 < 0) and "??" or tostring(lv2) end

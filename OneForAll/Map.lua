@@ -403,14 +403,20 @@ function FLT:BuildMapIndex()
   for _, id in ipairs({947, 1414, 1415, 13, 12}) do pcall(indexMap, id, 0) end
 end
 
+local zoneMapCache = {} -- zone -> map ID or false (the book monitor asks every second)
 function FLT:FindMapID(zone)
   if self.MAP_IDS and self.MAP_IDS[zone] then return self.MAP_IDS[zone] end
+  if zone ~= nil and zoneMapCache[zone] ~= nil then return zoneMapCache[zone] or nil end
   if not next(self.mapNameToID) then self:BuildMapIndex() end
   local wanted = (zone or ""):lower()
-  if self.mapNameToID[wanted] then return self.mapNameToID[wanted] end
-  for name, id in pairs(self.mapNameToID) do
-    if name == wanted or name:find(wanted, 1, true) or wanted:find(name, 1, true) then return id end
+  local found = self.mapNameToID[wanted]
+  if not found then
+    for name, id in pairs(self.mapNameToID) do
+      if name == wanted or name:find(wanted, 1, true) or wanted:find(name, 1, true) then found = id; break end
+    end
   end
+  if zone ~= nil and next(self.mapNameToID) then zoneMapCache[zone] = found or false end
+  return found
 end
 
 local marker

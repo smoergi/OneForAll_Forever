@@ -5,7 +5,7 @@ local _, FLT = ...
 -- the user per option (DEFAULTS); most are off so they do not clash with other
 -- QoL addons. Holding Shift pauses the automations
 -- (repair, junk, quests, invites, duels).
--- Settings: ForeverCompanionDB.qol[key].
+-- Settings: OneForAllDB.qol[key].
 
 local QoL = {}
 FLT.QoL = QoL
@@ -15,12 +15,13 @@ local DEFAULTS = {
   inviteMode = "friendsguild", keywordMode = "friendsguild", keyword = "inv", duelMode = "friendsguild",
   durabilityPct = 20, mmDir = "auto",
   lowRank = true, -- on by default (user 15.10.)
+  mapLandmarks = true, lmDungeons = true, lmFlight = true, lmTransport = true, -- Map Landmarks: on with all parts (user 16.10.)
 }
 
 local function db()
-  if type(ForeverCompanionDB) ~= "table" then return nil end
-  ForeverCompanionDB.qol = ForeverCompanionDB.qol or {}
-  return ForeverCompanionDB.qol
+  if type(OneForAllDB) ~= "table" then return nil end
+  OneForAllDB.qol = OneForAllDB.qol or {}
+  return OneForAllDB.qol
 end
 
 -- 5.3: Social got own switches; keep what older settings did
@@ -290,88 +291,124 @@ QoL.DUEL_OPTIONS = {
   { key = "friends", label = "Friends" }, { key = "guild", label = "Guild" }, { key = "off", label = "No one" },
 }
 
--- Thanks for buffs: new helpful auras on the player that another player cast
--- (UNIT_AURA; the combat log is not available to addons in this client).
-local thanked, lastThanks = {}, 0
+-- Thanks for buffs (5.6.2): a /thank emote for players outside the group who give
+-- you a longer buff. The caster comes from the buff itself
+-- (C_UnitAuras.GetAuraCasterGUID), so he does not have to be your target, under the
+-- mouse or on a nameplate; the unit token the game sometimes passes is a fallback.
+-- Rules: helpful buff > 2 minutes, just applied or refreshed (not an old buff the
+-- game reports again after login, /reload or a loading screen), another player,
+-- not in your group or raid. The emote goes out THANKS_DELAY seconds later, out of
+-- combat, at most once per THANKS_PLAYER_CD per player and one every THANKS_GAP s.
+-- The combat log cannot be used: registering COMBAT_LOG_EVENT_UNFILTERED is
+-- forbidden in the Forever client (5.5.0-beta11). /ofa thanks shows what happened.
+local THANKS_DELAY, THANKS_GAP, THANKS_PLAYER_CD = 3, 3, 300
+local THANKS_MIN_DURATION, THANKS_FRESH, THANKS_SETTLE = 120, 3, 6
+local thanked, thanksPending, lastThanks, settleUntil = {}, {}, 0, 0
 local thanksLog = {} -- last few buffs for /ofa thanks
 local function logThanks(text)
   table.insert(thanksLog, 1, date and (date("%H:%M:%S ") .. text) or text)
-  thanksLog[7] = nil
+  thanksLog[9] = nil
 end
 function QoL.PrintThanksLog()
   if #thanksLog == 0 then msg("Thanks for buffs: no buffs seen yet."); return end
   for i = #thanksLog, 1, -1 do msg("Thanks: " .. thanksLog[i]) end
 end
+local function now() return GetTime and GetTime() or 0 end
+local function readable(...) return not FLT.IsSecret(...) end
 
-local function inMyGroup(unit, name)
-  if unit then
-    if unit:match("^party") or unit:match("^raid") then return true end
-    if (UnitInParty and UnitInParty(unit)) or (UnitInRaid and UnitInRaid(unit))
-       or (UnitPlayerOrPetInParty and UnitPlayerOrPetInParty(unit)) or (UnitPlayerOrPetInRaid and UnitPlayerOrPetInRaid(unit)) then return true end
+-- after a loading screen the game reports all buffs again: wait until it is quiet
+local function thanksSettle() settleUntil = now() + THANKS_SETTLE end
+
+local function inMyGroup(guid)
+  if not guid or not UnitGUID then return false end
+  if IsInRaid and IsInRaid() then
+    for i = 1, 40 do if UnitGUID("raid" .. i) == guid then return true end end
+  elseif IsInGroup and IsInGroup() then
+    for i = 1, 4 do if UnitGUID("party" .. i) == guid then return true end end
   end
-  if name and IsInGroup and IsInGroup() and ((UnitInParty and UnitInParty(name)) or (UnitInRaid and UnitInRaid(name))) then return true end
   return false
 end
 
--- thank a player; unit (token) when known, else name + guid
-local function thank(unit, name, guid, spell)
-  if unit then
-    if not (UnitIsPlayer and UnitIsPlayer(unit)) or (UnitIsUnit and UnitIsUnit(unit, "player")) then return end
-    name, guid = name or (UnitName and UnitName(unit)), guid or (UnitGUID and UnitGUID(unit))
+local function nameFromGUID(guid)
+  local name
+  if UnitNameFromGUID then pcall(function() name = UnitNameFromGUID(guid) end) end
+  if not name and GetPlayerInfoByGUID then pcall(function() name = select(6, GetPlayerInfoByGUID(guid)) end) end
+  if type(name) ~= "string" or name == "" or not readable(name) then return nil end
+  return (name:match("^([^%-]+)")) -- the emote wants the plain name
+end
+
+local function sendThank(name)
+  if C_ChatInfo and C_ChatInfo.PerformEmote then
+    local ok, restricted = pcall(C_ChatInfo.PerformEmote, "THANK", name)
+    return ok and not (readable(restricted) and restricted)
   end
-  if not name or not guid then logThanks(tostring(spell) .. ": caster unknown"); return end
-  if inMyGroup(unit, name) then logThanks(tostring(spell) .. " from " .. name .. ": group member, no emote"); return end
-  if inCombat() then return end
-  local t = GetTime and GetTime() or 0
-  if t - lastThanks < 10 or (thanked[guid] and t - thanked[guid] < 300) then logThanks(tostring(spell) .. " from " .. name .. ": thanked recently"); return end
+  if DoEmote then return (pcall(DoEmote, "THANK", name)) end
+  return false
+end
+
+local function fireThanks(guid)
+  local p = thanksPending[guid]
+  if not p then return end
+  if not QoL.Get("thanksBuff") then thanksPending[guid] = nil; return end
+  local t = now()
+  -- in combat or right after another thank: try again a little later
+  if inCombat() or t - lastThanks < THANKS_GAP then
+    if C_Timer and C_Timer.After then C_Timer.After(THANKS_GAP, function() fireThanks(guid) end) end
+    return
+  end
+  thanksPending[guid] = nil
+  if thanked[guid] and t - thanked[guid] < THANKS_PLAYER_CD then logThanks(p.spell .. " from " .. p.name .. ": thanked recently"); return end
   thanked[guid], lastThanks = t, t
-  logThanks(tostring(spell) .. " from " .. name .. ": /thank")
-  if DoEmote then pcall(DoEmote, "THANK", unit or name) end
+  if sendThank(p.name) then logThanks(p.spell .. " from " .. p.name .. ": /thank")
+  else logThanks(p.spell .. " from " .. p.name .. ": the game did not allow the emote") end
 end
 
--- The game only names the caster (sourceUnit) when he has a unit token
--- (target, mouseover, nameplate ...). As a fallback the buff is matched with a
--- spell cast seen from another player at the same moment.
-local recentCasts, pendingBuffs = {}, {}
-local function playerCast(unit, _, spellID)
-  if not QoL.Get("thanksBuff") or type(unit) ~= "string" or unit == "player" or unit:match("^party") or unit:match("^raid") then return end
-  if issecretvalue and (issecretvalue(spellID) or issecretvalue(unit)) then return end
-  if not (UnitIsPlayer and UnitIsPlayer(unit)) or (UnitIsUnit and UnitIsUnit(unit, "player")) then return end
-  local t = GetTime and GetTime() or 0
-  local rec = { unit = unit, name = UnitName(unit), guid = UnitGUID(unit), t = t }
-  recentCasts[spellID] = rec
-  local p = pendingBuffs[spellID]
-  if p and t - p.t < 1.5 then pendingBuffs[spellID] = nil; thank(nil, rec.name, rec.guid, p.name) end
+local function considerAura(a)
+  if type(a) ~= "table" then return end
+  local helpful, id, duration, expires, spell = a.isHelpful, a.auraInstanceID, a.duration, a.expirationTime, a.name
+  if not readable(helpful, id, duration, expires, spell) then logThanks("buff hidden by the game"); return end
+  if not helpful or type(duration) ~= "number" or type(expires) ~= "number" then return end
+  spell = type(spell) == "string" and spell or "a buff"
+  if duration <= THANKS_MIN_DURATION then return end -- short effects (Renew, procs ...)
+  local t = now()
+  if math.abs((expires - duration) - t) > THANKS_FRESH then return end -- not just applied
+  -- the caster: from the buff itself, else the unit the game named
+  local guid
+  if C_UnitAuras and C_UnitAuras.GetAuraCasterGUID and id then
+    pcall(function() guid = C_UnitAuras.GetAuraCasterGUID("player", id) end)
+  end
+  if not guid and type(a.sourceUnit) == "string" and readable(a.sourceUnit) and UnitGUID then guid = UnitGUID(a.sourceUnit) end
+  if not readable(guid) then logThanks(spell .. ": caster hidden by the game"); return end
+  if type(guid) ~= "string" then logThanks(spell .. ": the game gave no caster"); return end
+  if not guid:match("^Player%-") or (UnitGUID and guid == UnitGUID("player")) then return end
+  local name = nameFromGUID(guid)
+  if not name then logThanks(spell .. ": caster name unknown"); return end
+  if inMyGroup(guid) then logThanks(spell .. " from " .. name .. ": group member, no emote"); return end
+  if thanksPending[guid] then return end -- several buffs from one player: one thank
+  thanksPending[guid] = { name = name, spell = spell }
+  if C_Timer and C_Timer.After then C_Timer.After(THANKS_DELAY, function() fireThanks(guid) end) else fireThanks(guid) end
 end
 
-local function scanAddedAuras(info)
-  if type(info) ~= "table" then return end
-  if issecretvalue and (issecretvalue(info.isFullUpdate) or issecretvalue(info.addedAuras)) then return end
-  if info.isFullUpdate or type(info.addedAuras) ~= "table" then return end
-  local t = GetTime and GetTime() or 0
-  for _, a in ipairs(info.addedAuras) do
-    local helpful, src, spellId, name = a.isHelpful, a.sourceUnit, a.spellId, a.name
-    if issecretvalue and (issecretvalue(helpful) or issecretvalue(src) or issecretvalue(spellId)) then return end
-    if helpful then
-      if type(src) == "string" then
-        if not (UnitIsUnit and UnitIsUnit(src, "player")) then thank(src, nil, nil, name) end
-      elseif spellId then
-        local c = recentCasts[spellId]
-        if c and t - c.t < 1.5 then thank(nil, c.name, c.guid, name)
-        else pendingBuffs[spellId] = { t = t, name = name }; logThanks(tostring(name) .. ": the game gave no caster") end
-      end
+local function scanAuraUpdate(info)
+  if type(info) ~= "table" or not readable(info.isFullUpdate) or info.isFullUpdate then return end
+  if type(info.addedAuras) == "table" and readable(info.addedAuras) then
+    for _, a in ipairs(info.addedAuras) do considerAura(a) end
+  end
+  -- refreshed buffs (same aura, new duration)
+  local upd = info.updatedAuraInstanceIDs
+  if type(upd) == "table" and readable(upd) and C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID then
+    for _, id in ipairs(upd) do
+      local ok, a = pcall(C_UnitAuras.GetAuraDataByAuraInstanceID, "player", id)
+      if ok and readable(a) then considerAura(a) end
     end
   end
 end
 local function playerAura(unit, info)
-  if unit ~= "player" or not QoL.Get("thanksBuff") or inCombat() then return end
-  pcall(scanAddedAuras, info)
+  if unit ~= "player" or not QoL.Get("thanksBuff") or inCombat() or now() < settleUntil then return end
+  pcall(scanAuraUpdate, info)
 end
-
--- Note: the combat log cannot be used for this - in the Forever client registering
--- COMBAT_LOG_EVENT_UNFILTERED is a protected action (ADDON_ACTION_FORBIDDEN, 5.5.0-beta11).
--- So a buff is only thanked when the game names its caster (unit token: target,
--- mouseover, nameplate ...) or a matching cast of that player was seen.
+QoL._thanks = { consider = considerAura, fire = fireThanks, settle = thanksSettle, pending = thanksPending,
+  reset = function() for k in pairs(thanked) do thanked[k] = nil end; lastThanks, settleUntil = 0, 0 end }
 
 -- ---------------------------------------------------------------------------
 -- Durability warning
@@ -487,10 +524,11 @@ local function setupClassColors()
     hooksecurefunc("HealthBar_OnValueChanged", function(bar) FLT.SafeCall("ClassColors", colorBar, bar) end)
   end
 end
+local COLOR_FRAMES = { "PlayerFrame", "TargetFrame", "TargetFrameToT", "FocusFrame",
+  "PartyMemberFrame1", "PartyMemberFrame2", "PartyMemberFrame3", "PartyMemberFrame4" }
 local function refreshClassColors()
-  local frames = { PlayerFrame, TargetFrame, TargetFrameToT, FocusFrame }
-  for i = 1, 4 do frames[#frames + 1] = _G["PartyMemberFrame" .. i] end
-  for _, f in pairs(frames) do
+  for _, name in ipairs(COLOR_FRAMES) do
+    local f = _G[name]
     local bar = type(f) == "table" and (f.healthbar or f.HealthBar)
     if bar then colorBar(bar, bar.unit or f.unit) end
   end
@@ -718,11 +756,11 @@ local function charKey()
 end
 -- Copy this character's known recipes to the account (for "Twinks: ...").
 function QoL.SnapshotRecipes()
-  if type(ForeverCompanionDB) ~= "table" or type(ForeverCompanionCharDB) ~= "table" then return end
+  if type(OneForAllDB) ~= "table" or type(OneForAllCharDB) ~= "table" then return end
   local key = charKey(); if not key then return end
-  local profs = ForeverCompanionCharDB.professions
+  local profs = OneForAllCharDB.professions
   if type(profs) ~= "table" then return end
-  ForeverCompanionDB.altRecipes = ForeverCompanionDB.altRecipes or {}
+  OneForAllDB.altRecipes = OneForAllDB.altRecipes or {}
   local _, cls = UnitClass("player")
   local snap = { class = cls }
   for prof, p in pairs(profs) do
@@ -732,11 +770,11 @@ function QoL.SnapshotRecipes()
       snap[prof] = t
     end
   end
-  ForeverCompanionDB.altRecipes[key] = snap
+  OneForAllDB.altRecipes[key] = snap
 end
 local function twinksKnowing(prof, s)
   local out, me = {}, charKey()
-  for key, data in pairs(type(ForeverCompanionDB) == "table" and ForeverCompanionDB.altRecipes or {}) do
+  for key, data in pairs(type(OneForAllDB) == "table" and OneForAllDB.altRecipes or {}) do
     if key ~= me and type(data) == "table" and type(data[prof]) == "table" and data[prof][s] then
       out[#out + 1] = short(key)
     end
@@ -864,7 +902,8 @@ local function feedFrame()
       local d = db(); if d then d.lootFeedPos = { math.floor(cx - ux + 0.5), math.floor(cy - uy + 0.5) } end
     end
   end)
-  feed:SetScript("OnUpdate", function(_, elapsed)
+  -- runs only while lines are moving (started in the code that adds a line, stopped when the last one is gone)
+  feed.tick = function(self, elapsed)
     local speed = FEED_H / FEED_LIFE
     for i = #feedActive, 1, -1 do
       local e = feedActive[i]
@@ -875,7 +914,8 @@ local function feedFrame()
       e:ClearAllPoints(); e:SetPoint("BOTTOMLEFT", feed, "BOTTOMLEFT", 4, e.y)
       if e.age >= FEED_LIFE or e.y > FEED_H - 18 then e:Hide(); table.remove(feedActive, i); feedPool[#feedPool + 1] = e end
     end
-  end)
+    if #feedActive == 0 then self:SetScript("OnUpdate", nil) end
+  end
   QoL.SetLootFeedUnlocked(false)
   return feed
 end
@@ -915,6 +955,7 @@ local function feedAdd(icon, text, r, g, b)
   e.age, e.y = 0, 0
   e:SetAlpha(0); e:Show()
   feedActive[#feedActive + 1] = e
+  if not f:GetScript("OnUpdate") then f:SetScript("OnUpdate", f.tick) end
 end
 
 -- "You receive loot: %s." -> Lua pattern (localised from the game strings)
@@ -1452,7 +1493,7 @@ local EVENTS = {
   "QUEST_DETAIL", "QUEST_PROGRESS", "QUEST_COMPLETE", "QUEST_GREETING", "GOSSIP_SHOW", "QUEST_ACCEPT_CONFIRM",
   "PARTY_INVITE_REQUEST", "CHAT_MSG_WHISPER", "DUEL_REQUESTED",
   "UPDATE_INVENTORY_DURABILITY", "BAG_UPDATE_DELAYED", "QUEST_LOG_UPDATE", "PLAYER_XP_UPDATE", "PLAYER_LEVEL_UP",
-  "PLAYER_TARGET_CHANGED", "GROUP_ROSTER_UPDATE", "CHAT_MSG_LOOT", "CHAT_MSG_MONEY", "PLAYER_MONEY", "UNIT_SPELLCAST_SUCCEEDED", "UI_ERROR_MESSAGE", "LOOT_CLOSED", "CVAR_UPDATE", "PLAYER_REGEN_ENABLED",
+  "PLAYER_TARGET_CHANGED", "GROUP_ROSTER_UPDATE", "CHAT_MSG_LOOT", "CHAT_MSG_MONEY", "PLAYER_MONEY", "UI_ERROR_MESSAGE", "LOOT_CLOSED", "CVAR_UPDATE", "PLAYER_REGEN_ENABLED",
 }
 for _, e in ipairs(EVENTS) do pcall(ev.RegisterEvent, ev, e) end
 if ev.RegisterUnitEvent then pcall(ev.RegisterUnitEvent, ev, "UNIT_AURA", "player") else pcall(ev.RegisterEvent, ev, "UNIT_AURA") end
@@ -1471,6 +1512,7 @@ local function onEventSafe(_, event, ...)
       C_Timer.After(2, function() applyChatFont(QoL.Get("chatFont")); updateBagSlots(); updateXP(); checkDurability() end)
     end
   elseif event == "PLAYER_ENTERING_WORLD" then
+    thanksSettle()
     updateBagSlots(); checkDurability()
   elseif event == "PLAYER_LOGOUT" then
     QoL.SnapshotRecipes()
@@ -1495,7 +1537,6 @@ local function onEventSafe(_, event, ...)
   elseif event == "LOOT_CLOSED" then if helper and not helper.noLoot then helper:Hide() end; pendingLoot = nil
   elseif event == "CVAR_UPDATE" then cvarChanged(...)
   elseif event == "PLAYER_REGEN_ENABLED" then if sparklePending then applySparkles() end
-  elseif event == "UNIT_SPELLCAST_SUCCEEDED" then if not inCombat() then pcall(playerCast, ...) end
   elseif event == "CHAT_MSG_LOOT" then lootMessage(...)
   elseif event == "CHAT_MSG_MONEY" then moneyMessage()
   elseif event == "PLAYER_MONEY" then moneyChanged()

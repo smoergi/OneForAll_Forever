@@ -12,8 +12,8 @@ local COL_W = 488
 local COL_X = {8, 508}
 
 local function db()
-  if type(ForeverCompanionDB) ~= "table" then return {} end
-  return ForeverCompanionDB
+  if type(OneForAllDB) ~= "table" then return {} end
+  return OneForAllDB
 end
 
 local function createSettingsPanel(parent)
@@ -27,8 +27,8 @@ local function createSettingsPanel(parent)
   local page = CreateFrame("Frame", nil, sf); page:SetSize(COL_X[2] + COL_W + 4, 10); sf:SetScrollChild(page)
   UI.PlaceScrollBar(sf)
 
-  -- Yellow "!" (New) behind section titles, one release only: empty after the
-  -- release (TODO.md "Nach dem Release"). 5.6.1: skins and window opacity.
+  -- Yellow "!" (New) behind section titles, kept for the whole 5.6.x line, emptied when
+  -- 5.7.0 starts (TODO.md "Neu-Markierungen"). 5.6.1: skins and window opacity.
   local NEW_SECTIONS = { ["Window"] = true, ["Skin"] = true }
   local refreshers = {}
   local colY = { -4, -4 }
@@ -280,7 +280,7 @@ local function createSettingsPanel(parent)
   local bottom = math.min(colY[1], colY[2])
   local footer = FLT.NewFS(page, nil, "OVERLAY", "GameFontDisableSmall")
   footer:SetPoint("TOPLEFT", 14, bottom - 2)
-  footer:SetText("Like OneForAll or have an idea? Leave a comment on CurseForge - feedback and suggestions are always welcome.")
+  footer:SetText("Like OneForAll or have an idea? Leave a comment on CurseForge or GitHub (bug button in the title bar) - feedback and suggestions are always welcome.")
   page:SetHeight(-bottom + 24)
 
   panel:SetScript("OnShow", function() for _, f in ipairs(refreshers) do f() end end)

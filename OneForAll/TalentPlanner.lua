@@ -11,7 +11,7 @@ for _,id in ipairs({1,2,3,4,5,7,8,9,11}) do
 end
 
 -- Fallback store until SavedVariables are available; after ADDON_LOADED the
--- plans live in ForeverCompanionDB.talentPlans and survive /reload and logout.
+-- plans live in OneForAllDB.talentPlans and survive /reload and logout.
 local plannerState = {}
 
 -- Talent icon layout. Keep enough breathing room for the native Quickslot frame
@@ -87,20 +87,20 @@ local function apiReady()
 end
 
 local function stateFor(classID)
-  local store=(ForeverCompanionDB and ForeverCompanionDB.talentPlans) or plannerState
+  local store=(OneForAllDB and OneForAllDB.talentPlans) or plannerState
   store[classID]=store[classID] or { ranks={}, entries={} }
   return store[classID]
 end
 
--- Two saved presets per class (ForeverCompanionDB.talentPresets[classID][1|2]).
+-- Two saved presets per class (OneForAllDB.talentPresets[classID][1|2]).
 -- The planner edits a working copy (stateFor); "Save Preset" stores it in the
 -- open preset, choosing a preset loads it into the working copy.
 local presetFallback = {}
 local function presetsFor(classID)
   local store = presetFallback
-  if type(ForeverCompanionDB)=="table" then
-    ForeverCompanionDB.talentPresets = ForeverCompanionDB.talentPresets or {}
-    store = ForeverCompanionDB.talentPresets
+  if type(OneForAllDB)=="table" then
+    OneForAllDB.talentPresets = OneForAllDB.talentPresets or {}
+    store = OneForAllDB.talentPresets
   end
   if not store[classID] then
     -- first use: the existing plan becomes preset 1
@@ -200,10 +200,9 @@ local function referenceLayout(configID, all, classID, st)
   for _,n in ipairs(all) do
     local _,_,sid,name=entryDetails(configID,n.info,st.entries[n.id])
     -- Spell ID first (language independent), talent name as fallback.
-    local key
-    if sid and bySpell[sid] then
-      key=string.lower(bySpell[sid])
-    else
+    -- A spell ID whose talent was renamed or removed by a patch falls back to the name.
+    local key=sid and bySpell[sid] and string.lower(bySpell[sid])
+    if not (key and byName[key]) then
       key=string.lower(name or "")
       key=aliases[key] or key
     end
@@ -221,12 +220,12 @@ end
 
 -- /ofa talentdump: records node ID, entry ID and spell ID of every talent of
 -- all classes (via the same preview API the planner uses) into
--- ForeverCompanionDB.talentDump. Used to make TalentData.lua independent of the
+-- OneForAllDB.talentDump. Used to make TalentData.lua independent of the
 -- client language. Run it once on an English client and send the
 -- SavedVariables file (WTF\Account\<name>\SavedVariables\OneForAll.lua).
 function FLT:DumpTalents()
   if not apiReady() then return nil,"Talent preview APIs are not available on this client." end
-  if type(ForeverCompanionDB)~="table" then return nil,"Saved variables are not loaded yet." end
+  if type(OneForAllDB)~="table" then return nil,"Saved variables are not loaded yet." end
   local dump={ build=(GetBuildInfo and select(2,GetBuildInfo())) or "?", locale=GetLocale and GetLocale() or "?", time=time and time() or 0, classes={} }
   local classes,talents=0,0
   for classID,data in pairs(FLT.TALENT_DATA or {}) do
@@ -249,7 +248,7 @@ function FLT:DumpTalents()
       classes=classes+1
     end
   end
-  ForeverCompanionDB.talentDump=dump
+  OneForAllDB.talentDump=dump
   -- The planner re-applies its own preview the next time it is shown.
   return classes,talents
 end

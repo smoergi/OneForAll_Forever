@@ -1,7 +1,6 @@
 local _, FLT = ...
 local UI = FLT.UI
 local makeTexture, makeButton = UI.makeTexture, UI.makeButton
-local createPanelBanner = UI.createPanelBanner
 
 -- Hunter Pets tab: pet families, pet abilities (ranks, where to learn them)
 -- and notable rare tames. Data: Data/HunterPets.lua.
@@ -58,13 +57,13 @@ local LIST_W, ROW_W = 350, 338
 -- Hunters keep every pet ability rank they have learned; it is listed in the
 -- Beast Training window. We read that window when it opens, plus the active
 -- pet's spellbook, and store the highest known rank per ability per character
--- (ForeverCompanionCharDB.petAbilities). A known rank implies all lower ranks.
+-- (OneForAllCharDB.petAbilities). A known rank implies all lower ranks.
 local petUI -- set by the panel; refreshed after a scan
 
 local function knownTable()
-  if type(ForeverCompanionCharDB) ~= "table" then return nil end
-  ForeverCompanionCharDB.petAbilities = ForeverCompanionCharDB.petAbilities or {}
-  return ForeverCompanionCharDB.petAbilities
+  if type(OneForAllCharDB) ~= "table" then return nil end
+  OneForAllCharDB.petAbilities = OneForAllCharDB.petAbilities or {}
+  return OneForAllCharDB.petAbilities
 end
 
 local function rankNumber(sub)
@@ -95,7 +94,7 @@ local function scanBeastTraining()
       if noteKnown(name, rankNumber(sub)) then changed = true end
     end
   end
-  if knownTable() then ForeverCompanionCharDB.petAbilitiesScanned = true end
+  if knownTable() then OneForAllCharDB.petAbilitiesScanned = true end
   if petUI and petUI.refreshKnown then petUI.refreshKnown() end
   return changed
 end
@@ -143,16 +142,16 @@ local function scanPetSpellbook()
       noteKnown(name, rankNumber(sub)); found = true
     end
   end
-  if found and knownTable() then ForeverCompanionCharDB.petAbilitiesScanned = true end
+  if found and knownTable() then OneForAllCharDB.petAbilitiesScanned = true end
   if petUI and petUI.refreshKnown then petUI.refreshKnown() end
 end
 FLT.ScanPetAbilities = function() scanPetSpellbook(); scanBeastTraining() end
 
 -- Stabled pets are only readable while the stable master window is open, so
--- the last seen list is stored per character (ForeverCompanionCharDB.stablePets).
+-- the last seen list is stored per character (OneForAllCharDB.stablePets).
 local FAMILY_ALIAS_GLOBAL = { ["Owl"] = "Bird of Prey" }
 local function scanStable()
-  if type(ForeverCompanionCharDB) ~= "table" then return end
+  if type(OneForAllCharDB) ~= "table" then return end
   local list = {}
   local function add(name, level, family)
     if name and family then list[#list + 1] = { name = name, level = level, family = FAMILY_ALIAS_GLOBAL[family] or family } end
@@ -171,12 +170,12 @@ local function scanStable()
   else
     return
   end
-  ForeverCompanionCharDB.stablePets = list
+  OneForAllCharDB.stablePets = list
   if petUI and petUI.refreshKnown then petUI.refreshKnown() end
 end
 
 function FLT:GetStabledPets()
-  return type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.stablePets or {}
+  return type(OneForAllCharDB) == "table" and OneForAllCharDB.stablePets or {}
 end
 
 -- Nearby teacher alert ---------------------------------------------------------
@@ -188,22 +187,22 @@ local alerted = {}
 local ALERT_REPEAT = 900 -- seconds before the same beast may alert again
 
 function FLT:IsPetTeachAlertsEnabled()
-  return not (type(ForeverCompanionDB) == "table" and ForeverCompanionDB.petTeachAlerts == false)
+  return not (type(OneForAllDB) == "table" and OneForAllDB.petTeachAlerts == false)
 end
 function FLT:SetPetTeachAlertsEnabled(v)
-  if type(ForeverCompanionDB) == "table" then ForeverCompanionDB.petTeachAlerts = v and true or false end
+  if type(OneForAllDB) == "table" then OneForAllDB.petTeachAlerts = v and true or false end
 end
 
--- Abilities that never trigger the alert (ForeverCompanionDB.petAlertIgnore).
+-- Abilities that never trigger the alert (OneForAllDB.petAlertIgnore).
 -- Cower is hardly ever trained, so it is ignored by default.
 local DEFAULT_IGNORE = { ["Cower"] = true }
 local function ignoreTable()
-  if type(ForeverCompanionDB) ~= "table" then return DEFAULT_IGNORE end
-  if not ForeverCompanionDB.petAlertIgnore then
-    ForeverCompanionDB.petAlertIgnore = {}
-    for k in pairs(DEFAULT_IGNORE) do ForeverCompanionDB.petAlertIgnore[k] = true end
+  if type(OneForAllDB) ~= "table" then return DEFAULT_IGNORE end
+  if not OneForAllDB.petAlertIgnore then
+    OneForAllDB.petAlertIgnore = {}
+    for k in pairs(DEFAULT_IGNORE) do OneForAllDB.petAlertIgnore[k] = true end
   end
-  return ForeverCompanionDB.petAlertIgnore
+  return OneForAllDB.petAlertIgnore
 end
 function FLT:IsPetAlertIgnored(name) return ignoreTable()[name] and true or false end
 function FLT:SetPetAlertIgnored(name, ignored)
@@ -888,7 +887,7 @@ local function createPetsPanel(parent)
       child.refresh = function()
         alertCB:SetChecked(not FLT:IsPetAlertIgnored(a.name))
         local known = FLT:GetKnownPetRank(a.name)
-        local scanned = type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.petAbilitiesScanned
+        local scanned = type(OneForAllCharDB) == "table" and OneForAllCharDB.petAbilitiesScanned
         if scanned then scanHint:Hide() else scanHint:Show() end
         for _, bl in ipairs(blocks) do
           local learned = known >= (bl.rank.rank or 1)
