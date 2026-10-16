@@ -225,21 +225,23 @@ function UI.CreateDungeonMap(parent)
     if zoom == MIN_ZOOM then ox, oy = 0, 0 end
     layout()
   end)
-  local drag
-  vp:SetScript("OnMouseDown", function(self, button)
-    if button ~= "LeftButton" then return end
-    local cx, cy = GetCursorPosition()
-    drag = { x = cx, y = cy, ox = ox, oy = oy, s = self:GetEffectiveScale() }
-  end)
-  vp:SetScript("OnMouseUp", function() drag = nil end)
-  vp:SetScript("OnHide", function() drag = nil end)
-  vp:SetScript("OnUpdate", function()
-    if not drag then return end
+  -- dragging: OnUpdate runs only between mouse down and up (one reused table)
+  local drag = {}
+  local function dragUpdate()
     local cx, cy = GetCursorPosition()
     ox = drag.ox + (cx - drag.x) / drag.s
     oy = drag.oy + (cy - drag.y) / drag.s
     layout()
+  end
+  local function stopDrag(self) self:SetScript("OnUpdate", nil) end
+  vp:SetScript("OnMouseDown", function(self, button)
+    if button ~= "LeftButton" then return end
+    drag.x, drag.y = GetCursorPosition()
+    drag.ox, drag.oy, drag.s = ox, oy, self:GetEffectiveScale()
+    self:SetScript("OnUpdate", dragUpdate)
   end)
+  vp:SetScript("OnMouseUp", stopDrag)
+  vp:SetScript("OnHide", stopDrag)
   fit:SetScript("OnClick", function() zoom, ox, oy = 1, 0, 0; layout() end)
   return f
 end
@@ -262,7 +264,7 @@ function FLT.ApplyDungeonMapKey()
   if type(SetOverrideBindingClick) ~= "function" or type(ClearOverrideBindings) ~= "function" or type(GetBindingKey) ~= "function" then return end
   if InCombatLockdown and InCombatLockdown() then keyButton:RegisterEvent("PLAYER_REGEN_ENABLED"); return end
   keyButton:UnregisterEvent("PLAYER_REGEN_ENABLED")
-  local on = type(ForeverCompanionDB) == "table" and ForeverCompanionDB.dungeonMapKey ~= false and currentMapDungeon() ~= nil
+  local on = type(OneForAllDB) == "table" and OneForAllDB.dungeonMapKey ~= false and currentMapDungeon() ~= nil
   local keys = {}
   if on then for _, k in ipairs({ GetBindingKey("TOGGLEWORLDMAP") }) do if type(k) == "string" then keys[#keys + 1] = k end end end
   local sig = table.concat(keys, "\1")

@@ -16,13 +16,13 @@ local ASSET_ROOT = UI.ASSET_ROOT
 -- desaturated (FLT.SetTex) and banner/dungeon pictures are dimmed a little.
 -- Item quality, level and status colours are left alone. Needs a /reload.
 local function skinIsSilver()
-  return type(ForeverCompanionDB) == "table" and ForeverCompanionDB.skin == "silver"
+  return type(OneForAllDB) == "table" and OneForAllDB.skin == "silver"
 end
 FLT.SkinIsSilver = skinIsSilver
 function FLT.GetSkin() return skinIsSilver() and "silver" or "gold" end
 function FLT.SetSkin(name)
-  if type(ForeverCompanionDB) ~= "table" then return end
-  ForeverCompanionDB.skin = (name == "silver") and "silver" or nil
+  if type(OneForAllDB) ~= "table" then return end
+  OneForAllDB.skin = (name == "silver") and "silver" or nil
 end
 
 -- Frame style: "classic" (ornate gold frames, bevelled buttons; default) or
@@ -30,13 +30,13 @@ end
 -- there are four skins: Gold / Dark Silver x Classic / Modern. Needs a /reload.
 -- The switch sits in three places: OrnateFrame, Plate and FLT.SetTex (dividers).
 local function styleIsModern()
-  return type(ForeverCompanionDB) == "table" and ForeverCompanionDB.frameStyle == "modern"
+  return type(OneForAllDB) == "table" and OneForAllDB.frameStyle == "modern"
 end
 FLT.FrameStyleIsModern = styleIsModern
 function FLT.GetFrameStyle() return styleIsModern() and "modern" or "classic" end
 function FLT.SetFrameStyle(name)
-  if type(ForeverCompanionDB) ~= "table" then return end
-  ForeverCompanionDB.frameStyle = (name == "modern") and "modern" or nil
+  if type(OneForAllDB) ~= "table" then return end
+  OneForAllDB.frameStyle = (name == "modern") and "modern" or nil
 end
 -- skin keys = colour .. "_modern" for the modern style
 UI.SKINS = {
@@ -318,67 +318,6 @@ local function addDivider(parent, x)
 end
 
 
-local TAB_BANNERS = {
-  general={
-    texture=ASSET_ROOT.."general_banner",
-  },
-  armory={
-    texture=ASSET_ROOT.."armory_banner",
-  },
-  settings={
-    texture=ASSET_ROOT.."settings_banner",
-  },
-  dungeons={
-    texture=ASSET_ROOT.."dungeons_banner",
-  },
-  books={
-    texture=ASSET_ROOT.."books_banner",
-  },
-  professions={
-    texture=ASSET_ROOT.."professions_banner",
-  },
-  talents={
-    texture=ASSET_ROOT.."talents_banner",
-  },
-  pets={
-    texture=ASSET_ROOT.."pets_banner",
-  },
-  qol={
-    texture=ASSET_ROOT.."qol_banner",
-  },
-}
-
-local function createPanelBanner(parent, kind, topOffset, leftInset, rightInset, height)
-  local cfg = TAB_BANNERS[kind] or TAB_BANNERS.general
-  local banner = CreateFrame("Frame", nil, parent)
-  banner:SetPoint("TOPLEFT", leftInset or 8, topOffset or -8)
-  banner:SetPoint("TOPRIGHT", rightInset or -8, topOffset or -8)
-  banner:SetHeight(height or 56)
-
-  local bg = makeTexture(banner, "BACKGROUND", 0.06, 0.045, 0.025, 0.98)
-  bg:SetAllPoints()
-  local top = makeTexture(banner, "ARTWORK", 0.72, 0.50, 0.12, 0.62)
-  top:SetPoint("TOPLEFT", 0, 0); top:SetPoint("TOPRIGHT", 0, 0); top:SetHeight(1)
-  local bottom = makeTexture(banner, "ARTWORK", 0.72, 0.50, 0.12, 0.45)
-  bottom:SetPoint("BOTTOMLEFT", 0, 0); bottom:SetPoint("BOTTOMRIGHT", 0, 0); bottom:SetHeight(1)
-  local left = makeTexture(banner, "ARTWORK", 0.72, 0.50, 0.12, 0.35)
-  left:SetPoint("TOPLEFT", 0, 0); left:SetPoint("BOTTOMLEFT", 0, 0); left:SetWidth(1)
-  local right = makeTexture(banner, "ARTWORK", 0.72, 0.50, 0.12, 0.35)
-  right:SetPoint("TOPRIGHT", 0, 0); right:SetPoint("BOTTOMRIGHT", 0, 0); right:SetWidth(1)
-
-  if cfg.texture then
-    local art = banner:CreateTexture(nil, "ARTWORK")
-    art:SetAllPoints()
-    FLT.SetTex(art, cfg.texture)
-    -- a flatter banner shows the middle strip of the picture (no squashing)
-    local f = (height or 56) / 56
-    art:SetTexCoord(0, 1, 0.5 - f / 2, 0.5 + f / 2)
-    local shade = makeTexture(banner, "OVERLAY", 0.02, 0.02, 0.02, 0.28)
-    shade:SetAllPoints()
-  end
-
-  return banner
-end
 
 
 -- Art-based building blocks ---------------------------------------------------
@@ -906,32 +845,58 @@ function UI.Confirm(text, onYes, yesLabel, secureMacro)
   f:Show()
 end
 
--- Bug report window: the GitHub issues link of the public repo in a box that
--- can be copied (WoW cannot open a browser), plus version / class / level.
+-- Bug report window: where to report (GitHub issues or a CurseForge comment) in
+-- boxes that can be copied (WoW cannot open a browser), version / class / level and
+-- the last caught errors (OneForAllDB.errors, see FLT.SafeCall) to paste along.
 UI.ISSUES_URL = "https://github.com/smoergi/OneForAll_Forever/issues"
+UI.CURSEFORGE_URL = "https://www.curseforge.com/wow/addons/oneforall-forever"
 local bugFrame
+-- read-only box: typing puts the text back, a click selects it all
+local function copyBox(parent, w, h, multi)
+  local box
+  if multi then
+    local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate"))
+    sf:SetSize(w, h)
+    box = CreateFrame("EditBox", nil, sf); box:SetMultiLine(true); box:SetWidth(w - 4)
+    sf:SetScrollChild(box)
+    local bg = makeTexture(sf, "BACKGROUND", 0.02, 0.02, 0.03, 0.85); bg:SetPoint("TOPLEFT", -4, 4); bg:SetPoint("BOTTOMRIGHT", 4, -4)
+    box.holder = sf
+  else
+    box = FLT.SkinBlizz(CreateFrame("EditBox", nil, parent, "InputBoxTemplate")); box:SetSize(w, h)
+    box.holder = box
+  end
+  box:SetAutoFocus(false); box:SetFontObject("GameFontHighlightSmall")
+  box:SetScript("OnTextChanged", function(b, user) if user then b:SetText(b.value or ""); b:HighlightText() end end)
+  box:SetScript("OnEditFocusGained", function(b) b:HighlightText() end)
+  box:SetScript("OnMouseUp", function(b) b:SetFocus(); b:HighlightText() end)
+  box:SetScript("OnEscapePressed", function() parent:Hide() end)
+  function box:SetValue(t) self.value = t; self:SetText(t); self:SetCursorPosition(0) end
+  return box
+end
 function UI.ShowBugReport()
   if not bugFrame then
     local f = CreateFrame("Frame", "OneForAllBugReport", UIParent)
-    f:SetSize(420, 196); f:SetPoint("CENTER", 0, 80); f:SetFrameStrata("FULLSCREEN_DIALOG"); f:EnableMouse(true)
+    f:SetSize(440, 330); f:SetPoint("CENTER", 0, 80); f:SetFrameStrata("FULLSCREEN_DIALOG"); f:EnableMouse(true)
+    f:SetMovable(true); f:SetClampedToScreen(true); f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
     UI.FramedPanel(f)
     for _, t in ipairs(OrnateFrame(f, f, 16, 3, "OVERLAY", 4)) do t:SetVertexColor(FLT.SkinC(1, 1, 1, 1)) end
+    local close = UI.CloseButton(f); close:SetPoint("TOPRIGHT", -12, -12)
     local title = FLT.NewFS(f, nil, "OVERLAY", "GameFontNormalLarge"); title:SetPoint("TOP", 0, -20)
     title:SetText("Report a bug or idea"); title:SetTextColor(FLT.SkinC(1, 0.82, 0.20))
-    local text = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); text:SetPoint("TOP", 0, -46); text:SetWidth(370)
+    local text = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); text:SetPoint("TOP", 0, -44); text:SetWidth(390)
     text:SetJustifyH("CENTER")
-    text:SetText("Copy the link (Ctrl+C) and open it in your browser. A screenshot and your addon version help a lot.")
-    local box = FLT.SkinBlizz(CreateFrame("EditBox", nil, f, "InputBoxTemplate"))
-    box:SetSize(350, 22); box:SetPoint("TOP", 0, -84); box:SetAutoFocus(false); box:SetFontObject("GameFontHighlightSmall")
-    -- read only: any typing puts the link back, a click selects it all
-    local function reset(b) b:SetText(UI.ISSUES_URL); b:HighlightText(); b:SetCursorPosition(0) end
-    box:SetScript("OnTextChanged", function(b, user) if user then reset(b) end end)
-    box:SetScript("OnEditFocusGained", function(b) b:HighlightText() end)
-    box:SetScript("OnMouseUp", function(b) b:SetFocus(); b:HighlightText() end)
-    box:SetScript("OnEscapePressed", function() f:Hide() end)
-    f.box = box
-    f.info = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); f.info:SetPoint("TOP", 0, -116); f.info:SetWidth(370); f.info:SetJustifyH("CENTER")
-    local ok = GoldButton(f, "Close", 110, 26, nil, 13); ok:SetPoint("BOTTOM", 0, 18)
+    text:SetText("Copy a link (Ctrl+C) and open it in your browser: an issue on GitHub or a comment on CurseForge. A screenshot helps a lot.")
+    local function label(t, y)
+      local l = FLT.NewFS(f, nil, "OVERLAY", "GameFontNormalSmall"); l:SetPoint("TOPLEFT", 28, y); l:SetText(t); l:SetTextColor(FLT.SkinC(0.90, 0.74, 0.42))
+    end
+    label("GitHub", -80)
+    f.gh = copyBox(f, 300, 20); f.gh:SetPoint("TOPLEFT", 112, -76)
+    label("CurseForge", -108)
+    f.cf = copyBox(f, 300, 20); f.cf:SetPoint("TOPLEFT", 112, -104)
+    label("Please add", -138)
+    f.err = copyBox(f, 384, 116, true); f.err.holder:SetPoint("TOPLEFT", 28, -156)
+    local ok = GoldButton(f, "Close", 110, 26, nil, 13); ok:SetPoint("BOTTOM", 0, 16)
     ok:SetScript("OnClick", function() f:Hide() end)
     if UISpecialFrames then table.insert(UISpecialFrames, "OneForAllBugReport") end
     bugFrame = f
@@ -942,10 +907,19 @@ function UI.ShowBugReport()
   elseif GetAddOnMetadata then ver = GetAddOnMetadata(ADDON, "Version") end
   local class = UnitClass and UnitClass("player")
   local level = UnitLevel and UnitLevel("player")
-  f.info:SetText(string.format("OneForAll %s  |  %s  |  Level %s", tostring(ver or "?"), tostring(class or "?"), tostring(level or "?")))
-  f.box:SetText(UI.ISSUES_URL)
+  local lines = { string.format("OneForAll %s | %s | Level %s | %s", tostring(ver or "?"), tostring(class or "?"),
+    tostring(level or "?"), GetLocale and GetLocale() or "?") }
+  local errs = type(OneForAllDB) == "table" and OneForAllDB.errors
+  if type(errs) == "table" and #errs > 0 then
+    lines[#lines + 1] = "Last caught errors:"
+    for i = 1, math.min(5, #errs) do lines[#lines + 1] = tostring(errs[i]) end
+  else
+    lines[#lines + 1] = "No errors caught."
+  end
+  f.gh:SetValue(UI.ISSUES_URL); f.cf:SetValue(UI.CURSEFORGE_URL)
+  f.err:SetValue(table.concat(lines, "\n"))
   f:Show()
-  f.box:SetFocus(); f.box:HighlightText()
+  f.gh:SetFocus(); f.gh:HighlightText()
 end
 
 -- Asks before switching the skin; the Reload button runs /reload securely.
@@ -1015,7 +989,6 @@ UI.OrnateFrame = OrnateFrame
 UI.makeTexture = makeTexture
 UI.makeButton = makeButton
 UI.addDivider = addDivider
-UI.createPanelBanner = createPanelBanner
 
 -- Panel registry ------------------------------------------------------------
 -- spec = { key=, label=, order=, tabWidth=, create=function(parent) return frame end }

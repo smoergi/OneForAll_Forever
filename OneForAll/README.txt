@@ -64,6 +64,34 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+5.6.2 - Map Landmarks, talents of the October 15 patch
+------------------------------------------------------------
+- Fixed: OneForAll wiped the data of "Forever Companion: Discovery Journal"
+  when both were installed (same saved variable names from OneForAll's old
+  name). OneForAll now saves under its own names; your settings are moved
+  over automatically.
+- New Quality of Life option "Map Landmarks" (on): icons on the world map for
+  dungeon and raid entrances, flight masters, zeppelins and ships with their
+  destinations. Click an entrance to open that dungeon in OneForAll,
+  Shift-click for a map pin. Each part can be switched off.
+- Talent planner updated to the October 15 beta patch (Priest, Shaman, Mage,
+  Warlock, Warrior, Druid). Renamed talents are still found.
+- "Thank players who buff you" works again: the player who buffed you is
+  found even if he is not your target. Only buffs longer than 2 minutes,
+  3 seconds later, not in combat and not after a loading screen.
+- New install: the most useful Quality of Life helpers start switched on.
+  Existing settings are not changed.
+- Boss levels and boss/entrance positions on the maps of Ruins of Lordaeron,
+  Excavation Site (now level 26-31), City of Dalaran and Hall of Thanes.
+- Bug report window: GitHub or CurseForge, with your version, class, level and
+  the last errors ready to copy.
+- Less work in the background (animations only while something moves, bag
+  changes redraw only the open tab), unused graphics removed.
+- The minimap button collector is 10 % smaller.
+- Noteworthy changes now cover all 5.6 versions and only appear when you come
+  from a version before 5.6. The yellow "!" for new options sits left of the
+  checkbox and stays for all 5.6 versions.
+
 5.6.1 - Modern skins and low spell ranks
 ------------------------------------------------------------
 - Two new skins: Gold Modern and Dark Silver Modern, with plain frames,

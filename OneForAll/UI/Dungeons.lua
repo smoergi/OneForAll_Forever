@@ -2,7 +2,6 @@ local _, FLT = ...
 local unpack = unpack or table.unpack
 local UI = FLT.UI
 local makeTexture, makeButton = UI.makeTexture, UI.makeButton
-local createPanelBanner = UI.createPanelBanner
 local LAYOUT = UI.LAYOUT
 local ASSET_ROOT = UI.ASSET_ROOT
 local H = UI.DungeonHelpers
@@ -249,7 +248,7 @@ local function createDungeonPanel(parent)
 
   local fallbackSettings={}
   local function dungeonSettings()
-    local db=ForeverCompanionDB
+    local db=OneForAllDB
     if type(db)~="table" then db=fallbackSettings end
     db.dungeonBrowse = db.dungeonBrowse or {}
     local cfg=db.dungeonBrowse
@@ -1065,7 +1064,7 @@ local function createDungeonPanel(parent)
       end
 
       -- Recipe drops of this boss (Forever's shared recipe pool), collapsible.
-      local showRecipes = not (type(ForeverCompanionDB)=="table" and ForeverCompanionDB.dungeonRecipes==false)
+      local showRecipes = not (type(OneForAllDB)=="table" and OneForAllDB.dungeonRecipes==false)
       local recipes = (not isTrash) and boss and showRecipes and FLT.GetBossRecipes and FLT.GetBossRecipes(boss.npcID)
       if recipes and #recipes>0 then
         local sk=d.key..":"..newIdx

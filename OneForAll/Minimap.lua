@@ -32,7 +32,7 @@ local function positionButton(angle)
   button:ClearAllPoints()
   button:SetPoint("CENTER", Minimap, "CENTER", x * radius, y * radius)
 end
-FLT.PositionMinimapButton = function() positionButton(ForeverCompanionDB and ForeverCompanionDB.minimapAngle or 225) end
+FLT.PositionMinimapButton = function() positionButton(OneForAllDB and OneForAllDB.minimapAngle or 225) end
 
 local function stopDragging(self)
   self:SetScript("OnUpdate", nil)
@@ -50,7 +50,7 @@ local function updateDragging(self)
   local angle = math.deg(getAngle(cy - my, cx - mx))
   if angle < 0 then angle = angle + 360 end
 
-  ForeverCompanionDB.minimapAngle = angle
+  OneForAllDB.minimapAngle = angle
   positionButton(angle)
 end
 
@@ -113,7 +113,7 @@ function FLT:CreateMinimapButton()
   end)
   button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-  positionButton((ForeverCompanionDB and ForeverCompanionDB.minimapAngle) or 225)
+  positionButton((OneForAllDB and OneForAllDB.minimapAngle) or 225)
   -- minimap size can change after login (other addons, UI scale)
   if Minimap.HookScript then Minimap:HookScript("OnSizeChanged", FLT.PositionMinimapButton) end
   if C_Timer and C_Timer.After then C_Timer.After(3, FLT.PositionMinimapButton) end

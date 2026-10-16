@@ -16,7 +16,7 @@ local META = {
   ["Wailing Caverns"] = {key="wc", instanceID=43, territory="Horde", mapZone="The Barrens", mapX=46.0, mapY=36.5, minLevel=17},
   ["Shadowfang Keep"] = {key="sfk", instanceID=33, territory="Horde", mapZone="Silverpine Forest", mapX=44.8, mapY=67.8, minLevel=20},
   ["Blackfathom Deeps"] = {key="bfd", instanceID=48, territory="Contested", mapZone="Ashenvale", mapX=14.5, mapY=14.2, minLevel=22},
-  ["Excavation Site: Wetlands"] = {key="excavation", short="Excavation Site", territory="Contested", mapZone="Wetlands", mapX=47.79, mapY=56.16, betaNew=true, minLevel=24, coordsUnverified=true},
+  ["Excavation Site: Wetlands"] = {key="excavation", short="Excavation Site", territory="Contested", mapZone="Wetlands", mapX=47.79, mapY=56.16, betaNew=true, minLevel=26, coordsUnverified=true},
   ["The Stockade"] = {key="stockade", instanceID=34, territory="Alliance", mapZone="Stormwind City", mapX=52.41, mapY=70.01, minLevel=25, coordsUnverified=true},
   ["City of Dalaran"] = {key="dalaran", territory="Contested", mapZone="Alterac Mountains", mapX=8.46, mapY=59.21, betaNew=true, minLevel=28, dataStatus="partial", coordsUnverified=true},
   ["Gnomeregan"] = {key="gnomeregan", instanceID=90, territory="Alliance", mapZone="Dun Morogh", mapX=24.3, mapY=39.8, minLevel=29, coordsUnverified=true, openToBoth=true},
@@ -186,8 +186,9 @@ end
 SRC = nil
 FLT.DUNGEON_REGISTRY = nil
 
--- Boss levels (QuestieDB Forever data). Forever-only bosses are missing here;
--- their level is learned in game when you target them (ForeverCompanionDB.bossInfo).
+-- Boss levels (QuestieDB Forever data; Forever dungeons from foreverchanges.pro). Bosses
+-- without an NPC ID are keyed by name. Missing ones (Hall of Thanes, unreleased dungeons)
+-- their level is learned in game when you target them (OneForAllDB.bossInfo).
 FLT.BOSS_LEVELS = {
   -- Blackrock Depths
   [9025] = "51", -- Lord Roccor
@@ -445,4 +446,26 @@ FLT.BOSS_LEVELS = {
   [3654] = "22", -- Mutanus the Devourer
   [3674] = "21", -- Skum
   [5775] = "21", -- Verdan the Everliving
+  -- Forever dungeons (foreverchanges.pro boss pages, 16.10.2026; Hall of Thanes not known yet)
+  -- Ruins of Lordaeron
+  [250660] = "17", -- The Baron
+  [250483] = "17", -- Witherfang
+  [250631] = "18", -- The Abandoned
+  [256097] = "19", -- Bjork
+  [250657] = "20", -- Rath'mael
+  [256035] = "19", -- Viktor the Vile
+  -- Excavation Site: Wetlands
+  [260322] = "28", -- Saltspine
+  [260325] = "29", -- Shadetooth
+  [260808] = "28", -- Highland Horror (also Wowhead Forever)
+  [260326] = "31", -- Relic Guardian
+  -- City of Dalaran
+  [247126] = "29", -- Atrexis the Grave Knight
+  [247032] = "31", -- Lyn the Ignored
+  [245999] = "30", -- Arcane Anomaly
+  ["Arcanic Enigma"] = "30", -- no NPC ID in our data yet: by name
+  [246017] = "31", -- Unstable Sentinel
+  [246008] = "31", -- Mana Devourer
+  [246003] = "32", -- Fel Ancient
+  [246020] = "33", -- Shade of the Archmage
 }

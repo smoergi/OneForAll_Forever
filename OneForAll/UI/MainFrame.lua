@@ -33,9 +33,13 @@ local function setPanelTab(tab)
   activeTab = tab or defaultTab()
   ensurePanel(activeTab)
   -- remember the tab per character: the window opens on it next time
-  if activeTab ~= "settings" and type(ForeverCompanionCharDB) == "table" then ForeverCompanionCharDB.lastTab = activeTab end
+  if activeTab ~= "settings" and type(OneForAllCharDB) == "table" then OneForAllCharDB.lastTab = activeTab end
   for key, panel in pairs(panels) do
-    if key == activeTab then panel:Show() else panel:Hide() end
+    if key == activeTab then
+      panel:Show()
+      -- bag/bank changes while this tab was hidden: catch up now
+      if panel.ofaStale then panel.ofaStale = nil; if panel.Refresh then panel:Refresh() end end
+    else panel:Hide() end
   end
   for key, b in pairs(tabButtons) do
     if b.SetActive then b:SetActive(key == activeTab)
@@ -45,18 +49,18 @@ end
 
 -- Window scaling: the layout is built for 1040x650 and scaled as a whole
 -- (SetScale), so every tab keeps its proportions. Scale and position are
--- saved account-wide in ForeverCompanionDB.window.
+-- saved account-wide in OneForAllDB.window.
 local BASE_W, BASE_H = 1040, 650
 local MIN_SCALE, MAX_SCALE = 0.6, 1.4
 -- The height can additionally be stretched (bottom-edge grip) so lists show
--- more rows; stored in ForeverCompanionDB.window.height.
+-- more rows; stored in OneForAllDB.window.height.
 
 local applyHeight -- defined below; used by the scale grip as well
 
 local function windowDB()
-  if type(ForeverCompanionDB) ~= "table" then return {} end
-  ForeverCompanionDB.window = ForeverCompanionDB.window or {}
-  return ForeverCompanionDB.window
+  if type(OneForAllDB) ~= "table" then return {} end
+  OneForAllDB.window = OneForAllDB.window or {}
+  return OneForAllDB.window
 end
 
 local function clampScale(s)
@@ -209,7 +213,7 @@ local function createHeightGrip()
   grip:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
--- Tab visibility is stored per character (ForeverCompanionCharDB.tabs).
+-- Tab visibility is stored per character (OneForAllCharDB.tabs).
 -- Without a saved choice a tab is shown, unless its panel spec lists the
 -- classes it is meant for (spec.classes, e.g. a class-only tab).
 local function playerClass()
@@ -220,7 +224,7 @@ end
 
 function UI.IsTabVisible(key)
   if key == "settings" then return true end
-  local saved = type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.tabs and ForeverCompanionCharDB.tabs[key]
+  local saved = type(OneForAllCharDB) == "table" and OneForAllCharDB.tabs and OneForAllCharDB.tabs[key]
   if saved ~= nil then return saved and true or false end
   for _, spec in ipairs(UI.panels) do
     if spec.key == key and spec.classes then
@@ -233,22 +237,22 @@ function UI.IsTabVisible(key)
 end
 
 function UI.SetTabVisible(key, visible)
-  if key == "settings" or type(ForeverCompanionCharDB) ~= "table" then return end
-  ForeverCompanionCharDB.tabs = ForeverCompanionCharDB.tabs or {}
-  ForeverCompanionCharDB.tabs[key] = visible and true or false
+  if key == "settings" or type(OneForAllCharDB) ~= "table" then return end
+  OneForAllCharDB.tabs = OneForAllCharDB.tabs or {}
+  OneForAllCharDB.tabs[key] = visible and true or false
   UI.LayoutTabs()
 end
 
 function UI.ResetTabs()
-  if type(ForeverCompanionCharDB) == "table" then ForeverCompanionCharDB.tabs = nil end
+  if type(OneForAllCharDB) == "table" then OneForAllCharDB.tabs = nil end
   UI.LayoutTabs()
 end
 
--- Tab order (per character, ForeverCompanionCharDB.tabOrder = list of keys).
+-- Tab order (per character, OneForAllCharDB.tabOrder = list of keys).
 -- Settings always stays in front; the other tabs can be moved.
 local FIXED_TABS = { settings = true }
 function UI.SortableTabs()
-  local saved = type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.tabOrder
+  local saved = type(OneForAllCharDB) == "table" and OneForAllCharDB.tabOrder
   local pos = {}
   if type(saved) == "table" then for i, k in ipairs(saved) do pos[k] = i end end
   local list = {}
@@ -273,7 +277,7 @@ function UI.OrderedPanels()
   return out
 end
 function UI.MoveTab(key, dir)
-  if type(ForeverCompanionCharDB) ~= "table" then return end
+  if type(OneForAllCharDB) ~= "table" then return end
   local list = UI.SortableTabs()
   local idx
   for i, spec in ipairs(list) do if spec.key == key then idx = i end end
@@ -282,17 +286,17 @@ function UI.MoveTab(key, dir)
   list[idx], list[j] = list[j], list[idx]
   local order = {}
   for i, spec in ipairs(list) do order[i] = spec.key end
-  ForeverCompanionCharDB.tabOrder = order
+  OneForAllCharDB.tabOrder = order
   UI.LayoutTabs()
 end
 function UI.ResetTabOrder()
-  if type(ForeverCompanionCharDB) == "table" then ForeverCompanionCharDB.tabOrder = nil end
+  if type(OneForAllCharDB) == "table" then OneForAllCharDB.tabOrder = nil end
   UI.LayoutTabs()
 end
 
 -- Start tab: the last used tab of this character, else the first shown tab.
 function defaultTab()
-  local last = type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.lastTab
+  local last = type(OneForAllCharDB) == "table" and OneForAllCharDB.lastTab
   if type(last) == "string" and last ~= "settings" and UI.IsTabVisible(last) then
     for _, spec in ipairs(UI.panels) do if spec.key == last then return last end end
   end
@@ -425,7 +429,7 @@ local function decorateWindow()
   bugBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:SetText("Report a bug")
-    GameTooltip:AddLine("Shows the link where you can report bugs and ideas.", 1, 1, 1)
+    GameTooltip:AddLine("Where to report bugs and ideas (GitHub or CurseForge), with your last errors to copy.", 1, 1, 1)
     GameTooltip:Show()
   end)
   bugBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -512,9 +516,12 @@ end
 function FLT:UIRefresh()
   -- Bag/bank events fire often; there is nothing to update while the window
   -- is closed. The frame's OnShow handler refreshes it when it is opened.
+  -- Only the shown tab is redrawn; hidden tabs are marked and redraw when opened.
   if not frame or not frame:IsShown() then return end
   for _, panel in pairs(panels) do
-    if panel.Refresh then panel:Refresh() end
+    if panel:IsShown() then
+      if panel.Refresh then panel:Refresh() end
+    else panel.ofaStale = true end
   end
 end
 
@@ -523,7 +530,7 @@ function UI.ResetWindow() FLT:SetWindowScale(nil) end
 
 -- Window opacity (Settings > Window, modern style only): only the backgrounds
 -- (UI.MarkBG), text and pictures stay solid. 70-100 %, saved account-wide in
--- ForeverCompanionDB.window.alpha; not set yet = 95 % (user 15.10.). The classic
+-- OneForAllDB.window.alpha; not set yet = 95 % (user 15.10.). The classic
 -- style is always solid (no slider there).
 local MIN_ALPHA, DEFAULT_ALPHA = 0.7, 0.95
 local function modern() return FLT.FrameStyleIsModern and FLT.FrameStyleIsModern() end

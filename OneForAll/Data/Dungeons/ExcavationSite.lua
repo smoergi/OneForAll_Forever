@@ -3,7 +3,7 @@ local ADDON, FLT = ...
 -- Excavation Site: Wetlands: quests from QuestieDB Forever, rewards and loot checked against
 -- Wowhead (Forever), wowforevertalents.com and foreverchanges.pro. See DUNGEON_DATA_SOURCES.txt.
 FLT.DUNGEON_REGISTRY["Excavation Site: Wetlands"] = {
-    level = "24-29",
+    level = "26-31", -- foreverchanges.pro / Blizzard forum post on the new dungeon level ranges (16.10.)
     location = "Wetlands",
     description = "A WoW Forever dungeon: a dig site in the Wetlands where something better left buried has been unearthed. Few boss kills recorded so far.",
     icon = "Interface\\Icons\\INV_Pick_01",

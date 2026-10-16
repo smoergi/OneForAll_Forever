@@ -4,8 +4,10 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 
 -- "Noteworthy changes" popup. Shown once per account after logging in with a
 -- new NEWS_ID (change it for the next release with news). /ofa news reopens it.
+-- One popup per minor line (user 16.10.): NEWS_ID "5.6" collects the news of all 5.6.x versions and
+-- is shown only to players coming from before 5.6 (whoever saw the 5.6.1 popup does not get it again).
 
-local NEWS_ID = "5.6.1"
+local NEWS_ID = "5.6"
 
 -- image (optional): picture under the lines = { tex, shown width, shown height, texcoord right, texcoord bottom }
 -- (made by tools/art/proc_news.py from the user's screenshots in source_images/news)
@@ -21,6 +23,11 @@ local NEWS = {
       "New option in Quality of Life: finds spells on your action bars that still use an older rank than you know and updates them with one click. After a trainer visit it waits until you close the trainer.",
     },
     image = { "news_lowrank", 380, 166, 1, 0.8711 } },
+  { icon = "Interface\\Icons\\INV_Misc_Map_01", title = "Map Landmarks", tab = "qol", button = "Open Quality of Life",
+    lines = {
+      "Icons on the world map for dungeon and raid entrances, flight masters, zeppelins and ships. Click an entrance to open that dungeon in OneForAll; the other icons show where they go.",
+      "Quality of Life > World map switches it off or hides single parts.",
+    } },
 }
 
 local frame
@@ -101,12 +108,14 @@ end
 function FLT.ShowNews()
   if not frame then frame = create() end
   frame:Show()
-  if type(ForeverCompanionDB) == "table" then ForeverCompanionDB.newsSeen = NEWS_ID end
+  if type(OneForAllDB) == "table" then OneForAllDB.newsSeen = NEWS_ID end
 end
 
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("PLAYER_LOGIN")
 ev:SetScript("OnEvent", function()
-  if type(ForeverCompanionDB) ~= "table" or ForeverCompanionDB.newsSeen == NEWS_ID then return end
+  if type(OneForAllDB) ~= "table" then return end
+  local seen = OneForAllDB.newsSeen
+  if type(seen) == "string" and (seen == NEWS_ID or seen:sub(1, #NEWS_ID + 1) == NEWS_ID .. ".") then return end
   if C_Timer and C_Timer.After then C_Timer.After(6, FLT.ShowNews) else FLT.ShowNews() end
 end)

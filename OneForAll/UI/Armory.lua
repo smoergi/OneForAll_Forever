@@ -43,9 +43,9 @@ local KINDS = { { key = "all", label = "All" }, { key = "gear", label = "Gear" }
 
 -- Saved choices (per character): class filter, hide unreleased sets, item kind.
 local function prefs()
-  if type(ForeverCompanionCharDB) ~= "table" then return {} end
-  ForeverCompanionCharDB.armory = ForeverCompanionCharDB.armory or {}
-  return ForeverCompanionCharDB.armory
+  if type(OneForAllCharDB) ~= "table" then return {} end
+  OneForAllCharDB.armory = OneForAllCharDB.armory or {}
+  return OneForAllCharDB.armory
 end
 local function playerClass()
   local _, token = UnitClass("player")

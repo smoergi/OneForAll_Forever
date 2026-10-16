@@ -9,7 +9,7 @@ _G[ADDON] = FLT
 FLT.INTERNAL_ADDON_NAME = ADDON
 FLT.DISPLAY_NAME = FLT.DISPLAY_NAME or "OneForAll"
 FLT.ASSET_ROOT = FLT.ASSET_ROOT or ("Interface\\AddOns\\" .. ADDON .. "\\Assets\\")
-FLT.LEGACY_SAVED_VARIABLES = { "ForeverCompanionDB", "ForeverLibraryTrackerDB" }
+FLT.LEGACY_SAVED_VARIABLES = { "OneForAllDB", "ForeverLibraryTrackerDB" }
 
 FLT.SETS = {
   starter = "Set 1 - Level 20",

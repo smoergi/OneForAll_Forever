@@ -14,7 +14,9 @@ General sources
 - Boss and trash loot: foreverchanges.pro dungeon pages and wowtbc.gg loot
   tables; item names, slots and qualities from the Wowhead tooltip API
   (Forever data, Classic data as fallback).
-- Boss portraits (display IDs) and level ranges: foreverchanges.pro.
+- Boss portraits (display IDs), level ranges and the boss levels of the Forever dungeons: foreverchanges.pro.
+- Boss and entrance positions on the maps of Hall of Thanes, Ruins of Lordaeron, Excavation Site and City of
+  Dalaran: the boss pins of the foreverchanges.pro dungeon maps, converted to our map layout (approximate).
 - Classic drop chances: foreverchanges.pro (Wowhead Classic data).
 
 

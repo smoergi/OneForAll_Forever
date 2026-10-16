@@ -10,7 +10,7 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 -- "All recipes" browser for the Professions tab (beta). Data: Data/Professions/*.lua
 -- (extracted from the Forever client database). Known recipes and the current
 -- skill are read from the profession window and stored per character in
--- ForeverCompanionCharDB.professions[profession] = { skill, maxSkill, known = {spellID=true} }.
+-- OneForAllCharDB.professions[profession] = { skill, maxSkill, known = {spellID=true} }.
 
 local GOLD = {1, 0.82, 0.20}
 local DIFF = {
@@ -24,21 +24,21 @@ local QCOL = { [0]={0.62,0.62,0.62}, [1]={1,1,1}, [2]={0.12,1,0}, [3]={0,0.44,0.
 -- Character data (skill + known recipes)
 -- ---------------------------------------------------------------------------
 local function profDB(prof)
-  if type(ForeverCompanionCharDB) ~= "table" then return {known = {}} end
-  ForeverCompanionCharDB.professions = ForeverCompanionCharDB.professions or {}
-  local p = ForeverCompanionCharDB.professions[prof]
-  if not p then p = {known = {}}; ForeverCompanionCharDB.professions[prof] = p end
+  if type(OneForAllCharDB) ~= "table" then return {known = {}} end
+  OneForAllCharDB.professions = OneForAllCharDB.professions or {}
+  local p = OneForAllCharDB.professions[prof]
+  if not p then p = {known = {}}; OneForAllCharDB.professions[prof] = p end
   p.known = p.known or {}
   return p
 end
 FLT.GetProfessionState = profDB
 
--- Favourite recipes (account wide): ForeverCompanionDB.recipeFavorites[prof][spell]
+-- Favourite recipes (account wide): OneForAllDB.recipeFavorites[prof][spell]
 local function favDB(prof, create)
-  if type(ForeverCompanionDB) ~= "table" then return nil end
-  ForeverCompanionDB.recipeFavorites = ForeverCompanionDB.recipeFavorites or {}
-  local t = ForeverCompanionDB.recipeFavorites[prof]
-  if not t and create then t = {}; ForeverCompanionDB.recipeFavorites[prof] = t end
+  if type(OneForAllDB) ~= "table" then return nil end
+  OneForAllDB.recipeFavorites = OneForAllDB.recipeFavorites or {}
+  local t = OneForAllDB.recipeFavorites[prof]
+  if not t and create then t = {}; OneForAllDB.recipeFavorites[prof] = t end
   return t
 end
 local function isFavorite(prof, spell) local t = favDB(prof); return t and t[spell] and true or false end
@@ -104,8 +104,8 @@ end
 -- has (wrong entries written by 4.18.0). Learn level, or yellow - 50.
 local function cleanImplausible(prof)
   local list = FLT.PROFESSION_RECIPES and FLT.PROFESSION_RECIPES[prof]
-  if not list or type(ForeverCompanionCharDB) ~= "table" or type(ForeverCompanionCharDB.professions) ~= "table" then return end
-  local p = ForeverCompanionCharDB.professions[prof]
+  if not list or type(OneForAllCharDB) ~= "table" or type(OneForAllCharDB.professions) ~= "table" then return end
+  local p = OneForAllCharDB.professions[prof]
   if not (p and p.known and p.skill) then return end
   for _, r in ipairs(list) do
     if p.known[r.s] then
@@ -451,7 +451,7 @@ function UI.CreateRecipeBrowser(parent)
   box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
 
   -- "Show offline": also list guild members / players who are offline (off by default).
-  local function showOffline() return type(ForeverCompanionDB) == "table" and ForeverCompanionDB.recipeShowOffline == true end
+  local function showOffline() return type(OneForAllDB) == "table" and OneForAllDB.recipeShowOffline == true end
 
   -- list (left) and detail (right)
   local left = CreateFrame("Frame", nil, f); left:SetPoint("TOPLEFT", 0, -82); left:SetPoint("BOTTOMLEFT", 0, 0); left:SetWidth(336)
@@ -644,7 +644,7 @@ function UI.CreateRecipeBrowser(parent)
         cb:SetPoint("LEFT", hk, "RIGHT", 14, 0); cb:SetChecked(showOffline())
         local cl = dtext("GameFontHighlightSmall"); cl:SetPoint("LEFT", cb, "RIGHT", 2, 0); cl:SetText("Show offline")
         cb:SetScript("OnClick", function(self)
-          if type(ForeverCompanionDB) == "table" then ForeverCompanionDB.recipeShowOffline = self:GetChecked() and true or false end
+          if type(OneForAllDB) == "table" then OneForAllDB.recipeShowOffline = self:GetChecked() and true or false end
           f:Refresh(true)
         end)
       end

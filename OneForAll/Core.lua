@@ -9,11 +9,11 @@ FLT.Msg = msg
 
 -- Safe calls for event handlers: an error is caught instead of popping up again and
 -- again (e.g. in combat, when the Forever client hands out "secret" values). The
--- last errors are kept in ForeverCompanionDB.errors; /ofa errors prints them so
+-- last errors are kept in OneForAllDB.errors; /ofa errors prints them so
 -- players can copy them into a bug report.
 local errorSaid = false
 local function logError(tag, err)
-  local db = type(ForeverCompanionDB) == "table" and ForeverCompanionDB
+  local db = type(OneForAllDB) == "table" and OneForAllDB
   if db then
     db.errors = db.errors or {}
     local ver = (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version")) or (GetAddOnMetadata and GetAddOnMetadata(ADDON, "Version")) or "?"
@@ -69,7 +69,7 @@ end
 function FLT:RecordObservedTurnIn(qid)
   local book = self:FindBookByQuestID(qid)
   if not book then return end
-  ForeverCompanionCharDB.confirmedDone[book.itemId] = true
+  OneForAllCharDB.confirmedDone[book.itemId] = true
   msg(string.format("Confirmed turn-in: %s (quest %d).", book.name, book.questId))
 end
 
@@ -95,8 +95,8 @@ function FLT:ScanBank()
       if id then self.bankItems[id] = true end
     end
   end
-  ForeverCompanionCharDB.bankItems = self.bankItems
-  ForeverCompanionCharDB.bankScanned = time()
+  OneForAllCharDB.bankItems = self.bankItems
+  OneForAllCharDB.bankScanned = time()
 end
 
 -- Deliberately conservative completion logic:
@@ -104,8 +104,8 @@ end
 -- The server quest-completion flag is still shown, but as "questflag" because
 -- some Forever beta characters appear to report unexpected completion flags.
 function FLT:GetBookState(book)
-  if ForeverCompanionCharDB.confirmedDone[book.itemId] then return "done" end
-  if ForeverCompanionCharDB.manualDone[book.itemId] then return "manual" end
+  if OneForAllCharDB.confirmedDone[book.itemId] then return "done" end
+  if OneForAllCharDB.manualDone[book.itemId] then return "manual" end
   if self.bagItems and self.bagItems[book.itemId] then return "bag" end
   if self.bankItems and self.bankItems[book.itemId] then return "bank" end
   if self:IsQuestDone(book.questId) then return "questflag" end
@@ -167,12 +167,27 @@ function FLT:PrintDebug()
   msg("Debug: books where the server says the quest is completed but this addon did not observe the turn-in:")
   local n = 0
   for _, book in ipairs(self.BOOKS) do
-    if self:IsQuestDone(book.questId) and not ForeverCompanionCharDB.confirmedDone[book.itemId] then
+    if self:IsQuestDone(book.questId) and not OneForAllCharDB.confirmedDone[book.itemId] then
       n = n + 1
       msg(string.format("%s | quest=%d | item=%d | state=%s", book.name, book.questId, book.itemId, self:GetBookState(book)))
     end
   end
   if n == 0 then msg("No unverified quest-completion flags found.") end
+end
+
+-- 5.6.2: own SavedVariables names. Up to 5.6.1 they were ForeverCompanionDB / ForeverCompanionCharDB
+-- (from the old addon name), the same names as the addon "Forever Companion: Discovery Journal": both
+-- addons then shared one table and our data replaced the journal's at every login or /reload.
+-- This chunk runs before our SavedVariables are loaded, so whatever is in the old globals now belongs
+-- to another addon. At ADDON_LOADED we take our old data over once and hand those globals back.
+-- (The old names stay in the .toc for the 5.6 versions so old data can be moved; remove them in 5.7.)
+local OLD_DB, OLD_CHAR = "ForeverCompanionDB", "ForeverCompanionCharDB"
+local foreignDB, foreignChar = _G[OLD_DB], _G[OLD_CHAR]
+local function moveOldSavedVariables()
+  local old, oldChar = _G[OLD_DB], _G[OLD_CHAR]
+  if OneForAllDB == nil and type(old) == "table" and old ~= foreignDB then OneForAllDB = old end
+  if OneForAllCharDB == nil and type(oldChar) == "table" and oldChar ~= foreignChar then OneForAllCharDB = oldChar end
+  _G[OLD_DB], _G[OLD_CHAR] = foreignDB, foreignChar
 end
 
 local f = CreateFrame("Frame")
@@ -184,41 +199,54 @@ f:RegisterEvent("BANKFRAME_CLOSED")
 f:RegisterEvent("QUEST_TURNED_IN")
 f:SetScript("OnEvent", function(_, event, arg1)
   if event == "ADDON_LOADED" and arg1 == ADDON then
+    moveOldSavedVariables()
     -- Migrate settings/progress from the old Forever Library Tracker name.
-    if not ForeverCompanionDB and ForeverLibraryTrackerDB then ForeverCompanionDB = ForeverLibraryTrackerDB end
-    ForeverCompanionDB = ForeverCompanionDB or {}
+    if not OneForAllDB and ForeverLibraryTrackerDB then OneForAllDB = ForeverLibraryTrackerDB end
+    OneForAllDB = OneForAllDB or {}
 
     -- Book progress and bank contents are per character (SavedVariablesPerCharacter).
     -- Before 4.3 they were stored account-wide: the first character that logs
     -- in with 4.3 takes over the old turn-ins/manual marks. The old bank scan is
     -- dropped because it may belong to another character; it is rebuilt on the
     -- next bank visit.
-    ForeverCompanionCharDB = ForeverCompanionCharDB or {}
-    local char = ForeverCompanionCharDB
+    OneForAllCharDB = OneForAllCharDB or {}
+    local char = OneForAllCharDB
     if not char.initialized then
-      if ForeverCompanionDB.confirmedDone or ForeverCompanionDB.manualDone then
-        char.confirmedDone = ForeverCompanionDB.confirmedDone
-        char.manualDone = ForeverCompanionDB.manualDone
+      if OneForAllDB.confirmedDone or OneForAllDB.manualDone then
+        char.confirmedDone = OneForAllDB.confirmedDone
+        char.manualDone = OneForAllDB.manualDone
       end
       char.initialized = true
     end
-    ForeverCompanionDB.confirmedDone = nil
-    ForeverCompanionDB.manualDone = nil
-    ForeverCompanionDB.bankItems = nil
-    ForeverCompanionDB.bankScanned = nil
+    OneForAllDB.confirmedDone = nil
+    OneForAllDB.manualDone = nil
+    OneForAllDB.bankItems = nil
+    OneForAllDB.bankScanned = nil
     char.manualDone = char.manualDone or {}
     char.confirmedDone = char.confirmedDone or {}
     char.bankItems = char.bankItems or {}
-    ForeverCompanionDB.recipeItemIDs = nil -- obsolete merchant cache (pre-4.1.2)
-    ForeverCompanionDB.talentPlans = ForeverCompanionDB.talentPlans or {}
+    OneForAllDB.recipeItemIDs = nil -- obsolete merchant cache (pre-4.1.2)
+    OneForAllDB.talentPlans = OneForAllDB.talentPlans or {}
     FLT.bankItems = char.bankItems
-    if ForeverCompanionDB.nearbyAlertsEnabled == nil then ForeverCompanionDB.nearbyAlertsEnabled = true end
+    -- 5.6.2: first start (no Quality of Life settings yet): these options start switched on
+    -- (chosen by the user 16.10.); existing installs keep what they have
+    if OneForAllDB.qol == nil then
+      OneForAllDB.qol = {
+        quickLoot = true, bagsFull = true,
+        lootFeed = true, lootFeedMoney = true, lootFeedQuality = 0,
+        questSparkles = true,
+        bossDrops = true, recipeTip = true, unitTarget = true,
+        classColors = true, thanksBuff = true,
+        bagSlots = true, questXP = true, durability = true, copyChat = true, mmCollect = true,
+      }
+    end
+    if OneForAllDB.nearbyAlertsEnabled == nil then OneForAllDB.nearbyAlertsEnabled = true end
     -- 5.6.1: everyone starts once with the Gold Modern skin (user 15.10.); a skin
     -- picked afterwards is kept (the flag makes this a one-time switch).
-    if not ForeverCompanionDB.skinDefault561 then
-      ForeverCompanionDB.skinDefault561 = true
-      ForeverCompanionDB.skin = nil            -- gold
-      ForeverCompanionDB.frameStyle = "modern"
+    if not OneForAllDB.skinDefault561 then
+      OneForAllDB.skinDefault561 = true
+      OneForAllDB.skin = nil            -- gold
+      OneForAllDB.frameStyle = "modern"
     end
   elseif event == "PLAYER_LOGIN" then
     FLT:Refresh()
@@ -244,7 +272,7 @@ SLASH_ONEFORALL5 = "/librarybooks"
 SlashCmdList.ONEFORALL = function(cmd)
   cmd = (cmd or ""):lower():match("^%s*(.-)%s*$")
   if cmd == "reset" then
-    ForeverCompanionCharDB.manualDone = {}
+    OneForAllCharDB.manualDone = {}
     msg("Manual marks reset. Observed turn-ins are kept.")
     FLT:Refresh()
   elseif cmd == "where" then
@@ -288,13 +316,13 @@ SlashCmdList.ONEFORALL = function(cmd)
   elseif cmd == "buttons" then
     if FLT.PrintMinimapCollector then FLT.PrintMinimapCollector() end
   elseif cmd == "errors" then
-    local list = type(ForeverCompanionDB) == "table" and ForeverCompanionDB.errors
+    local list = type(OneForAllDB) == "table" and OneForAllDB.errors
     if not list or #list == 0 then msg("No errors caught.") else
       msg(#list .. " caught error(s), newest first (date | version | client language | where | error):")
       for i = 1, math.min(10, #list) do msg("  " .. list[i]) end
     end
   elseif cmd == "errors clear" then
-    if type(ForeverCompanionDB) == "table" then ForeverCompanionDB.errors = nil end
+    if type(OneForAllDB) == "table" then OneForAllDB.errors = nil end
     msg("Caught errors cleared.")
   elseif cmd == "bug" then
     if FLT.UI and FLT.UI.ShowBugReport then FLT.UI.ShowBugReport() end
@@ -304,7 +332,7 @@ SlashCmdList.ONEFORALL = function(cmd)
     if FLT.QoL and FLT.QoL.PrintThanksLog then FLT.QoL.PrintThanksLog() end
   elseif cmd == "petscan" then
     if FLT.ScanPetAbilities then FLT.ScanPetAbilities() end
-    local t = type(ForeverCompanionCharDB) == "table" and ForeverCompanionCharDB.petAbilities or {}
+    local t = type(OneForAllCharDB) == "table" and OneForAllCharDB.petAbilities or {}
     local parts = {}
     for name, rank in pairs(t) do parts[#parts + 1] = name .. " " .. rank end
     table.sort(parts)

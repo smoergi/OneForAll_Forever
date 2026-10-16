@@ -4,7 +4,6 @@ local GetItemInfo = GetItemInfo or (C_Item and C_Item.GetItemInfo)
 local GetItemSpell = GetItemSpell or (C_Item and C_Item.GetItemSpell)
 local UI = FLT.UI
 local makeTexture, makeButton, addDivider = UI.makeTexture, UI.makeButton, UI.addDivider
-local createPanelBanner = UI.createPanelBanner
 
 local PROFESSION_ICONS = {
   Alchemy="Interface\\Icons\\Trade_Alchemy",
@@ -189,7 +188,7 @@ local function createProfessionPanel(parent)
     local count=FLT.NewFS(ph, nil,"OVERLAY","GameFontDisableSmall")
     count:SetPoint("RIGHT",-14,0); count:SetText(tostring(#(prof.items or {})).." camping objects")
     ph:SetScript("OnClick",function()
-      local expanded=ForeverCompanionDB.campingExpanded
+      local expanded=OneForAllDB.campingExpanded
       expanded[prof.profession]=not expanded[prof.profession] or nil
       layoutCamping()
     end)
@@ -231,10 +230,10 @@ local function createProfessionPanel(parent)
   end
 
   layoutCamping=function()
-    ForeverCompanionDB.campingExpanded = ForeverCompanionDB.campingExpanded or {}
+    OneForAllDB.campingExpanded = OneForAllDB.campingExpanded or {}
     local cy=-2
     for _,group in ipairs(campingGroups) do
-      local expanded=ForeverCompanionDB.campingExpanded[group.prof.profession]==true
+      local expanded=OneForAllDB.campingExpanded[group.prof.profession]==true
       group.header:ClearAllPoints(); group.header:SetPoint("TOPLEFT",0,cy); cy=cy-38
       if expanded then group.toggle:SetTexCoord(0,0.5,0,1) else group.toggle:SetTexCoord(0.5,1,0,1) end
       for _,row in ipairs(group.items) do
@@ -557,8 +556,8 @@ local function createProfessionPanel(parent)
         if not isHeader then add(name,rank,maxRank) end
       end
     end
-    if type(ForeverCompanionCharDB)=="table" and type(ForeverCompanionCharDB.professions)=="table" then
-      for name,p in pairs(ForeverCompanionCharDB.professions) do if p.skill then add(name,p.skill,p.maxSkill) end end
+    if type(OneForAllCharDB)=="table" and type(OneForAllCharDB.professions)=="table" then
+      for name,p in pairs(OneForAllCharDB.professions) do if p.skill then add(name,p.skill,p.maxSkill) end end
     end
     table.sort(out,function(a,b) return a.name<b.name end)
     return out

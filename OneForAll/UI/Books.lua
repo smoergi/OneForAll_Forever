@@ -45,7 +45,7 @@ local function showBookTooltip(row, book)
   local apiDone = FLT:IsQuestDone(book.questId)
   GameTooltip:AddLine(string.format("Quest ID: %d   Item ID: %d", book.questId or 0, book.itemId or 0), 0.65, 0.65, 0.65)
   GameTooltip:AddLine("Server completion flag: " .. (apiDone and "true" or "false"), apiDone and 1 or 0.65, apiDone and 0.55 or 0.65, apiDone and 0.15 or 0.65)
-  if apiDone and not ForeverCompanionCharDB.confirmedDone[book.itemId] then
+  if apiDone and not OneForAllCharDB.confirmedDone[book.itemId] then
     GameTooltip:AddLine("Unverified: the server reports this quest completed, but this addon did not observe the turn-in.", 1, 0.55, 0.15, true)
   end
   GameTooltip:AddLine("Right-click: toggle a manual ownership/completion note", 0.7, 0.7, 0.7, true)
@@ -198,7 +198,7 @@ local function createBooksPanel(frame)
   UI.PlaceScrollBar(bookScroll)
   local content = CreateFrame("Frame", nil, bookScroll); content:SetSize(W, 1); bookScroll:SetScrollChild(content)
 
-  ForeverCompanionDB.collapsedSets = ForeverCompanionDB.collapsedSets or {}
+  OneForAllDB.collapsedSets = OneForAllDB.collapsedSets or {}
   local CREST_TC = { Alliance = {0, 0.25}, Horde = {0.25, 0.5}, Contested = {0.5, 0.75} }
   local ROW_BORDER, ROW_BORDER_HI = {0.28, 0.25, 0.20, 0.90}, {0.86, 0.66, 0.26, 1}
 
@@ -207,7 +207,7 @@ local function createBooksPanel(frame)
     if lastSet ~= book.set then
       local setId = book.set
       current = UI.SectionBand(content, FLT.SETS[book.set] or book.set, #sections, W, function()
-        ForeverCompanionDB.collapsedSets[setId] = not ForeverCompanionDB.collapsedSets[setId] or nil
+        OneForAllDB.collapsedSets[setId] = not OneForAllDB.collapsedSets[setId] or nil
         if relayout then relayout() end
       end)
       current.id = setId; current.rows = {}
@@ -254,7 +254,7 @@ local function createBooksPanel(frame)
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:SetScript("OnClick", function(_, button)
       if button == "RightButton" then
-        ForeverCompanionCharDB.manualDone[book.itemId] = not ForeverCompanionCharDB.manualDone[book.itemId] or nil
+        OneForAllCharDB.manualDone[book.itemId] = not OneForAllCharDB.manualDone[book.itemId] or nil
         FLT:Refresh()
       end
     end)
@@ -270,7 +270,7 @@ local function createBooksPanel(frame)
       if i > 1 then y = y - 10 end
       section.header:ClearAllPoints(); section.header:SetPoint("TOPLEFT", 0, y); section.header:Show()
       y = y - SECTION_H - 3
-      local collapsed = ForeverCompanionDB.collapsedSets and ForeverCompanionDB.collapsedSets[section.id]
+      local collapsed = OneForAllDB.collapsedSets and OneForAllDB.collapsedSets[section.id]
       section:SetCollapsed(collapsed)
       if collapsed then
         section.box:Hide()
