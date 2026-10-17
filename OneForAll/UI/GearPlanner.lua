@@ -387,7 +387,7 @@ function UI.CreateGearPlanner(parent)
   end)
   local function stopDrag(self) self:SetScript("OnUpdate", nil) end
   model:SetScript("OnMouseUp", stopDrag); model:SetScript("OnHide", stopDrag)
-  local reset = UI.GoldButton(left, "Reset", 60, 20, nil, 11); reset:SetPoint("BOTTOMRIGHT", -10, 58)
+  local reset = UI.GoldButton(left, "Reset", 60, 20, nil, 11); reset:SetPoint("BOTTOMRIGHT", -10, 10) -- in the frame's corner (user 16.10.)
   reset:SetScript("OnClick", loadModel)
   reset:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine("Reset"); GameTooltip:AddLine("Shows your own gear again. Right-click an item in the list to try it on, scroll on the character to zoom, drag it to turn it.", 1, 1, 1, true); GameTooltip:Show() end)
   reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -556,7 +556,10 @@ function UI.CreateGearPlanner(parent)
     r.star.onToggle = function() if tab == "wish" then refreshList() end end
     -- Map: dungeon loot = the entrance, quest rewards = the quest giver; Chain: the quest chain popup
     -- the map button is only its icon (little room, user 16.10.)
-    r.map = UI.GoldButton(r, "", 30, 22, UI.ASSET_ROOT .. "icon_map", 11); r.map:SetPoint("RIGHT", r.star, "LEFT", -8, 0)
+    -- quest giver map: only the map icon, no frame, a bit bigger (user 17.10.), like the dungeon swirl
+    r.map = CreateFrame("Button", nil, r); r.map:SetSize(22, 22); r.map:SetPoint("RIGHT", r.star, "LEFT", -14, 0)
+    local mt = r.map:CreateTexture(nil, "ARTWORK"); mt:SetAllPoints(); FLT.SetTex(mt, UI.ASSET_ROOT .. "icon_map")
+    local mh = r.map:CreateTexture(nil, "HIGHLIGHT"); mh:SetAllPoints(); FLT.SetTex(mh, UI.ASSET_ROOT .. "icon_map"); mh:SetBlendMode("ADD"); mh:SetAlpha(0.4)
     r.map:SetScript("OnClick", function()
       local loc = r.e.qid and FLT.QuestStart(r.e.qid)
       if loc then FLT:ShowOnMap(loc) end
@@ -695,12 +698,13 @@ function UI.CreateGearPlanner(parent)
       local r = row(i); r.e = e
       r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, y); r:SetPoint("RIGHT", child, "RIGHT", -2, 0); r:Show(); y = y - 44
       r.icon:SetTexture(e.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-      if not e.name then reqLevel(e) end
+      -- quality too: quest rewards from QuestieDB come with a name but without quality (legendaries were white)
+      if not e.name or not e.q then reqLevel(e) end
       -- quest rewards: the yellow quest "!" right after the name
       r.name:SetText((e.name or ("Item " .. e.id)) .. (e.qid and " |TInterface\\GossipFrame\\AvailableQuestIcon:0|t" or "")); r.name:SetTextColor(qcolor(e.q))
       local lv = e.req or e.lvl
       local parts = {}
-      if lv and lv > 0 then parts[#parts + 1] = (e.req and "Requires level " or "Level ~") .. lv end
+      if lv and lv > 0 then parts[#parts + 1] = (e.req and "lvl " or "lvl ~") .. lv end
       if search ~= "" then parts[#parts + 1] = SLOT_NAME[(LOC_SLOTS[e.loc] or {})[1]] end
       if e.src then parts[#parts + 1] = e.src end
       r.sub:SetText(table.concat(parts, "  ·  "))

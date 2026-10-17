@@ -574,10 +574,15 @@ local function createArmoryPanel(parent)
   local repNote = newText(rdetail, "GameFontDisableSmall", DW - 10); repNote:SetWordWrap(true)
 
   -- standing band above the rewards of each rank (like the trainer's level bands)
-  local repBands = {}
+  -- click a band to fold its rewards in and out (user 16.10.: the chevron promised it); per session
+  local repBands, repFolded, lastFaction = {}, {}, nil
   local function repBand(i)
     local h = repBands[i]; if h then return h end
-    h = CreateFrame("Frame", nil, rdetail); h:SetSize(DW - 4, 28)
+    h = CreateFrame("Button", nil, rdetail); h:SetSize(DW - 4, 28)
+    h:SetScript("OnClick", function(self)
+      repFolded[self.key] = not repFolded[self.key]
+      if lastFaction then renderFaction(lastFaction) end
+    end)
     local base = h:CreateTexture(nil, "BACKGROUND"); base:SetPoint("TOPLEFT", 1, -1); base:SetPoint("BOTTOMRIGHT", -1, 1)
     base:SetColorTexture(1, 1, 1, 1)
     local r1, g1, b1 = FLT.SkinC(0.20, 0.15, 0.07)
@@ -589,7 +594,8 @@ local function createArmoryPanel(parent)
     end
     for _, tx in ipairs(UI.OrnateFrame(h, h, 8, 1, "OVERLAY", 1) or {}) do tx:SetVertexColor(FLT.SkinC(0.70, 0.56, 0.32, 0.85)) end
     local ch = h:CreateTexture(nil, "ARTWORK"); ch:SetSize(14, 14); ch:SetPoint("LEFT", 10, 0)
-    FLT.SetTex(ch, UI.ASSET_ROOT .. "chevron"); ch:SetTexCoord(0, 0.5, 0, 1)
+    FLT.SetTex(ch, UI.ASSET_ROOT .. "chevron"); ch:SetTexCoord(0, 0.5, 0, 1); h.ch = ch
+    local hl = UI.makeTexture(h, "HIGHLIGHT", 1, 0.82, 0.3, 0.08); hl:SetPoint("TOPLEFT", 1, -1); hl:SetPoint("BOTTOMRIGHT", -1, 1)
     h.text = FLT.NewFS(h, nil, "OVERLAY", "GameFontNormalLarge"); h.text:SetPoint("LEFT", 30, 0)
     setFontSize(h.text, 15)
     h.right = FLT.NewFS(h, nil, "OVERLAY", "GameFontHighlightSmall"); h.right:SetPoint("RIGHT", -12, 0)
@@ -599,6 +605,7 @@ local function createArmoryPanel(parent)
   local KIND_ORDER = { gear = 0, other = 1, recipe = 2 }
 
   renderFaction = function(f)
+    lastFaction = f
     fTitle:SetText(f.n)
     local stid, val, max = standing(f.id)
     if f.st == 0 then
@@ -648,13 +655,15 @@ local function createArmoryPanel(parent)
       if ka ~= kb then return ka < kb end
       return a.i < b.i
     end)
-    local n, nb, lastRank = 0, 0, nil
+    local n, nb, lastRank, folded = 0, 0, nil, false
     for _, e in ipairs(list) do
       local it = e.it
       if it[6] ~= lastRank then
         lastRank = it[6]
         nb = nb + 1
         local h = repBand(nb); h:ClearAllPoints(); h:SetPoint("TOPLEFT", 0, y - (nb > 1 and 6 or 0)); h:Show()
+        h.key = f.n .. ":" .. it[6]; folded = repFolded[h.key] or false
+        if folded then h.ch:SetTexCoord(0.5, 1, 0, 1) else h.ch:SetTexCoord(0, 0.5, 0, 1) end
         y = y - 32 - (nb > 1 and 6 or 0)
         local rc = RANK_COLOR[it[6]] or TEXT
         h.text:SetText(RANK_LABEL[it[6]] or "?"); h.text:SetTextColor(rc[1], rc[2], rc[3])
@@ -662,7 +671,7 @@ local function createArmoryPanel(parent)
         elseif rankReached(it[6], stid) then h.right:SetText("|cff66dd66Reached - you can buy these|r")
         else h.right:SetText("|cff9d9d9dNot reached yet|r") end
       end
-      do
+      if not folded then
         n = n + 1
         local r = repItemRow(n); r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, y); r:Show(); y = y - 37
         r.it = it; r.itName = itemName(it[1], it[2])
