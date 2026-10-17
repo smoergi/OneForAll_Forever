@@ -464,9 +464,17 @@ local function onAddonMessage(prefix, msg, channel, sender)
       -- 4.18.6+: map ID, so the zone shows in the reader's own language
       local zone = prof ~= "" and prof or nil
       local mapID = #f >= 5 and tonumber(f[4]) or nil
+      local resolved = false
       if mapID and mapID > 0 and C_Map and C_Map.GetMapInfo then
         local ok, info = pcall(C_Map.GetMapInfo, mapID)
-        if ok and info and info.name and info.name ~= "" then zone = info.name end
+        if ok and info and info.name and info.name ~= "" then zone = info.name; resolved = true end
+      end
+      -- inside an instance the map ID is often missing (Excavation Site): the sender's text is in his client's
+      -- language then; keep it only if it is one of our (English) dungeon names, else just "(in a dungeon)" (16.10.)
+      if not resolved and inst ~= "" and inst ~= "none" and zone then
+        local known = false
+        for _, d in ipairs(FLT.DUNGEONS or {}) do if d.name == zone then known = true; break end end
+        if not known then zone = nil end
       end
       status[who] = {zone = zone, inst = inst ~= "" and inst ~= "none" and inst or nil, level = level, class = class, t = now()}
       -- no recipes of this player yet (new user, or forgotten): ask him once by whisper
@@ -526,6 +534,11 @@ local function sendStatus()
   local zone = (GetRealZoneText and GetRealZoneText()) or (GetZoneText and GetZoneText()) or ""
   local inst = "none"
   if IsInInstance then local _, it = IsInInstance(); inst = it or "none" end
+  -- in a dungeon we know: its English name, so every client can read it (older versions show the text as it is)
+  if inst ~= "none" and GetInstanceInfo then
+    local instID = select(8, GetInstanceInfo())
+    for _, d in ipairs(FLT.DUNGEONS or {}) do if instID and d.instanceID == instID then zone = d.name; break end end
+  end
   local level = UnitLevel and UnitLevel("player") or 0
   local _, classFile = UnitClass and UnitClass("player")
   local mapID = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player") or 0

@@ -65,6 +65,19 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+5.6.4 - Gear Value fixes
+------------------------------------------------------------
+- Gear Value: spell damage of one school (shadow, fire, frost ...) now
+  counts for the specs that use it; staffs and daggers of casters no longer
+  count their weapon damage like a wand.
+- Rings, trinkets and dual-wield weapons: the tooltip names the worn item
+  the upgrade replaces (the weaker of the two).
+- Gear Planner: legendary and other quest items in their quality color,
+  shorter "lvl 13", the map icon without a frame, "Reset" in the corner.
+- Armory > Reputation: click a standing band to fold its rewards.
+- Recipes of other OneForAll users: a zone in another client language is no
+  longer shown for players inside a dungeon.
+
 5.6.3 - Gear Planner
 ------------------------------------------------------------
 - Armory: new Gear Planner as the first page (the Overview is gone). Your

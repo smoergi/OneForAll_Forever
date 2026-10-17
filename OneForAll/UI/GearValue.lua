@@ -150,30 +150,32 @@ function GV.Upgrade(id)
   for _, s in ipairs(slots) do
     if GetInventoryItemID and GetInventoryItemID("player", s) == id then return v, 0, true end
   end
-  local base
+  local base, replaced
   if loc == "INVTYPE_2HWEAPON" then
     local a, b = wornValue(16), wornValue(17)
     base = a and b and (a + b)
   elseif #slots == 2 and (loc ~= "INVTYPE_WEAPON" or (FLT.CanDualWield() and select(6, GetItemInfoInstant(GetInventoryItemID("player", 17) or 0)) == 2)) then
     local a, b = wornValue(slots[1]), wornValue(slots[2])
     base = a and b and math.min(a, b)
+    if base then replaced = (a <= b) and slots[1] or slots[2] end -- the weaker one, named in the tooltip
   else
     base = wornValue(slot)
   end
   if not base then return v end
-  return v, v - base, false, base
+  return v, v - base, false, base, replaced
 end
 
 -- What players see is the change in % against the worn item (user 16.10.): kind, pct
--- kind: "up" / "down" / "same" / "new" (nothing worn there, or it has no value) / "worn"; nil = no data yet
+-- kind: "up" / "down" / "same" / "new" (nothing worn there, or it has no value) / "worn"; nil = no data yet;
+-- third value: the slot compared with when there are two (rings, trinkets, dual wield)
 function GV.Change(id)
-  local v, d, equipped, base = GV.Upgrade(id)
+  local v, d, equipped, base, replaced = GV.Upgrade(id)
   if not v then return nil end
   if equipped then return "worn" end
   if not d then return nil end
   if not base or base <= 0 then return v > 0 and "new" or "same" end
   local pct = d / base * 100
-  if pct >= 0.5 then return "up", pct elseif pct <= -0.5 then return "down", -pct end
+  if pct >= 0.5 then return "up", pct, replaced elseif pct <= -0.5 then return "down", -pct, replaced end
   return "same"
 end
 
@@ -188,10 +190,14 @@ GV.UP, GV.DOWN = UP, DOWN
 function GV.TooltipLine(tt, id)
   local _, _, _, loc, _, cid, sub = GetItemInfoInstant(id)
   if not (loc and FLT.GEAR_LOC_SLOTS and FLT.GEAR_LOC_SLOTS[loc]) or not FLT.GearCanUse(loc, cid, sub) then return end
-  local kind, pct = GV.Change(id)
-  if kind == "up" then tt:AddLine(UP .. string.format("Upgrade: %d%%", math.floor(pct + 0.5)), 0.25, 1, 0.25)
+  local kind, pct, slot = GV.Change(id)
+  -- with two slots (rings, trinkets, dual wield): which worn item it is compared with (user 17.10.)
+  local link = slot and GetInventoryItemLink("player", slot)
+  local which = link and link:match("%[(.-)%]")
+  which = which and ("  |cffb0b0b0(replaces " .. which .. ")|r") or ""
+  if kind == "up" then tt:AddLine(UP .. string.format("Upgrade: %d%%", math.floor(pct + 0.5)) .. which, 0.25, 1, 0.25)
   elseif kind == "new" then tt:AddLine(UP .. "Upgrade (slot empty)", 0.25, 1, 0.25)
-  elseif kind == "down" then tt:AddLine(DOWN .. string.format("Downgrade: %d%%", math.floor(pct + 0.5)), 1, 0.3, 0.3) end
+  elseif kind == "down" then tt:AddLine(DOWN .. string.format("Downgrade: %d%%", math.floor(pct + 0.5)) .. which, 1, 0.3, 0.3) end
 end
 
 -- refresh: talents / level change the weights, gear changes the worn values
