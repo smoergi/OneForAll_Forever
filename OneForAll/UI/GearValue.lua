@@ -14,7 +14,7 @@ local GetItemInfoInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfo
 local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 
 local KEYS, RATING = FLT.GEAR_STAT_KEYS or {}, FLT.GEAR_RATING or {}
-local W, specName -- current weights
+local W, specName, autoTree -- current weights; the talent tree with the most points
 local values = {}  -- [slot][itemID] = value
 local worn = {}    -- [slot] = value of the worn item (false = empty)
 local speeds = {}  -- [itemID] = weapon speed (tooltip data)
@@ -48,6 +48,10 @@ local function buildWeights()
   if not ok then pts = nil end
   local tree, best = nil, 0
   for i = 1, 3 do if pts and (pts[i] or 0) > best then tree, best = i, pts[i] end end
+  autoTree = tree
+  -- chosen in the Gear Planner (per character, user 18.10.); nil = the active spec
+  local pick = type(OneForAllCharDB) == "table" and OneForAllCharDB.gearSpec
+  if pick and data.specs[pick] then tree = pick end
   local spec = tree and data.specs[tree]
   local level = UnitLevel("player") or 1
   local w
@@ -62,6 +66,20 @@ local function buildWeights()
   wipe(values); wipe(worn)
 end
 function GV.SpecName() if not W then buildWeights() end return specName end
+-- the planner's spec drop-down: the class's three specs, the one in use (nil = active spec) and the active one
+function GV.Specs()
+  if not W then buildWeights() end
+  local _, cls = UnitClass("player")
+  local data = FLT.GEAR_WEIGHTS and FLT.GEAR_WEIGHTS[cls]
+  local pick = type(OneForAllCharDB) == "table" and OneForAllCharDB.gearSpec or nil
+  return data and data.specs or {}, pick, autoTree
+end
+function GV.SetSpec(i)
+  if type(OneForAllCharDB) ~= "table" then return end
+  OneForAllCharDB.gearSpec = i
+  W = nil; wipe(values); wipe(worn)
+  if FLT.GearMarks and FLT.GearMarks.Refresh then FLT.GearMarks.Refresh() end
+end
 
 -- weapon speed is not in GetItemStats: read it once from the item's tooltip data
 local function weaponSpeed(id)

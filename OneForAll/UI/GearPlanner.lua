@@ -358,7 +358,32 @@ function UI.CreateGearPlanner(parent)
   -- 481 = the Armory body at the base window height
   local left = CreateFrame("Frame", nil, f); left:SetPoint("TOPLEFT"); left:SetSize(350, 481)
   UI.FramedPanel(left)
-  local who = newText(left, "GameFontNormal", 320, GOLD); who:SetPoint("TOP", 0, -12); who:SetJustifyH("CENTER")
+  local refreshList -- forward
+  -- name and level, then the spec the Value is for as a drop-down (default: the active spec, user 18.10.)
+  local head = CreateFrame("Frame", nil, left); head:SetSize(330, 20); head:SetPoint("TOP", 0, -10)
+  local who = newText(head, "GameFontNormal", nil, GOLD); who:SetPoint("LEFT")
+  local specBtn = CreateFrame("Button", nil, head); specBtn:SetHeight(20); specBtn:SetPoint("LEFT", who, "RIGHT", 2, 0)
+  specBtn.text = newText(specBtn, "GameFontNormal"); specBtn.text:SetPoint("LEFT"); specBtn.text:SetTextColor(0.69, 0.69, 0.69)
+  specBtn.arrow = specBtn:CreateTexture(nil, "ARTWORK"); specBtn.arrow:SetSize(12, 12); specBtn.arrow:SetPoint("LEFT", specBtn.text, "RIGHT", 4, 0)
+  FLT.SetTex(specBtn.arrow, UI.ASSET_ROOT .. "chevron"); specBtn.arrow:SetTexCoord(0, 0.5, 0, 1)
+  local shl = UI.makeTexture(specBtn, "HIGHLIGHT", 1, 0.82, 0.3, 0.10); shl:SetAllPoints()
+  specBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine("Spec for the Value", 1, 0.82, 0)
+    GameTooltip:AddLine("The stat weights of this spec are used for the upgrades here, in tooltips, bags and loot rolls. \"Active spec\" follows your talents.", 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  specBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  local refreshSlots -- forward
+  specBtn:SetScript("OnClick", function(self)
+    local GV = FLT.GearValue; if not GV then return end
+    local specs, pick, auto = GV.Specs()
+    local opts = { { key = 0, label = "Active spec" .. (auto and specs[auto] and ("  |cffb0b0b0(" .. specs[auto].name .. ")|r") or "") } }
+    for i, sp in ipairs(specs) do opts[#opts + 1] = { key = i, label = sp.name } end
+    UI.OpenDropDown(self, opts, pick or 0, function(k)
+      GV.SetSpec(k ~= 0 and k or nil)
+      refreshSlots(); f.paintSlots(); refreshList()
+    end, 200)
+  end)
   -- DressUpModel: right-click an item in the list to try it on (user 16.10.); the model is only (re)loaded
   -- when the planner opens, the gear changes or "Reset" is clicked - reloading it on every list redraw
   -- made it flicker (beta3)
@@ -393,7 +418,6 @@ function UI.CreateGearPlanner(parent)
   reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
   f.tryOn = function(id) if model.TryOn then pcall(model.TryOn, model, "item:" .. id) end end
   local slotButtons = {}
-  local refreshList -- forward
   local function slotButton(s, x, y, anchor)
     local b = CreateFrame("Button", nil, left); b:SetSize(38, 38); b:SetPoint(anchor, x, y)
     -- rounded card as the frame (the client's square icon frame was cut off on the right, beta3)
@@ -433,13 +457,17 @@ function UI.CreateGearPlanner(parent)
       else b.card:SetBorder(0.28, 0.25, 0.20, 0.90) end
     end
   end
-  local function refreshSlots()
+  refreshSlots = function()
     local name = UnitName and UnitName("player") or ""
     local lvl = UnitLevel and UnitLevel("player") or 0
     local _, cls = UnitClass("player")
     -- the spec the Value is for (talent tree with the most points)
     local spec = FLT.GearValue and FLT.GearValue.SpecName()
-    who:SetText(string.format("%s  |cffb0b0b0Level %d%s|r", name, lvl, spec and ("  ·  " .. spec) or ""))
+    who:SetText(string.format("%s  |cffb0b0b0Level %d%s|r", name, lvl, spec and "  ·" or ""))
+    specBtn.text:SetText(spec or ""); specBtn:SetShown(spec ~= nil)
+    specBtn:SetWidth((specBtn.text:GetStringWidth() or 60) + 18)
+    -- centre name + spec together
+    head:SetWidth((who:GetStringWidth() or 100) + 2 + specBtn:GetWidth())
     for _, b in ipairs(slotButtons) do
       local tex = GetInventoryItemTexture and GetInventoryItemTexture("player", b.slot)
       if not tex and GetInventorySlotInfo then local _, empty = GetInventorySlotInfo(b.slotName); tex = empty end

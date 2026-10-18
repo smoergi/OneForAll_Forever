@@ -386,7 +386,7 @@ local function createQoLPanel(parent)
   -- RIGHT COLUMN ---------------------------------------------------------------
   local tips = section(2, "Tooltips", "Interface\\Icons\\INV_Misc_Spyglass_03")
   tips:check("Boss drops", "Shows which dungeon boss drops an item.", "bossDrops")
-  tips:check("Gear Value", "On gear you can use: its Value for your talent spec (the stats weighted like Armory > Gear Planner does) and how much better (green) or worse (red) it is than what you wear.", "gearValue")
+  tips:check("Gear Value", "On gear you can use: its Value for your talent spec (the stats weighted like Armory > Gear Planner does) and how much better (green) or worse (red) it is than what you wear. Also a green arrow on upgrades in your bags and in the loot roll window, and a gold star there for wishlist items (/ofa rolltest shows an example).", "gearValue")
   tips:check("Recipes: who knows it", "On recipe items: whether you, one of your other characters or a guild member already knows the recipe.", "recipeTip")
   tips:check("Compare items only with Shift", "Item tooltips no longer show your equipped item next to them automatically; hold Shift to compare.", nil, nil,
     function() return Q.GetCompareShift() end, function(v) Q.SetCompareShift(v) end)
