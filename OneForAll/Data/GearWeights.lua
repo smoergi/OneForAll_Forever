@@ -400,6 +400,7 @@ FLT.GEAR_WEIGHTS = {
       { name = "Balance", raid = {arcane=1.61,int=0.5,mp5=0.62,nature=0.39,scrit=11.8,shit=14.3,sp=2,spi=0.27,sta=0.1}, curve = "Leveling_Caster" },
       { name = "Feral (Cat)", raid = {agi=4.05,ap=1.5,crit=43.8,fap=1.5,hit=30.2,int=0.06,mp5=0.14,spi=0.03,str=3.6}, curve = "Leveling" },
       { name = "Restoration", raid = {heal=2,int=1.34,mp5=1.86,scrit=2.2,spi=1.86,sta=0.5}, curve = "Leveling_Healer" },
+      { name = "Feral (Bear)", raid = {agi=3.49,ap=0.86,armor=0.35,crit=33.9,def=3.69,dodge=30.5,fap=0.86,hit=15.2,sta=3,str=1.9}, curve = "Leveling_Bear" },
     },
     curves = {
       Leveling = {
@@ -417,6 +418,21 @@ FLT.GEAR_WEIGHTS = {
         {50,{agi=1.84,ap=1,arcane=0.1,armor=0.025,crit=12.2,def=0.18,dodge=1.2,fap=1,heal=0.2,hit=13,hp5=0.4,hp=0.045,int=0.205,mana=0.02,mp5=0.46,nature=0.15,sp=0.25,spi=0.23,sta=0.45,str=2}},
         {55,{agi=1.88,ap=1,arcane=0.1,armor=0.025,crit=13.5,def=0.21,dodge=1.4,fap=1,heal=0.2,hit=14.2,hp5=0.35,hp=0.04,int=0.185,mana=0.02,mp5=0.42,nature=0.15,sp=0.25,spi=0.21,sta=0.42,str=2}},
         {59,{agi=1.89,ap=1,arcane=0.1,armor=0.03,crit=14.4,def=0.22,dodge=1.5,fap=1,heal=0.2,hit=15.2,hp5=0.3,hp=0.04,int=0.17,mana=0.02,mp5=0.4,nature=0.15,sp=0.25,spi=0.2,sta=0.4,str=2}},
+      },
+      Leveling_Bear = {
+        {10,{agi=0.7811,ap=1,arcane=0.12,armor=0.154,crit=3.276,def=0.15,dodge=1.25,fap=1,heal=0.15,hit=3.3,hp5=0.95,hp=0.38,int=0.5,mana=0.033,mp5=0.9,nature=0.2,sp=0.3,sp=0.3,spi=0.45,sta=3.8,str=2}},
+        {15,{agi=1.0165,ap=1,arcane=0.06,armor=0.201,crit=4.446,def=0.4,dodge=2.35,fap=1,heal=0.15,hit=4.4,hp5=0.85,hp=0.34,int=0.46,mana=0.031,mp5=0.8,nature=0.1,sp=0.15,sp=0.15,spi=0.4,sta=3.4,str=2}},
+        {17,{agi=1.0336,ap=1,arcane=0.056,armor=0.199,crit=4.8672,def=0.6,dodge=2.61,fap=1,heal=0.17,hit=4.904,hp5=0.81,hp=0.324,int=0.428,mana=0.029,mp5=0.76,nature=0.088,sp=0.126,sp=0.126,spi=0.38,sta=3.24,str=2}},
+        {20,{agi=1.0593,ap=1,arcane=0.05,armor=0.196,crit=5.499,def=0.63,dodge=3,fap=1,heal=0.2,hit=5.66,hp5=0.75,hp=0.3,int=0.38,mana=0.025,mp5=0.7,nature=0.07,sp=0.09,sp=0.09,spi=0.35,sta=3,str=2}},
+        {25,{agi=1.0914,ap=1,arcane=0.03,armor=0.196,crit=6.318,def=0.67,dodge=3.5,fap=1,heal=0.2,hit=6.75,hp5=0.7,hp=0.28,int=0.35,mana=0.023,mp5=0.66,nature=0.04,sp=0.05,sp=0.05,spi=0.33,sta=2.8,str=2}},
+        {30,{agi=1.1235,ap=1,arcane=0.03,armor=0.193,crit=7.5933,def=0.72,dodge=4.04,fap=1,heal=0.2,hit=8.21,hp5=0.64,hp=0.256,int=0.3,mana=0.02,mp5=0.6,nature=0.04,sp=0.05,sp=0.05,spi=0.3,sta=2.56,str=2}},
+        {35,{agi=1.1877,ap=1,arcane=0.03,armor=0.196,crit=8.9037,def=0.79,dodge=4.73,fap=1,heal=0.2,hit=9.59,hp5=0.598,hp=0.239,int=0.26,mana=0.02,mp5=0.54,nature=0.04,sp=0.05,sp=0.05,spi=0.27,sta=2.39,str=2}},
+        {39,{agi=1.2198,ap=1,arcane=0.03,armor=0.196,crit=9.8678,def=0.84,dodge=5.026,fap=1,heal=0.2,hit=10.598,hp5=0.573,hp=0.229,int=0.236,mana=0.02,mp5=0.508,nature=0.04,sp=0.05,sp=0.05,spi=0.254,sta=2.29,str=2}},
+        {40,{agi=1.2551,ap=1,arcane=0.03,armor=0.285,crit=10.1088,def=1.13,dodge=6.41,fap=1,heal=0.2,hit=10.85,hp5=0.6,hp=0.24,int=0.23,mana=0.02,mp5=0.5,nature=0.04,sp=0.05,sp=0.05,spi=0.25,sta=2.4,str=2}},
+        {45,{agi=1.3675,ap=1,arcane=0.03,armor=0.314,crit=11.6532,def=1.29,dodge=7.85,fap=1,heal=0.2,hit=12.6,hp5=0.588,hp=0.235,int=0.2,mana=0.02,mp5=0.46,nature=0.04,sp=0.05,sp=0.05,spi=0.23,sta=2.35,str=2}},
+        {50,{agi=1.468,ap=1,arcane=0.03,armor=0.338,crit=13.4199,def=1.47,dodge=9.46,fap=1,heal=0.2,hit=14.62,hp5=0.575,hp=0.23,int=0.19,mana=0.02,mp5=0.42,nature=0.04,sp=0.05,sp=0.05,spi=0.21,sta=2.3,str=2}},
+        {55,{agi=1.5376,ap=1,arcane=0.03,armor=0.374,crit=14.4729,def=1.85,dodge=10.89,fap=1,heal=0.2,hit=15.72,hp5=0.562,hp=0.225,int=0.17,mana=0.02,mp5=0.38,nature=0.04,sp=0.05,sp=0.05,spi=0.19,sta=2.25,str=2}},
+        {59,{agi=1.6232,ap=1,arcane=0.03,armor=0.391,crit=15.8652,def=2.17,dodge=12.62,fap=1,heal=0.2,hit=17.29,hp5=0.55,hp=0.22,int=0.15,mana=0.02,mp5=0.36,nature=0.04,sp=0.05,sp=0.05,spi=0.18,sta=2.2,str=2}},
       },
       Leveling_Caster = {
         {10,{agi=0.11,arcane=3.317,armor=0.03,dodge=0.4,hp5=0.2,hp=0.2,int=18,mana=1.17,mp5=9.7,nature=12.733,scrit=5.3,shit=11.3,sp=16.05,spi=2.1,sta=2}},

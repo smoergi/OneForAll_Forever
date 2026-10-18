@@ -19,6 +19,7 @@ Commands
 /oneforall share         Open the quest share popup (inside a dungeon, in a group)
 /oneforall channel      State of the recipe channel with other OneForAll users
 /oneforall bug          Show the link for bug reports and ideas
+/oneforall rolltest     Show the loot roll window with an example item
 /oneforall cheapest     Show the cheapest item in your bags
 /oneforall buttons      List the minimap buttons the button collector holds
 /oneforall trainer      Show what the last class trainer visit read
@@ -64,6 +65,15 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 
 Changelog (newest first)
 ========================
+
+5.6.5 - Upgrade marks and spec choice
+------------------------------------------------------------
+- Loot roll window: a gold star on wishlist items, a green arrow on upgrades.
+- Bags (the game's bags and Baganator): a green arrow on items that are an
+  upgrade you can wear now.
+- Gear Planner: pick the spec the upgrades are calculated for (default: your
+  active spec); druids can also pick Feral (Bear).
+- /ofa rolltest shows the loot roll window with an example item.
 
 5.6.4 - Gear Value fixes
 ------------------------------------------------------------
