@@ -328,6 +328,8 @@ SlashCmdList.ONEFORALL = function(cmd)
     if FLT.UI and FLT.UI.ShowBugReport then FLT.UI.ShowBugReport() end
   elseif cmd == "rolltest" then
     if FLT.GearMarks then FLT.GearMarks.RollTest() end
+  elseif cmd == "questtest" then
+    if FLT.GearMarks then FLT.GearMarks.QuestTest() end
   elseif cmd == "cheapest" then
     if FLT.QoL and FLT.QoL.PrintCheapest then FLT.QoL.PrintCheapest() end
   elseif cmd == "thanks" then
