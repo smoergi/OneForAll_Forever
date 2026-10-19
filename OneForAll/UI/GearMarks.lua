@@ -4,6 +4,7 @@ local _, FLT = ...
 -- - Loot roll window (Need / Greed): a gold star on the item when it is on the wishlist, a green arrow up when it
 --   is an upgrade (no % - the tooltip has it; one star / arrow only, so the window does not look crowded).
 -- - Bags: a green arrow up on items that are an upgrade you can wear now (the game's bags and Baganator).
+-- - Quest rewards: a green arrow on upgrades among the rewards / choices (5.6.6).
 -- Both follow the Quality of Life switch "Gear Value" (on by default, user 16.10.).
 -- /ofa rolltest opens the real roll window with an example item (the roll functions are faked for that one
 -- window and restored when it closes; its buttons do not roll).
@@ -123,6 +124,40 @@ end
 
 -- the game re-uses item buttons for other bags: mark again whenever a bag frame updates
 local pending
+-- Quest rewards (user 18.10.): a green arrow on reward and choice items that are an upgrade, in the quest giver's
+-- window and in the quest log (both use QuestInfo); called after the game fills the rewards
+local function questButtons()
+  local list = {}
+  -- quest giver: QuestInfoRewardsFrame; quest log (map details, Forever / modern): MapQuestInfoRewardsFrame
+  for _, f in ipairs({ QuestInfoRewardsFrame, MapQuestInfoRewardsFrame }) do
+    if f and f.RewardButtons then for _, b in ipairs(f.RewardButtons) do list[#list + 1] = b end end
+  end
+  for i = 1, 10 do
+    for _, name in ipairs({ "QuestInfoRewardsFrameQuestInfoItem", "QuestInfoItem" }) do
+      local b = _G[name .. i]; if b then list[#list + 1] = b end
+    end
+  end
+  return list
+end
+local function markQuest()
+  local active = on()
+  local fromLog = QuestInfoFrame and QuestInfoFrame.questLog
+  for _, b in ipairs(questButtons()) do
+    local up = false
+    if active and b:IsShown() and b.type then
+      local link
+      if fromLog and GetQuestLogItemLink then link = GetQuestLogItemLink(b.type, b:GetID())
+      elseif GetQuestItemLink then link = GetQuestItemLink(b.type, b:GetID()) end
+      up = isUpgrade(itemID(link))
+    end
+    if up or b.ofaUp then
+      local icon = b.Icon or (b:GetName() and _G[b:GetName() .. "IconTexture"]) or b
+      local t = mark(b, "ofaUp", "icon_arrow_up", 16, "TOPLEFT", 0, 0)
+      t:ClearAllPoints(); t:SetPoint("TOPLEFT", icon, "TOPLEFT", 1, -1); t:SetShown(up)
+    end
+  end
+end
+
 local function later()
   if pending then return end
   pending = true
@@ -141,6 +176,7 @@ ev:SetScript("OnEvent", function(self, event)
       f:HookScript("OnShow", markBag)
     end
     hookBaganator()
+    if QuestInfo_Display then hooksecurefunc("QuestInfo_Display", markQuest) end
     -- worn gear or item data changed: the visible bags again (debounced)
     self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED"); self:RegisterEvent("GET_ITEM_INFO_RECEIVED")
     return
@@ -219,4 +255,51 @@ function GM.RollTest()
   end
   if not (ok and shown) then restore(); FLT.Msg("The test roll window could not be opened."); return end
   FLT.Msg("Test roll window with " .. link .. " - the buttons only close it.")
+end
+
+-- /ofa questtest: opens the quest log at a quest of yours whose reward is an upgrade (else any gear reward), so the
+-- arrows on quest rewards can be checked without a quest giver (user 18.10.)
+function GM.QuestTest()
+  -- Forever has the modern quest log (C_QuestLog.GetInfo / SetSelectedQuest, beta2 found no SelectQuestLogEntry)
+  local CQ = C_QuestLog or {}
+  local n = (CQ.GetNumQuestLogEntries and CQ.GetNumQuestLogEntries()) or (GetNumQuestLogEntries and GetNumQuestLogEntries()) or 0
+  local function entry(i)
+    if CQ.GetInfo then local info = CQ.GetInfo(i); if info then return info.title, info.isHeader, info.questID end return end
+    local t, _, _, isHeader, _, _, _, qid = GetQuestLogTitle(i)
+    return t, isHeader, qid
+  end
+  local function choose(i, qid)
+    if CQ.SetSelectedQuest and qid then CQ.SetSelectedQuest(qid) elseif SelectQuestLogEntry then SelectQuestLogEntry(i) end
+  end
+  if not (GetQuestLogItemLink and (CQ.SetSelectedQuest or SelectQuestLogEntry) and (CQ.GetInfo or GetQuestLogTitle)) then
+    FLT.Msg("This client's quest log cannot be read."); return
+  end
+  local best, bestUp, title, bestQid
+  for i = 1, n do
+    local t, isHeader, qid = entry(i)
+    if t and not isHeader then
+      choose(i, qid)
+      for _, kind in ipairs({ "choice", "reward" }) do
+        local count = kind == "choice" and (GetNumQuestLogChoices and GetNumQuestLogChoices(qid) or 0) or (GetNumQuestLogRewards and GetNumQuestLogRewards(qid) or 0)
+        for k = 1, count do
+          local id = itemID(GetQuestLogItemLink(kind, k))
+          local loc = id and select(4, GetItemInfoInstant(id))
+          if loc and FLT.GEAR_LOC_SLOTS and FLT.GEAR_LOC_SLOTS[loc] then
+            local up = isUpgrade(id)
+            if not best or (up and not bestUp) then best, bestUp, title, bestQid = i, up, t, qid end
+          end
+        end
+      end
+      if bestUp then break end
+    end
+  end
+  if not best then FLT.Msg("None of your quests has gear as a reward - accept one and try again."); return end
+  if QuestLog_SetSelection and QuestLogFrame then
+    ShowUIPanel(QuestLogFrame); QuestLog_SetSelection(best)
+  else
+    choose(best, bestQid)
+    if QuestMapFrame_OpenToQuestDetails and bestQid then QuestMapFrame_OpenToQuestDetails(bestQid)
+    elseif ToggleQuestLog then ToggleQuestLog() end
+  end
+  FLT.Msg("Quest log: " .. title .. (bestUp and " - a reward is an upgrade, it should have a green arrow." or " - no reward is an upgrade for you, so no arrow."))
 end
