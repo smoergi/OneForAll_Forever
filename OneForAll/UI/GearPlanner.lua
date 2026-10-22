@@ -38,6 +38,46 @@ local LOC_SLOTS = {
   INVTYPE_RANGED = {18}, INVTYPE_RANGEDRIGHT = {18}, INVTYPE_THROWN = {18}, INVTYPE_RELIC = {18},
 }
 
+-- Enchants, armor kits, spurs, spikes, counterweights, scopes, arcanums (Data/Enchants.lua, user 22.10.):
+-- an option fits an item by item class, inventory type mask and subclass mask (0 = any)
+local INVTYPE_NUM = {
+  INVTYPE_HEAD = 1, INVTYPE_NECK = 2, INVTYPE_SHOULDER = 3, INVTYPE_BODY = 4, INVTYPE_CHEST = 5, INVTYPE_WAIST = 6,
+  INVTYPE_LEGS = 7, INVTYPE_FEET = 8, INVTYPE_WRIST = 9, INVTYPE_HAND = 10, INVTYPE_FINGER = 11, INVTYPE_TRINKET = 12,
+  INVTYPE_WEAPON = 13, INVTYPE_SHIELD = 14, INVTYPE_RANGED = 15, INVTYPE_CLOAK = 16, INVTYPE_2HWEAPON = 17,
+  INVTYPE_ROBE = 20, INVTYPE_WEAPONMAINHAND = 21, INVTYPE_WEAPONOFFHAND = 22, INVTYPE_HOLDABLE = 23,
+  INVTYPE_THROWN = 25, INVTYPE_RANGEDRIGHT = 26,
+}
+local function hasBit(mask, n) mask = mask or 0; return mask == 0 or math.floor(mask / 2 ^ n) % 2 == 1 end
+local enchCache = {} -- item ID -> options that fit it
+local function enchantOptions(id)
+  local list = enchCache[id]
+  if list then return list end
+  list = {}
+  local _, _, _, loc, _, cid, sub = GetItemInfoInstant(id)
+  local inv = INVTYPE_NUM[loc]
+  if inv then
+    for _, o in ipairs(FLT.ENCHANT_OPTIONS or {}) do
+      if cid == o.c and hasBit(o.t, inv) and hasBit(o.m, sub or 0) then list[#list + 1] = o end
+    end
+  end
+  enchCache[id] = list
+  return list
+end
+local function wornEnchant(slot)
+  local link = GetInventoryItemLink and GetInventoryItemLink("player", slot)
+  return link and tonumber(link:match("item:%-?%d+:(%d*)")) or nil
+end
+local function enchantKey(o) return "ench:" .. (o.s and ("s" .. o.s) or ("i" .. tostring(o.i))) end
+local function enchantIcon(o)
+  if not o then return nil end
+  if o.i then return (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(o.i)) or (GetItemIcon and GetItemIcon(o.i)) end
+  return (o.s and ((C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(o.s)) or (GetSpellTexture and GetSpellTexture(o.s))))
+    or "Interface\\Icons\\Trade_Engraving"
+end
+local PROF_ICON = { Enchanting = "Interface\\Icons\\Trade_Engraving", Leatherworking = "Interface\\Icons\\Trade_LeatherWorking",
+  Blacksmithing = "Interface\\Icons\\Trade_BlackSmithing", Engineering = "Interface\\Icons\\Trade_Engineering",
+  Tailoring = "Interface\\Icons\\Trade_Tailoring" }
+
 -- What a class can wear / wield (Forever = Classic rules). Armor subclass: 1 cloth 2 leather 3 mail 4 plate 6 shield.
 local ARMOR_MAX = { WARRIOR = 4, PALADIN = 4, HUNTER = 3, SHAMAN = 3, ROGUE = 2, DRUID = 2, PRIEST = 1, MAGE = 1, WARLOCK = 1 }
 local SHIELD = { WARRIOR = true, PALADIN = true, SHAMAN = true }
@@ -246,6 +286,7 @@ function UI.WishStar(parent)
   end)
   b:SetScript("OnLeave", function() GameTooltip:Hide() end)
   function b:SetItem(id) self.id = id; self:SetShown(FLT.IsGearItem(id)); if self:IsShown() then paintWishStar(self) end end
+  function b:SetKey(key) self.id = key; self:Show(); paintWishStar(self) end -- not an item: enchant wishes ("ench:...")
   return b
 end
 
@@ -337,6 +378,7 @@ function UI.CreateGearPlanner(parent)
   local f = CreateFrame("Frame", nil, parent); f:SetAllPoints(); f:Hide()
   local prefs = (type(OneForAllCharDB) == "table") and OneForAllCharDB or {}
   local selected = 1 -- inventory slot
+  local enchMode = false -- the right side shows the enchants of the selected slot
   local tab = "suggest"
   local search = ""
 
@@ -413,6 +455,11 @@ function UI.CreateGearPlanner(parent)
   local function stopDrag(self) self:SetScript("OnUpdate", nil) end
   model:SetScript("OnMouseUp", stopDrag); model:SetScript("OnHide", stopDrag)
   local reset = UI.GoldButton(left, "Reset", 60, 20, nil, 11); reset:SetPoint("BOTTOMRIGHT", -10, 10) -- in the frame's corner (user 16.10.)
+  -- yellow "!" for the enchant fields (5.7.0, user 22.10.; listed in TODO "Neu-Markierungen")
+  do
+    local m = UI.NewMark(left, "New in OneForAll 5.7.0: the small field next to an item shows its enchant. Click it for what you can put on the item."); m:SetPoint("BOTTOMLEFT", 12, 12)
+    local t = newText(left, "GameFontDisableSmall"); t:SetPoint("LEFT", m, "RIGHT", 2, 0); t:SetText("Enchant fields")
+  end
   reset:SetScript("OnClick", loadModel)
   reset:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine("Reset"); GameTooltip:AddLine("Shows your own gear again. Right-click an item in the list to try it on, scroll on the character to zoom, drag it to turn it.", 1, 1, 1, true); GameTooltip:Show() end)
   reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -432,7 +479,7 @@ function UI.CreateGearPlanner(parent)
         local link = GetInventoryItemLink("player", self.slot); if link then HandleModifiedItemClick(link) end; return
       end
       if self.grey then return end
-      selected = self.slot; search = ""; if f.searchBox then f.searchBox:SetText("") end
+      selected = self.slot; enchMode = false; search = ""; if f.searchBox then f.searchBox:SetText("") end
       f.paintSlots()
       refreshList()
     end)
@@ -448,11 +495,49 @@ function UI.CreateGearPlanner(parent)
   for i = 1, 8 do slotButton(SLOTS[i], 12, -40 - (i - 1) * 46, "TOPLEFT") end
   for i = 9, 16 do slotButton(SLOTS[i], -12, -40 - (i - 9) * 46, "TOPRIGHT") end
   for i = 17, 19 do slotButton(SLOTS[i], (i - 18) * 46, 14, "BOTTOM") end
+  -- small field next to each slot whose item can get an enchant / kit / spurs ...; shows what is on it,
+  -- a click lists what fits on the right (user 22.10.)
+  for _, b in ipairs(slotButtons) do
+    if not b.grey then
+      local e = CreateFrame("Button", nil, left); e:SetSize(19, 19); e:Hide()
+      -- above the character model, which reaches over the fields and took their clicks (beta9, user 22.10.)
+      e:SetFrameLevel((model:GetFrameLevel() or 1) + 5)
+      local _, _, _, x = b:GetPoint(1)
+      if b.slot >= 16 then e:SetPoint("BOTTOM", b, "TOP", 0, 3)
+      elseif (x or 0) > 0 then e:SetPoint("BOTTOMLEFT", b, "BOTTOMRIGHT", 3, 0)
+      else e:SetPoint("BOTTOMRIGHT", b, "BOTTOMLEFT", -3, 0) end
+      e.card = UI.Card(e, e, 3, {0.28, 0.25, 0.20, 0.90}, {0.05, 0.05, 0.06, 0.95}, "BACKGROUND", 0)
+      e.icon = e:CreateTexture(nil, "ARTWORK"); e.icon:SetPoint("TOPLEFT", 2, -2); e.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+      e.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+      e.plus = FLT.NewFS(e, nil, "OVERLAY", "GameFontNormalSmall"); e.plus:SetPoint("CENTER", 0, 1); e.plus:SetText("+")
+      e.plus:SetTextColor(FLT.SkinC(0.80, 0.62, 0.28))
+      local hl = e:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(e.icon); hl:SetTexture("Interface\\Buttons\\ButtonHilight-Square"); hl:SetBlendMode("ADD")
+      e.slot = b.slot
+      e:SetScript("OnClick", function(self)
+        selected = self.slot; enchMode = true; search = ""; if f.searchBox then f.searchBox:SetText("") end
+        f.paintSlots(); refreshList()
+      end)
+      e:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        local cur = wornEnchant(self.slot)
+        local ce = cur and FLT.ENCHANTS and FLT.ENCHANTS[cur]
+        GameTooltip:AddLine(cur and (ce and ce[1] or "Enchanted") or "Not enchanted", 1, 0.82, 0)
+        GameTooltip:AddLine("Click: what you can put on this item (enchants, armor kits and the like).", 1, 1, 1, true)
+        GameTooltip:Show()
+      end)
+      e:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      b.ench = e
+    end
+  end
 
   -- border: gold for the selected slot, else the item quality
   function f.paintSlots()
     for _, b in ipairs(slotButtons) do
-      if b.slot == selected then b.card:SetBorder(FLT.SkinC(1, 0.82, 0.25, 1))
+      if b.ench then
+        if enchMode and b.slot == selected then b.ench.card:SetBorder(FLT.SkinC(1, 0.82, 0.25, 1))
+        else b.ench.card:SetBorder(0.28, 0.25, 0.20, 0.90) end
+      end
+      if b.slot == selected and not enchMode then b.card:SetBorder(FLT.SkinC(1, 0.82, 0.25, 1))
       elseif b.q and b.q >= 1 then local r, g, bl = qcolor(b.q); b.card:SetBorder(r, g, bl, 1)
       else b.card:SetBorder(0.28, 0.25, 0.20, 0.90) end
     end
@@ -473,6 +558,22 @@ function UI.CreateGearPlanner(parent)
       if not tex and GetInventorySlotInfo then local _, empty = GetInventorySlotInfo(b.slotName); tex = empty end
       b.icon:SetTexture(tex or "Interface\\PaperDoll\\UI-Backpack-EmptySlot")
       b.q = GetInventoryItemQuality and GetInventoryItemQuality("player", b.slot)
+      if b.ench then
+        local id = GetInventoryItemID and GetInventoryItemID("player", b.slot)
+        local opts = id and enchantOptions(id)
+        b.ench:SetShown(opts and #opts > 0 or false)
+        if b.ench:IsShown() then
+          local cur = wornEnchant(b.slot)
+          local icon
+          if cur then for _, o in ipairs(opts) do if o.e == cur then icon = enchantIcon(o); break end end end
+          if cur then b.ench.icon:SetTexture(icon or "Interface\\Icons\\Trade_Engraving") end
+          b.ench.icon:SetShown(cur ~= nil); b.ench.plus:SetShown(cur == nil)
+        end
+      end
+    end
+    -- the item with the enchant field was taken off: back to the item list
+    if enchMode then
+      for _, b in ipairs(slotButtons) do if b.slot == selected and not (b.ench and b.ench:IsShown()) then enchMode = false end end
     end
     f.paintSlots()
     f.class = cls
@@ -557,7 +658,10 @@ function UI.CreateGearPlanner(parent)
   end
   mineBtn:SetScript("OnClick", function() minBox:ClearFocus(); maxBox:ClearFocus(); setRange(1, nil) end)
   allBtn:SetScript("OnClick", function() minBox:ClearFocus(); maxBox:ClearFocus(); setRange(1, MAX_LEVEL) end)
+  -- the level range is for items; hidden while the enchants of a slot are listed
+  local function showRange(on) for _, w in ipairs({ lvLabel, minBox, dash, maxBox, mineBtn, allBtn }) do w:SetShown(on) end end
   local function paintRange()
+    showRange(true)
     local lo, hi = range()
     if not minBox:HasFocus() then minBox:SetText(lo) end
     if not maxBox:HasFocus() then maxBox:SetText(hi) end
@@ -655,9 +759,140 @@ function UI.CreateGearPlanner(parent)
     return r
   end
 
+  -- ENCHANT LIST (enchant field of a slot) ---------------------------------------------
+  local erows = {}
+  local function erow(i)
+    local r = erows[i]; if r then return r end
+    r = CreateFrame("Button", nil, child); r:SetHeight(40)
+    r.card = UI.CardRow(r)
+    r.icon = r:CreateTexture(nil, "ARTWORK"); r.icon:SetSize(30, 30); r.icon:SetPoint("LEFT", 6, 0)
+    r.star = UI.WishStar(r); r.star:SetPoint("RIGHT", -10, 0)
+    r.star.onToggle = function() if tab == "wish" then refreshList() end end
+    -- Professions: opens the recipe there
+    r.prof = CreateFrame("Button", nil, r); r.prof:SetSize(24, 24); r.prof:SetPoint("RIGHT", r.star, "LEFT", -14, 0)
+    r.prof.tex = r.prof:CreateTexture(nil, "ARTWORK"); r.prof.tex:SetAllPoints(); r.prof.tex:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    r.prof:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    r.prof:SetScript("OnClick", function()
+      local o = r.o; if not (o and o.p and o.s) then return end
+      FLT:OpenPanel("professions")
+      if FLT.ShowRecipeInProfessions then FLT.ShowRecipeInProfessions(o.p, o.s) end
+    end)
+    r.prof:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(r.o and r.o.p or "", 1, 0.82, 0)
+      GameTooltip:AddLine("Open the recipe in Professions.", 1, 1, 1, true); GameTooltip:Show()
+    end)
+    r.prof:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    r.name = newText(r, "GameFontHighlight"); r.name:SetPoint("TOPLEFT", 44, -5)
+    r.sub = newText(r, "GameFontHighlightSmall", nil, DIM); r.sub:SetPoint("TOPLEFT", 44, -22)
+    r.val = newText(r, "GameFontNormal", 54); r.val:SetJustifyH("RIGHT")
+    r.val:SetPoint("RIGHT", r.star, "LEFT", -70, 0)
+    r.name:SetPoint("RIGHT", r.val, "LEFT", -4, 0); r.sub:SetPoint("RIGHT", r.val, "LEFT", -4, 0)
+    r.sub._ofaNoAnchor = true
+    r:SetScript("OnEnter", function(self)
+      local o = self.o
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      local ok = false
+      if o.i then ok = pcall(GameTooltip.SetHyperlink, GameTooltip, "item:" .. o.i)
+      elseif o.s and GameTooltip.SetSpellByID then ok = pcall(GameTooltip.SetSpellByID, GameTooltip, o.s) end
+      if not ok then GameTooltip:AddLine(o.n or "", 1, 1, 1) end
+      local ce = FLT.ENCHANTS and FLT.ENCHANTS[o.e]
+      if ce then GameTooltip:AddLine(ce[1], 0.4, 1, 0.4, true) end
+      if self.where then GameTooltip:AddLine(self.where, 1, 0.82, 0, true) end
+      GameTooltip:Show()
+    end)
+    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    r:SetHitRectInsets(0, 100, 0, 0)
+    r:SetScript("OnClick", function(self)
+      local o = self.o
+      if not (IsModifiedClick and IsModifiedClick("CHATLINK")) then return end
+      local link
+      if o.i then link = select(2, GetItemInfo(o.i))
+      elseif o.s then link = (C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(o.s)) or (GetSpellLink and GetSpellLink(o.s)) end
+      if link and ChatEdit_InsertLink then ChatEdit_InsertLink(link) end
+    end)
+    erows[i] = r
+    return r
+  end
+  local elist = {} -- reused
+  local function refreshEnchants()
+    for _, r in ipairs(rows) do r:Hide() end
+    for _, r in ipairs(erows) do r:Hide() end
+    showRange(false)
+    local slot = selected
+    local id = GetInventoryItemID and GetInventoryItemID("player", slot)
+    local cur = wornEnchant(slot)
+    local GV = FLT.GearValue
+    local base = GV and GV.SlotItemValue(slot) or 0
+    local curV = (cur and GV and GV.EnchantValue(cur, slot, id)) or 0
+    title:SetText((tab == "wish" and "Wishlist: " or "Enchants: ") .. (SLOT_NAME[slot] or ""))
+    wipe(elist)
+    local hasCur = false
+    for _, o in ipairs(id and enchantOptions(id) or {}) do
+      if o.e == cur then hasCur = true end
+      if tab ~= "wish" or FLT.IsOnWishlist(enchantKey(o)) then
+        o.v = GV and GV.EnchantValue(o.e, slot, id) or nil
+        elist[#elist + 1] = o
+      end
+    end
+    -- what is on it now, also when it is not in our list (a raid or event enchant)
+    if cur and not hasCur and tab ~= "wish" then
+      local ce = FLT.ENCHANTS and FLT.ENCHANTS[cur]
+      elist[#elist + 1] = { e = cur, n = ce and ce[1] or "Current enchant", v = curV, worn = true }
+    end
+    -- best Value first, then the ones in Forever, then the higher skill
+    table.sort(elist, function(a, b)
+      if (a.e == cur) ~= (b.e == cur) then return a.e == cur end
+      if a.v and b.v then if a.v ~= b.v then return a.v > b.v end
+      elseif a.v or b.v then return a.v ~= nil end
+      if (a.st == 0) ~= (b.st == 0) then return b.st == 0 end
+      return (a.req or 0) > (b.req or 0)
+    end)
+    local y = -2
+    for i, o in ipairs(elist) do
+      local r = erow(i); r.o = o
+      r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, y); r:SetPoint("RIGHT", child, "RIGHT", -2, 0); r:Show(); y = y - 44
+      r.icon:SetTexture(enchantIcon(o) or "Interface\\Icons\\Trade_Engraving"); FLT.Desat(r.icon, o.st == 0)
+      r.name:SetText(o.n or "")
+      if o.st == 0 then r.name:SetTextColor(0.62, 0.60, 0.56) else r.name:SetTextColor(FLT.SkinC(1, 0.93, 0.66)) end
+      local ce = FLT.ENCHANTS and FLT.ENCHANTS[o.e]
+      local where
+      if o.p then
+        where = o.p .. (o.req and (" " .. o.req) or "")
+        local known, guild, other
+        if FLT.RecipeKnowState and o.s then known, guild, other = FLT.RecipeKnowState(o.p, { s = o.s }) end
+        if known then where = where .. "  |cff40ff40(you know it)|r"
+        elseif other then where = where .. "  |cff8fd0ff(an alt knows it)|r"
+        elseif guild then where = where .. "  |cffffd35a(your guild)|r" end
+      elseif o.src then where = o.src .. (o.st == 0 and "  |cff9d9d9d(not in Forever yet)|r" or "") end
+      r.where = where
+      local parts = {}
+      if ce and not o.worn then parts[#parts + 1] = ce[1] end
+      if where then parts[#parts + 1] = where end
+      r.sub:SetText(table.concat(parts, "  ·  "))
+      if o.e == cur then r.val:SetText("|cffb0b0b0worn|r")
+      elseif o.v and o.v > 0 and base + curV > 0 then
+        local pct = (o.v - curV) / (base + curV) * 100
+        if pct >= 0.5 then r.val:SetText(string.format("|cff40ff40+%d%%|r", math.floor(pct + 0.5)))
+        elseif pct <= -0.5 then r.val:SetText(string.format("|cffff5050-%d%%|r", math.floor(-pct + 0.5)))
+        else r.val:SetText("|cffb0b0b0=|r") end
+      elseif o.v and o.v > 0 then r.val:SetText("|cff40ff40new|r")
+      else r.val:SetText("|cffb0b0b0-|r") end
+      r.prof:SetShown(o.p ~= nil and o.s ~= nil)
+      if r.prof:IsShown() then r.prof.tex:SetTexture(PROF_ICON[o.p] or "Interface\\Icons\\INV_Misc_QuestionMark") end
+      if o.worn then r.star:Hide() else r.star:SetKey(enchantKey(o)) end
+    end
+    child:SetHeight(math.max(1, -y))
+    if #elist == 0 then
+      empty:SetText(tab == "wish" and "No enchant for this slot on your wishlist yet.\nClick the star on an enchant to add it." or "Nothing in our data fits this item.")
+      empty:Show()
+    else empty:Hide() end
+  end
+
   local list = {} -- reused
   refreshList = function()
     if not f:IsShown() then return end
+    if enchMode and search == "" then refreshEnchants(); return end
+    for _, r in ipairs(erows) do r:Hide() end
     local idx, ids = FLT.GearIndex()
     local cls = f.class
     local plevel = playerLevel()

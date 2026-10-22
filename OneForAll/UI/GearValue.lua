@@ -123,6 +123,28 @@ local function score(stats, slot, id, isWand)
   return total
 end
 
+-- Value of an enchant / armor kit / ... (FLT.ENCHANTS stats) on the item in a slot; nil = no Value (procs and
+-- other effects). Percent values become ratings, flat weapon damage becomes DPS with the weapon's speed.
+local estats = {} -- reused
+function GV.EnchantValue(eid, slot, itemID)
+  local e = FLT.ENCHANTS and FLT.ENCHANTS[eid]
+  if not e or e[3] then return nil end
+  if not W then buildWeights() end
+  if not W then return nil end
+  wipe(estats)
+  for k, v in pairs(e[2]) do
+    local pk = k:match("^PCT_(.+)$")
+    if pk then
+      local s = KEYS[pk]; estats[pk] = (estats[pk] or 0) + v * (s and RATING[s] or 1)
+    elseif k == "WEAPON_DAMAGE" then
+      local sp = itemID and weaponSpeed(itemID)
+      if sp and sp > 0 then estats.ITEM_MOD_DAMAGE_PER_SECOND_SHORT = (estats.ITEM_MOD_DAMAGE_PER_SECOND_SHORT or 0) + v / sp end
+    elseif KEYS[k] then estats[k] = (estats[k] or 0) + v end
+  end
+  local _, _, _, _, _, cid, sub = itemID and GetItemInfoInstant(itemID)
+  return score(estats, slot, itemID, cid == 2 and sub == 19)
+end
+
 local getStats = (C_Item and C_Item.GetItemStats) or GetItemStats
 -- value of an item in a slot; nil while the client has no data for it yet
 local function itemValue(id, slot, link)
@@ -153,6 +175,9 @@ local function wornValue(slot)
   if v then worn[slot] = v end
   return v
 end
+
+-- Value of the item worn in a slot, its random bonus included (for the enchant suggestions)
+function GV.SlotItemValue(slot) return wornValue(slot) end
 
 local function slotFor(loc, slots)
   if loc == "INVTYPE_WEAPONOFFHAND" then return 17 end

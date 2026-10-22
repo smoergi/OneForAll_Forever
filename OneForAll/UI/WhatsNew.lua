@@ -4,21 +4,26 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 
 -- "Noteworthy changes" popup. Shown once per account after logging in with a
 -- new NEWS_ID (change it for the next release with news). /ofa news reopens it.
--- 5.6.3 (user 16.10.): the popup was emptied and only shows the Gear Planner; NEWS_ID "5.6.3" so that
--- everyone who saw the "5.6" popup gets it once.
+-- 5.6.3 (user 16.10.): only the Gear Planner. 5.7.0 (user 22.10.): Quality of Life, enchants, set buttons.
 
-local NEWS_ID = "5.6.3"
+local NEWS_ID = "5.7.0" -- 5.7.0 (agreed with the user 22.10.): three short entries, no pictures
 
 -- images (optional): pictures in a row under the lines, each { tex, shown width, shown height, texcoord right,
 -- texcoord bottom } (made by tools/art/proc_news.py from the user's screenshots in source_images/news)
 local NEWS = {
-  { icon = "Interface\\Icons\\INV_Chest_Plate06", title = "Gear Planner", tab = "armory", button = "Open Armory",
+  { icon = "Interface\\Icons\\INV_Misc_Gear_01", title = "Quality of Life - new look", tab = "qol", button = "Open Quality of Life",
     lines = {
-      "Armory > Gear Planner: click a slot of your character to see items that are better than what you wear, from dungeons, quests, reputation and crafting - only what your class can use, in your level range.",
-      "Every item shows how much better it is in %, weighted for your talent spec. Item tooltips show it too: green arrow \"Upgrade\", red arrow \"Downgrade\".",
-      "Star items for your wishlist, right-click to try them on, follow quest chains and jump to the boss that drops an item.",
-    },
-    images = { { "news_gear_tooltip", 176, 145, 1, 0.8242 }, { "news_gear_list", 274, 154, 0.8848, 0.9961 } } },
+      "Groups on the left, a short description for every option and a search.",
+      "A book button in the spellbook (P) shows what your trainer teaches next.",
+    } },
+  { icon = "Interface\\Icons\\Trade_Engraving", title = "Gear Planner - enchants", tab = "armory", button = "Open Armory",
+    lines = {
+      "Click the small field next to an item: what fits, best for your spec, and who can make it.",
+    } },
+  { icon = "Interface\\Icons\\INV_Helmet_08", title = "Armory - set buttons", tab = "armory", button = "Open Armory",
+    lines = {
+      "Buttons for the main sets (Forever T1, Tier 1-3, Dungeon 1-2 ...) and \"Other Sets\" for the rest.",
+    } },
 }
 
 local frame
@@ -71,7 +76,8 @@ local function create()
       for _, line in ipairs(entry.lines) do
         local dot = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); dot:SetPoint("TOPLEFT", 64, ly); dot:SetText(FLT.SkinHex("d9a63a") .. "•|r")
         local t = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); t:SetPoint("TOPLEFT", 76, ly)
-        t:SetWidth(460); t:SetJustifyH("LEFT"); t:SetText(line); t:SetTextColor(FLT.SkinC(0.90, 0.88, 0.82))
+        -- the lines stay left of the buttons column (user 22.10.); full width only for entries without a button
+        t:SetWidth(entry.tab and 308 or 460); t:SetJustifyH("LEFT"); t:SetText(line); t:SetTextColor(FLT.SkinC(0.90, 0.88, 0.82))
         ly = ly - math.max(16, (t:GetStringHeight() or 12) + 5)
       end
       if entry.images then

@@ -386,3 +386,60 @@ function FLT.ToggleTrainerSpells(classID)
   viewClass = (classID and classByID(classID)) and classID or myClass
   if frame:IsShown() then FLT.RefreshTrainerSpells() else frame:Show(); frame:Raise() end
 end
+
+-- Button in the game's spellbook (P, PlayerSpellsFrame of the load-on-demand Blizzard_PlayerSpells):
+-- opens the trainer window for your class (user 22.10.; the addon "What's Training" was the idea, own code).
+-- Left of the spellbook's search box when it is there, otherwise top right.
+local function addSpellbookButton()
+  local psf = _G.PlayerSpellsFrame
+  if type(psf) ~= "table" then return false end
+  if psf.ofaTrainerButton then return true end
+  -- on the spellbook page itself, above its parchment and search box (beta3 sat on PlayerSpellsFrame and
+  -- did not show, user 22.10.)
+  local sbf = type(psf.SpellBookFrame) == "table" and psf.SpellBookFrame or psf
+  local search = sbf.SearchBox
+  -- the same gold-framed book as the "Trainer / Next spells" button of the talent planner (user 22.10.)
+  local ASSET = (FLT.UI and FLT.UI.ASSET_ROOT) or "Interface\\AddOns\\OneForAll\\Assets\\"
+  local b = CreateFrame("Button", nil, sbf); b:SetSize(36, 36)
+  b:SetFrameLevel(math.max(sbf:GetFrameLevel() or 1, type(search) == "table" and search.GetFrameLevel and search:GetFrameLevel() or 1) + 5)
+  local ic = b:CreateTexture(nil, "ARTWORK"); ic:SetPoint("TOPLEFT", 3, -3); ic:SetPoint("BOTTOMRIGHT", -3, 3)
+  ic:SetTexture("Interface\\Icons\\INV_Misc_Book_09"); ic:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  local fr = b:CreateTexture(nil, "OVERLAY"); fr:SetAllPoints(); FLT.SetTex(fr, ASSET .. "talent_frame"); fr:SetVertexColor(FLT.SkinC(0.66, 0.48, 0.16, 0.98))
+  local hl = b:CreateTexture(nil, "HIGHLIGHT"); FLT.SetTex(hl, ASSET .. "talent_frame"); hl:SetAllPoints(); hl:SetVertexColor(FLT.SkinC(1, 0.86, 0.40, 0.85)); hl:SetBlendMode("ADD")
+  b:SetHighlightTexture(hl)
+  if type(search) == "table" and search.GetObjectType then b:SetPoint("RIGHT", search, "LEFT", -16, -2)
+  else b:SetPoint("TOPRIGHT", psf, "TOPRIGHT", -70, -34) end
+  b:SetScript("OnClick", function()
+    FLT.ToggleTrainerSpells()
+    -- opened from here: next to the spellbook instead of over it
+    if frame and frame:IsShown() then
+      frame:ClearAllPoints(); frame:SetPoint("TOPLEFT", psf, "TOPRIGHT", 6, 0)
+      frame.ofaFromBook = true
+      if not frame.ofaBookHook then frame.ofaBookHook = true; frame:HookScript("OnHide", function(f) f.ofaFromBook = nil end) end
+    end
+  end)
+  -- opened from the spellbook: it closes with it (X or P again, user 22.10.)
+  psf:HookScript("OnHide", function() if frame and frame.ofaFromBook and frame:IsShown() then frame:Hide() end end)
+  b:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine("Trainer: next spells", 1, 0.82, 0)
+    GameTooltip:AddLine("OneForAll: spells and ranks your class trainer teaches that you do not know yet.", 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  -- Quality of Life switch "spellbookTrainer" (on by default, user 22.10.)
+  local function shown() b:SetShown(not (FLT.QoL and FLT.QoL.Get) or FLT.QoL.Get("spellbookTrainer") and true or false) end
+  sbf:HookScript("OnShow", shown); shown()
+  psf.ofaTrainerButton = b
+  return true
+end
+-- the spellbook may come with any load-on-demand addon: look for it after each one loads, stop once it is there
+do
+  local ev = CreateFrame("Frame")
+  local function try()
+    local ok, done = pcall(addSpellbookButton)
+    if not ok then FLT.SafeCall("SpellbookButton", error, done) end
+    if not ok or done then ev:UnregisterAllEvents() end
+  end
+  ev:RegisterEvent("ADDON_LOADED"); ev:RegisterEvent("PLAYER_LOGIN")
+  ev:SetScript("OnEvent", try)
+end

@@ -5,8 +5,8 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 -- Quest share helper.
 -- Inside a dungeon from the Dungeons tab, OneForAll looks for quests of that
 -- dungeon in your log that can be shared and that a group member does not
--- have yet. A small popup lists them with a Share button. Sharing also posts
--- an emote so the group sees it was done through the addon.
+-- have yet. A small popup lists them with a Share button. (The emote that was
+-- posted when sharing was removed in 5.6.8, user 22.10.)
 --
 -- What the game tells us about other players:
 --   * whether they have a quest in their log (IsUnitOnQuest)
@@ -38,7 +38,7 @@ local function settings()
   OneForAllDB.questShare = OneForAllDB.questShare or {}
   local s = OneForAllDB.questShare
   if s.popup == nil then s.popup = true end
-  if s.emote == nil then s.emote = true end
+  s.emote = nil -- old setting (emote when sharing, removed in 5.6.8)
   return s
 end
 
@@ -200,14 +200,9 @@ end
 local refresh -- forward
 local render  -- forward
 
--- Test mode: preview the emote locally and fake the game's replies.
+-- Test mode: fake the game's replies.
 local function shareQuestTest(c)
   local q = c.quest
-  local me = (UnitName and UnitName("player")) or "You"
-  local text = string.format('shares the quest "%s" with %s (OneForAll addon)', q.name or "?", table.concat(c.missing, ", "))
-  if settings().emote and DEFAULT_CHAT_FRAME then
-    DEFAULT_CHAT_FRAME:AddMessage("|cff66ccff[OneForAll test - only you see this]|r |cffff8040" .. me .. " " .. text .. "|r")
-  end
   shareReplies[q.id] = shareReplies[q.id] or {}
   local first, second = c.missing[1], c.missing[2]
   if first then shareReplies[q.id][first] = "accepted" end
@@ -228,12 +223,6 @@ local function shareQuest(c)
   lastShareQuest = q.id
   QuestLogPushQuest()
   shareReplies[q.id] = shareReplies[q.id] or {}
-  if settings().emote and SendChatMessage then
-    -- An emote always starts with the player's own name, e.g.
-    -- "Kaelin shares the quest "Crime and Punishment" with Anna, Bob (OneForAll addon)".
-    local text = string.format('shares the quest "%s" with %s (OneForAll addon)', q.name or "?", table.concat(c.missing, ", "))
-    pcall(SendChatMessage, text, "EMOTE")
-  end
 end
 
 -- Turns the game's share replies into short status texts. The patterns are
@@ -366,14 +355,6 @@ local function createPopup()
   auto:SetScript("OnClick", function(self) settings().popup = self:GetChecked() and true or false end)
   popup.auto = auto
 
-  local emote = FLT.SkinBlizz(CreateFrame("CheckButton", nil, popup, "UICheckButtonTemplate"))
-  emote:SetSize(22, 22)
-  emote:SetPoint("LEFT", autoLabel, "RIGHT", 18, 0)
-  local emoteLabel = FLT.NewFS(popup, nil, "OVERLAY", "GameFontHighlightSmall")
-  emoteLabel:SetPoint("LEFT", emote, "RIGHT", 2, 0); emoteLabel:SetText("Post emote when sharing")
-  emote:SetScript("OnClick", function(self) settings().emote = self:GetChecked() and true or false end)
-  popup.emote = emote
-
   popup:Hide()
 end
 
@@ -396,10 +377,9 @@ render = function()
   if not popup then createPopup() end
   local s = settings()
   popup.auto:SetChecked(s.popup)
-  popup.emote:SetChecked(s.emote)
   if popup.TitleText and not testMode then popup.TitleText:SetText("OneForAll - Share dungeon quests") end
   if testMode then
-    popup.sub:SetText((currentDungeon and currentDungeon.name or "?") .. ": test mode - nothing is shared or posted, the emote is only shown to you.")
+    popup.sub:SetText((currentDungeon and currentDungeon.name or "?") .. ": test mode - nothing is shared.")
   elseif #candidates == 0 then
     popup.sub:SetText("All shareable quests have been shared.")
   else
@@ -464,7 +444,7 @@ function FLT:OpenQuestShare()
 end
 
 -- /ofa share test: shows the popup with two made-up group members. Share only
--- prints a local preview of the emote and fakes the replies; nothing is sent.
+-- fakes the replies; nothing is sent.
 function FLT:QuestShareTest()
   local d = findCurrentDungeon()
   local log = questLogEntries()
