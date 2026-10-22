@@ -32,6 +32,20 @@ local GROUPS = {
 local GROUP_LABEL = {}
 for _, g in ipairs(GROUPS) do GROUP_LABEL[g.key] = g.label end
 
+-- Buttons for the main sets of a group (user 22.10.): { label, sub names }; everything else of the group
+-- goes into the "Other Sets" drop-down. Groups without an entry (World Sets) keep the plain list.
+local TABS = {
+  raid = { { "Forever T1", { "Forever Tier 1" } }, { "Tier 1", { "Tier 1 - Molten Core" } },
+           { "Tier 2", { "Tier 2 - Blackwing Lair" } }, { "Tier 3", { "Tier 3 - Naxxramas" } } },
+  dungeon = { { "Dungeon 1", { "Dungeon Set 1" } }, { "Dungeon 2", { "Dungeon Set 2" } } },
+  pvp = { { "Rare (Rank 7-10)", { "Rank 7-10 (rare)" } }, { "Epic (Rank 12-13)", { "Rank 12-13 (epic)" } },
+          { "Rank 14", { "Rank 14 weapons" } } }, -- Arathi Basin under "Other Sets" (user 22.10.)
+  crafted = { { "Leatherworking", { "Leatherworking" } }, { "Blacksmithing", { "Blacksmithing" } }, { "Tailoring", { "Tailoring" } } },
+}
+for _, list in pairs(TABS) do
+  for _, t in ipairs(list) do t.set = {}; for _, sub in ipairs(t[2]) do t.set[sub] = true end end
+end
+
 -- st: 1 obtainable, 2 made for Forever but no source known yet, 0 not in Forever yet
 local STATUS = {
   [0] = { text = "Not in Forever yet", c = {0.62, 0.50, 0.46}, tip = "This set exists in the game files, but its source (raid, battleground ranks, event, ...) is not part of WoW Forever yet." },
@@ -264,6 +278,83 @@ local function createArmoryPanel(parent)
   end
   paintClassButtons()
 
+  -- Set buttons of the group (TABS) + "Other Sets" drop-down -------------------
+  -- tabPick[group] = index of a button, or the sub name picked under "Other Sets"; starts on the first button
+  local tabBar = CreateFrame("Frame", nil, body); tabBar:SetPoint("TOPLEFT", 0, -36); tabBar:SetPoint("TOPRIGHT", 0, -36); tabBar:SetHeight(26); tabBar:Hide()
+  local tabButtons, tabPick = {}, {}
+  local otherB = UI.GoldButton(tabBar, "Other Sets", 170, 24, nil, 12)
+  -- a long source name ends with "..." on the button, the whole name is in its tooltip (user 22.10.)
+  otherB._label:SetWidth(170 - 40); otherB._label:SetWordWrap(false)
+  otherB:SetScript("OnEnter", function(self)
+    local pick = tabPick[current]
+    if type(pick) ~= "string" then return end
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:SetText(pick); GameTooltip:Show()
+  end)
+  otherB:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  local otherArrow = otherB:CreateTexture(nil, "OVERLAY"); otherArrow:SetSize(12, 12); otherArrow:SetPoint("RIGHT", -8, 0)
+  FLT.SetTex(otherArrow, UI.ASSET_ROOT .. "chevron"); otherArrow:SetTexCoord(0, 0.5, 0, 1)
+  -- the subs of a group that have no button, in data order
+  local function otherSubs(group)
+    local out, seen, tabs = {}, {}, TABS[group] or {}
+    for _, st in ipairs(FLT.ARMORY_SETS or {}) do
+      local sub = st.sub
+      if st.g == group and sub and not seen[sub] then
+        local inTab = false
+        for _, t in ipairs(tabs) do if t.set[sub] then inTab = true end end
+        if not inTab then seen[sub] = true; out[#out + 1] = sub end
+      end
+    end
+    return out
+  end
+  -- true when no set of these subs is in Forever yet (grey in the "Other Sets" drop-down)
+  local function notYet(group, subs)
+    for _, st in ipairs(FLT.ARMORY_SETS or {}) do if st.g == group and subs[st.sub] and st.st ~= 0 then return false end end
+    return true
+  end
+  local function paintTabs()
+    local tabs = TABS[current]
+    if tabs and tabPick[current] == nil then -- the first button (user 22.10.) that has sets for the class filter
+      tabPick[current] = 1
+      for i = #tabs, 1, -1 do
+        for _, st in ipairs(FLT.ARMORY_SETS or {}) do
+          if st.g == current and tabs[i].set[st.sub or ""] and setForClass(st, P.class or nil) then tabPick[current] = i; break end
+        end
+      end
+    end
+    for i, b in ipairs(tabButtons) do
+      local t = tabs and tabs[i]
+      b:SetShown(t ~= nil)
+      if t then
+        b:SetLabel(t[1]); b:SetActive(tabPick[current] == i)
+      end
+    end
+    local pick = tabPick[current]
+    local isOther = type(pick) == "string"
+    otherB:SetLabel(isOther and pick or "Other Sets"); otherB:SetActive(isOther)
+    otherB:SetShown(tabs ~= nil and #otherSubs(current) > 0)
+    otherB:ClearAllPoints(); otherB:SetPoint("LEFT", tabButtons[tabs and #tabs or 1], "RIGHT", 10, 0)
+  end
+  for i = 1, 4 do
+    local b = UI.GoldButton(tabBar, "", 126, 24, nil, 12)
+    if i == 1 then b:SetPoint("LEFT", 0, 0) else b:SetPoint("LEFT", tabButtons[i - 1], "RIGHT", 6, 0) end
+    b:SetScript("OnClick", function() tabPick[current] = i; paintTabs(); if refreshSets then refreshSets() end end)
+    tabButtons[i] = b
+  end
+  -- yellow "!" for the new set buttons (5.7.0, user 22.10.; listed in TODO "Neu-Markierungen")
+  do local m = UI.NewMark(tabBar, "New in OneForAll 5.7.0: buttons for the main sets and \"Other Sets\" for the rest."); m:SetPoint("LEFT", otherB, "RIGHT", 8, 0) end
+  otherB:SetScript("OnClick", function(self)
+    local opts, longest = {}, 0
+    for _, sub in ipairs(otherSubs(current)) do
+      local subs = { [sub] = true }
+      local dim = notYet(current, subs)
+      opts[#opts + 1] = { key = sub, label = dim and ("|cff9d9d9d" .. sub .. "  (not in Forever yet)|r") or sub }
+      longest = math.max(longest, #sub + (dim and 20 or 0))
+    end
+    -- wide enough for the longest name (the list was narrower than its text, user 22.10.)
+    UI.OpenDropDown(self, opts, tabPick[current], function(k) tabPick[current] = k; paintTabs(); if refreshSets then refreshSets() end end,
+      math.max(220, math.floor(longest * 7.6 + 44)))
+  end)
+
   -- SET VIEW (one for all groups) ----------------------------------------
   local setView = CreateFrame("Frame", nil, body); setView:SetPoint("TOPLEFT", 0, -36); setView:SetPoint("BOTTOMRIGHT", 0, 0); setView:Hide()
   views.sets = setView
@@ -314,10 +405,26 @@ local function createArmoryPanel(parent)
   local function filteredSets(group)
     local out = {}
     for _, s in ipairs(FLT.ARMORY_SETS or {}) do
-      if s.g == group and setForClass(s, P.class or nil) and not (P.hideNotYet and s.st == 0) then out[#out + 1] = s end
+      if s.g == group and setForClass(s, P.class or nil) and not (P.hideNotYet and s.st == 0) then
+        local tabs, pick = TABS[group], tabPick[group]
+        local ok = true
+        if tabs then
+          if type(pick) == "string" then ok = s.sub == pick
+          else ok = tabs[pick or 1].set[s.sub or ""] or false end
+        end
+        if ok then out[#out + 1] = s end
+      end
     end
-    -- data order: obtainable and new Forever sets by level (raids by tier, PvP by rank),
-    -- then the sets that are not in Forever yet
+    -- highest level first (user 22.10.) within each source (headings stay together), otherwise the data order
+    local pos, subPos = {}, {}
+    for i, st in ipairs(out) do pos[st] = i; local k = st.sub or ""; subPos[k] = subPos[k] or i end
+    table.sort(out, function(a, b)
+      local sa, sb = subPos[a.sub or ""], subPos[b.sub or ""]
+      if sa ~= sb then return sa < sb end
+      local la, lb = a.lv or 0, b.lv or 0
+      if la ~= lb then return la > lb end
+      return pos[a] < pos[b]
+    end)
     return out
   end
 
@@ -712,7 +819,14 @@ local function createArmoryPanel(parent)
     filterBar:SetShown(key ~= "rep" and key ~= "gear")
     if key == "gear" then gear:Show(); gear:Refresh()
     elseif key == "rep" then repView:Show(); refreshRep()
-    else setView:Show(); refreshSets() end
+    else
+      local tabs = TABS[key] ~= nil
+      tabBar:SetShown(tabs)
+      if tabs then paintTabs() end
+      setView:ClearAllPoints(); setView:SetPoint("TOPLEFT", 0, tabs and -68 or -36); setView:SetPoint("BOTTOMRIGHT", 0, 0)
+      setView:Show(); refreshSets()
+    end
+    if key == "gear" or key == "rep" then tabBar:Hide() end
   end
   local navY = -12
   local function navButton(key, label, icon)

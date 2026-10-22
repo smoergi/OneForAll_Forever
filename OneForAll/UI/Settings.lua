@@ -29,7 +29,7 @@ local function createSettingsPanel(parent)
 
   -- Yellow "!" (New) behind section titles, kept for the whole 5.6.x line, emptied when
   -- 5.7.0 starts (TODO.md "Neu-Markierungen"). 5.6.1: skins and window opacity.
-  local NEW_SECTIONS = { ["Window"] = true, ["Skin"] = true }
+  local NEW_SECTIONS = {} -- emptied when 5.7.0 started (the 5.6.x marks)
   local refreshers = {}
   local colY = { -4, -4 }
 
@@ -182,10 +182,7 @@ local function createSettingsPanel(parent)
   right[#right + 1] = { "Show recipe drops in boss loot", "Lists the recipes a boss can drop below its loot, with the yellow / green / blue markers.",
     function() return db().dungeonRecipes ~= false end,
     function(v) db().dungeonRecipes = v end }
-  -- on by default (also after updating): only an explicit "off" turns it off
-  right[#right + 1] = { "Dungeon map on M", "Inside a dungeon that has a map, the world map key (M) opens OneForAll's dungeon map instead of the world map. Press it again to close. Takes effect outside combat.",
-    function() return db().dungeonMapKey ~= false end,
-    function(v) db().dungeonMapKey = v and true or false; if FLT.ApplyDungeonMapKey then FLT.ApplyDungeonMapKey() end end }
+  -- "Dungeon map on M" moved to Quality of Life > World Map (5.6.8, user 22.10.)
   for i = 1, math.max(#left, #right) do
     local l, r = left[i], right[i]
     if l then dun:check(l[1], l[2], l[3], l[4], 0, true) end
@@ -204,24 +201,7 @@ local function createSettingsPanel(parent)
     function(v) if FLT.SetRecipeShareEnabled then FLT.SetRecipeShareEnabled(v) end end); gen:nextRow()
   gen:finish()
 
-  local function shareCfg()
-    local d = db(); d.questShare = d.questShare or {}
-    return d.questShare
-  end
-  local alerts = section(2, "Popups & alerts", "Interface\\Icons\\INV_Misc_Bell_01")
-  alerts:check("Nearby Library Book alerts", "Popup when you are close to a missing library book.",
-    function() return FLT.IsNearbyAlertsEnabled and FLT:IsNearbyAlertsEnabled() end,
-    function(v) if FLT.SetNearbyAlertsEnabled then FLT:SetNearbyAlertsEnabled(v) end end); alerts:nextRow()
-  alerts:check("Pet ability alerts  |cff9d9d9d(Hunter)|r", "Popup when a beast nearby teaches a higher ability rank your pets can learn.",
-    function() return FLT.IsPetTeachAlertsEnabled and FLT:IsPetTeachAlertsEnabled() end,
-    function(v) if FLT.SetPetTeachAlertsEnabled then FLT:SetPetTeachAlertsEnabled(v) end end); alerts:nextRow()
-  alerts:check("Quest share popup in dungeons", "Opens when a group member can still accept one of your dungeon quests.",
-    function() return shareCfg().popup ~= false end,
-    function(v) shareCfg().popup = v end); alerts:nextRow()
-  alerts:check("Emote when sharing a quest", "Posts an emote such as \"shares the quest ... (OneForAll addon)\".",
-    function() return shareCfg().emote ~= false end,
-    function(v) shareCfg().emote = v end); alerts:nextRow()
-  alerts:finish()
+  -- "Popups & alerts" moved to Quality of Life (5.6.8, user 22.10.)
 
   -- Skin: Gold / Dark Silver x Classic / Modern (UI.SKINS); applied on the next /reload.
   local look = section(2, "Skin", "Interface\\Icons\\INV_Misc_Gem_Pearl_04")
@@ -240,7 +220,7 @@ local function createSettingsPanel(parent)
   look:text("Dark Silver turns the gold frames, buttons and highlights grey and dims the pictures a little. Modern uses plain frames and buttons with rounded corners. Switching reloads the interface.")
   look:finish()
 
-  local win = section(1, "Window", "Interface\\Icons\\INV_Misc_Spyglass_02")
+  local win = section(2, "Window", "Interface\\Icons\\INV_Misc_Spyglass_02")
   local rb = win:button("Reset size & position", 180, function() if UI.ResetWindow then UI.ResetWindow() end end)
   -- the grip hint lives in the tooltip to keep the page compact
   rb:SetScript("OnEnter", function(btn)

@@ -67,6 +67,33 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+5.7.0 - New Quality of Life layout, enchants in the gear planner, set buttons
+------------------------------------------------------------
+- Quality of Life: groups on the left like Armory and Professions, one group
+  at a time with a short description under every option, and a search over
+  all settings. "Popups & Alerts" moved here from Settings (with Durability
+  warning), "Dungeon map on M" moved to World Map, Quest XP to Quests.
+- New option "Brighter colors" (Unit Frames, on): class-colored health bars
+  use a plain bright bar instead of the game's dark art.
+- Spellbook (P): a book button opens the trainer window (next spells and
+  ranks for your class) next to it; it closes with the spellbook. Switch in
+  Quality of Life > Spells (on).
+- Gear Planner: a small field next to every item that can be enchanted or
+  improved (enchants, armor kits, spurs, shield spikes, counterweights,
+  scopes, arcanums, shoulder enchants) shows what is on it; a click lists what
+  fits, best for your spec first, with where to get it, who knows the recipe,
+  a button to the recipe in Professions and the wishlist star.
+- Armory: Raid, Dungeon, PvP and Crafted Sets have buttons for their main sets
+  and an "Other Sets" list for the rest; sets sorted with the highest level
+  first.
+- Professions: the Merchant's Favor button shows your Favor (the second box
+  is gone); jumping to a recipe scrolls to it also the first time.
+- Settings: "Window" moved to the right column.
+- Quest sharing no longer posts an emote (option removed).
+- New installs also start with Farther camera zoom and Move Blizzard windows.
+- New "Noteworthy changes" popup; the "!" marks of 5.6 are gone, new ones
+  show what is new in 5.7.
+
 5.6.7 - Gear value fix, wishlist stars in the Armory, new client data
 ------------------------------------------------------------
 - Gear Value: worn items with a random bonus ("of the Eagle" and the like)

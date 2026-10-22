@@ -238,6 +238,7 @@ f:SetScript("OnEvent", function(_, event, arg1)
         bossDrops = true, recipeTip = true, unitTarget = true,
         classColors = true, thanksBuff = true,
         bagSlots = true, questXP = true, durability = true, copyChat = true, mmCollect = true,
+        cameraZoom = true, moveWindows = true, -- 5.7.0 (user 22.10.)
       }
     end
     if OneForAllDB.nearbyAlertsEnabled == nil then OneForAllDB.nearbyAlertsEnabled = true end

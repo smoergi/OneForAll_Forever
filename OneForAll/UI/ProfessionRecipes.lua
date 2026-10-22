@@ -886,8 +886,13 @@ function UI.CreateRecipeBrowser(parent)
       if r.s == spell then
         selected = r
         f:Refresh()
-        local range = lsf:GetVerticalScrollRange() or 0
-        lsf:SetVerticalScroll(math.max(0, math.min(range, (idx - 1) * 29 - 120)))
+        local function scrollTo()
+          local range = lsf:GetVerticalScrollRange() or 0
+          lsf:SetVerticalScroll(math.max(0, math.min(range, (idx - 1) * 29 - 120)))
+        end
+        scrollTo()
+        -- the first time the tab opens the list has no scroll range yet: once more on the next frame (user 22.10.)
+        if C_Timer and C_Timer.After then C_Timer.After(0, function() if selected == r then scrollTo() end end) end
         return true
       end
     end

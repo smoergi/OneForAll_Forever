@@ -17,6 +17,8 @@ local DEFAULTS = {
   lowRank = true, -- on by default (user 15.10.)
   mapLandmarks = true, lmDungeons = true, lmFlight = true, lmTransport = true, -- Map Landmarks: on with all parts (user 16.10.)
   gearValue = true, -- Gear Planner Value in item tooltips: on (user 16.10.)
+  spellbookTrainer = true, -- trainer button in the spellbook: on (user 22.10.)
+  classBright = true, -- brighter class colors: on (user 22.10.)
 }
 
 local function db()
@@ -487,11 +489,24 @@ end
 -- ---------------------------------------------------------------------------
 -- Class colours on the default unit frames (player, target, party ...)
 -- ---------------------------------------------------------------------------
+-- "Brighter colors" (5.6.8, user 22.10.): the client's health bar art is dark, desaturated and tinted it makes
+-- the class colors dull; a plain bar instead, the original art is put back when it is switched off
+local BRIGHT_BAR = "Interface\\TargetingFrame\\UI-StatusBar"
+local function plainBar(tex, on)
+  if on then
+    if not tex.ofaOrigTex then tex.ofaOrigTex = { tex.GetAtlas and tex:GetAtlas(), tex:GetTexture() } end
+    tex:SetTexture(BRIGHT_BAR)
+  elseif tex.ofaOrigTex then
+    local o = tex.ofaOrigTex; tex.ofaOrigTex = nil
+    if o[1] and tex.SetAtlas then tex:SetAtlas(o[1]) elseif o[2] then tex:SetTexture(o[2]) end
+  end
+end
 local function restoreBar(bar)
   if not bar.ofaColored then return end
   bar.ofaColored = nil
   local tex = bar.GetStatusBarTexture and bar:GetStatusBarTexture()
   if tex and tex.SetDesaturated then tex:SetDesaturated(false) end
+  if tex then plainBar(tex, false) end
   local o = bar.ofaOrigColor
   if o then bar:SetStatusBarColor(o[1], o[2], o[3]) end
 end
@@ -514,6 +529,7 @@ local function colorBar(bar, unit)
   end
   bar.ofaColored = true
   local tex = bar.GetStatusBarTexture and bar:GetStatusBarTexture()
+  if tex then plainBar(tex, QoL.Get("classBright") and true or false) end
   if tex and tex.SetDesaturated then tex:SetDesaturated(true) end
   bar:SetStatusBarColor(c.r, c.g, c.b)
 end
@@ -1564,6 +1580,7 @@ on("moveWindows", setupMovable)
 on("bagSlots", updateBagSlots)
 on("questXP", updateXP)
 on("classColors", refreshClassColors)
+on("classBright", refreshClassColors)
 on("durability", function() warnedDurability = false; checkDurability() end)
 
 -- test hooks
