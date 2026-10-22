@@ -114,6 +114,19 @@ function FLT:CreateMinimapButton()
   button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
   positionButton((OneForAllDB and OneForAllDB.minimapAngle) or 225)
+  -- also in the game's AddOns list at the minimap (with ElvUI or a hidden button it is the way in, user 22.10.)
+  if type(AddonCompartmentFrame) == "table" and type(AddonCompartmentFrame.RegisterAddon) == "function" and not FLT.compartmentAdded then
+    FLT.compartmentAdded = true
+    pcall(AddonCompartmentFrame.RegisterAddon, AddonCompartmentFrame, {
+      text = FLT.DISPLAY_NAME or "OneForAll", icon = "Interface\\AddOns\\OneForAll\\Assets\\minimap_icon", notCheckable = true,
+      func = function() if FLT.ToggleUI then FLT:ToggleUI() end end,
+      funcOnEnter = function(b)
+        GameTooltip:SetOwner(b, "ANCHOR_LEFT"); GameTooltip:AddLine(FLT.DISPLAY_NAME or "OneForAll", 1, 0.82, 0)
+        GameTooltip:AddLine("Click: Open / close", 1, 1, 1); GameTooltip:Show()
+      end,
+      funcOnLeave = function() GameTooltip:Hide() end,
+    })
+  end
   -- minimap size can change after login (other addons, UI scale)
   if Minimap.HookScript then Minimap:HookScript("OnSizeChanged", FLT.PositionMinimapButton) end
   if C_Timer and C_Timer.After then C_Timer.After(3, FLT.PositionMinimapButton) end

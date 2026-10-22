@@ -67,6 +67,13 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+5.7.1 - Remove Fog, AddOns list
+------------------------------------------------------------
+- Quality of Life > World Map: new option "Remove Fog" (on by default) shows
+  the parts of a zone you have not explored yet.
+- OneForAll is in the game's AddOns list at the minimap too (handy with ElvUI
+  or a hidden minimap button).
+
 5.7.0 - New Quality of Life layout, enchants in the gear planner, set buttons
 ------------------------------------------------------------
 - Quality of Life: groups on the left like Armory and Professions, one group

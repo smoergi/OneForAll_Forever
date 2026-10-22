@@ -11,7 +11,7 @@ local openDropDown -- below
 -- Yellow "!" (tooltip "New") next to options added since the last live release.
 -- Kept for all versions of a minor line (5.7.0 ... 5.7.x); emptied when the next minor line
 -- (5.8.0) starts (TODO.md "Neu-Markierungen").
-local NEW_TAGS = { classBright = "5.7.0", spellbookTrainer = "5.7.0" } -- 5.6.x marks removed when 5.7.0 started (user 22.10.)
+local NEW_TAGS = { classBright = "5.7.0", spellbookTrainer = "5.7.0", mapFog = "5.7.1" } -- 5.6.x marks removed when 5.7.0 started (user 22.10.)
 -- placed left of the checkbox (or of the label when there is none), user 16.10.
 local function newTag(parent, anchor, key, dx)
   if not NEW_TAGS[key] then return end
@@ -418,6 +418,8 @@ local function createQoLPanel(parent)
   check(g, "Dungeon & raid entrances", "Click to open the dungeon in OneForAll.", nil, "lmDungeons", 24)
   check(g, "Flight masters", "Shows where they fly to.", nil, "lmFlight", 24)
   check(g, "Zeppelins & ships", "Shows where they go.", nil, "lmTransport", 24)
+  g = group(c, "Exploration")
+  check(g, "Remove Fog", "Shows the parts of a zone you have not explored yet.", "The world map normally hides the areas you have not visited. With this the whole zone map is shown.", "mapFog")
   g = group(c, "Dungeons")
   -- moved from Settings (5.6.8, user 22.10.); on by default: only an explicit "off" turns it off
   check(g, "Dungeon map on M", "Inside a dungeon, M opens OneForAll's dungeon map.", "Inside a dungeon that has a map, the world map key (M) opens OneForAll's dungeon map instead of the world map. Press it again to close. Takes effect outside combat.", nil, nil,
