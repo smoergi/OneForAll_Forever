@@ -1,13 +1,13 @@
 local _, FLT = ...
 
 -- WoW Forever talent layouts (tree, row, column, max ranks, prerequisite).
--- Source: talentsforever.com exports (CC BY 4.0), beta build 1.60.1.70425, generated 2026-10-16
+-- Source: talentsforever.com exports (CC BY 4.0), beta build 1.60.1.70425, generated 2026-10-20
 -- (tools/talent-gen/talents.py, cross-checked with the wowtbc.gg calculator).
 -- The planner matches these entries to the live client talents by name; the
 -- client still provides icons, tooltips and node IDs.
 -- To update after a patch, only this file needs to change.
 -- Entry format: { tree, row, col, maxRanks, "Name", "Prerequisite name" or nil }
-FLT.TALENT_DATA_BUILD = "1.60.1.70425 (2026-10-16)"
+FLT.TALENT_DATA_BUILD = "1.60.1.70425 (2026-10-20)"
 
 FLT.TALENT_DATA = {
   [1] = { token="WARRIOR", name="Warrior", trees={"Arms", "Fury", "Protection"}, talents={
@@ -368,15 +368,14 @@ FLT.TALENT_DATA = {
     {2,7,2,1,"Combustion","Critical Mass"},
     {3,1,1,2,"Frost Warding"},
     {3,1,2,5,"Improved Frostbolt"},
-    {3,1,3,5,"Elemental Precision"},
+    {3,1,3,3,"Elemental Precision"},
     {3,2,1,5,"Ice Shards"},
-    {3,2,2,3,"Permafrost"},
+    {3,2,2,3,"Frostbite"},
     {3,2,3,2,"Improved Frost Nova"},
-    {3,2,4,3,"Frostbite"},
-    {3,3,1,3,"Piercing Ice"},
-    {3,3,2,3,"Frost Channeling"},
+    {3,2,4,3,"Permafrost"},
+    {3,3,1,3,"Frost Channeling"},
+    {3,3,2,3,"Improved Blizzard"},
     {3,3,3,1,"Ice Lance"},
-    {3,3,4,3,"Improved Blizzard"},
     {3,4,1,2,"Arctic Reach"},
     {3,4,2,1,"Ice Block"},
     {3,4,4,3,"Shatter"},

@@ -67,6 +67,21 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+5.6.7 - Gear value fix, wishlist stars in the Armory, new client data
+------------------------------------------------------------
+- Gear Value: worn items with a random bonus ("of the Eagle" and the like)
+  now count with their bonus stats, so items are no longer shown as huge
+  upgrades over them. "(replaces ...)" is shown for upgrades only.
+- Armory: item sets and reputation rewards have the wishlist star too (far
+  right, like everywhere else).
+- Armory, Professions and Talent Trees: the left side panel keeps its size in
+  a taller window, and the talent points bar stays right under the trees.
+- Trainer window: spell list from the new client build (new spells like
+  Frost Blast and Arcane Wrath, new ranks, changed levels).
+- Talent planner: Mage talents updated to the hotfix of October 20; spell IDs
+  of the new talents, so non-English clients match them too.
+- Hall of Thanes: boss levels (16).
+
 5.6.6 - Upgrade arrows on quest rewards
 ------------------------------------------------------------
 - Quest rewards: a green arrow on reward and choice items that are an

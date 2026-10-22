@@ -130,14 +130,16 @@ local function itemValue(id, slot, link)
   if not W or not getStats then return nil end
   local cache = values[slot]
   if not cache then cache = {}; values[slot] = cache end
-  local v = cache[id]
+  -- by link when there is one: a worn "of the Eagle" item has stats its bare item ID lacks
+  local key = link or id
+  local v = cache[key]
   if v then return v end
   if not (GetItemInfo and GetItemInfo(id)) then return nil end
   local stats = getStats(link or ("item:" .. id))
   if not stats then return nil end
   local _, _, _, _, _, cid, sub = GetItemInfoInstant(id)
   v = score(stats, slot, id, cid == 2 and sub == 19)
-  cache[id] = v
+  cache[key] = v
   return v
 end
 
@@ -210,7 +212,8 @@ function GV.TooltipLine(tt, id)
   if not (loc and FLT.GEAR_LOC_SLOTS and FLT.GEAR_LOC_SLOTS[loc]) or not FLT.GearCanUse(loc, cid, sub) then return end
   local kind, pct, slot = GV.Change(id)
   -- with two slots (rings, trinkets, dual wield): which worn item it is compared with (user 17.10.)
-  local link = slot and GetInventoryItemLink("player", slot)
+  -- only for upgrades: a downgrade replaces nothing (user 22.10.)
+  local link = kind == "up" and slot and GetInventoryItemLink("player", slot)
   local which = link and link:match("%[(.-)%]")
   which = which and ("  |cffb0b0b0(replaces " .. which .. ")|r") or ""
   if kind == "up" then tt:AddLine(UP .. string.format("Upgrade: %d%%", math.floor(pct + 0.5)) .. which, 0.25, 1, 0.25)

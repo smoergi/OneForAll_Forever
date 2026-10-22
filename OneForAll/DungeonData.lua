@@ -187,7 +187,7 @@ SRC = nil
 FLT.DUNGEON_REGISTRY = nil
 
 -- Boss levels (QuestieDB Forever data; Forever dungeons from foreverchanges.pro). Bosses
--- without an NPC ID are keyed by name. Missing ones (Hall of Thanes, unreleased dungeons)
+-- without an NPC ID are keyed by name. Missing ones (unreleased dungeons)
 -- their level is learned in game when you target them (OneForAllDB.bossInfo).
 FLT.BOSS_LEVELS = {
   -- Blackrock Depths
@@ -446,7 +446,12 @@ FLT.BOSS_LEVELS = {
   [3654] = "22", -- Mutanus the Devourer
   [3674] = "21", -- Skum
   [5775] = "21", -- Verdan the Everliving
-  -- Forever dungeons (foreverchanges.pro boss pages, 16.10.2026; Hall of Thanes not known yet)
+  -- Forever dungeons (foreverchanges.pro boss pages, 16.10.2026)
+  -- Hall of Thanes (wowforeverguides.com / wow4ever.quest "level 16", 22.10.2026)
+  [261306] = "16", -- Faldrim Anvilmar
+  [261316] = "16", -- Magmatus
+  [261311] = "16", -- Plunder
+  [261319] = "16", -- Durgen Dirgehammer
   -- Ruins of Lordaeron
   [250660] = "17", -- The Baron
   [250483] = "17", -- Witherfang
