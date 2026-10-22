@@ -75,7 +75,7 @@ local function createProfessionPanel(parent)
 
 
   local nav=CreateFrame("Frame",nil,panel)
-  nav:SetPoint("TOPLEFT",8,-74); nav:SetPoint("BOTTOMLEFT",8,4); nav:SetWidth(164)
+  nav:SetPoint("TOPLEFT",8,-74); nav:SetSize(164,481) -- fixed: a taller window leaves it at the top (user 22.10.)
   UI.FramedPanel(nav)
 
   local body=CreateFrame("Frame",nil,panel)
@@ -637,6 +637,8 @@ local function createProfessionPanel(parent)
   layoutTrainers=function(top)
     trainerTitle:ClearAllPoints(); trainerTitle:SetPoint("TOPLEFT",8,top)
     trainerBox:ClearAllPoints(); trainerBox:SetPoint("TOPLEFT",8,top-26)
+    -- the navigation ends level with the trainer box on the overview (user 22.10.)
+    nav:SetHeight(math.max(300, 26-top+trainerBox:GetHeight()))
     for i,r in ipairs(trainerRows) do r:ClearAllPoints(); r:SetPoint("TOPLEFT",8+((i-1)%3)*258,-6-math.floor((i-1)/3)*24) end
   end
   local worldCache={}
@@ -785,6 +787,7 @@ local function createProfessionPanel(parent)
   local function hideViews()
     if allView then allView:Hide() end
     recipeView:Hide(); campingView:Hide(); homeView:Hide(); favorPage:Hide()
+    nav:SetHeight(481)
   end
   showProfession=function(profession,sub)
     local hasAll=allView and FLT.PROFESSION_RECIPES and FLT.PROFESSION_RECIPES[profession]

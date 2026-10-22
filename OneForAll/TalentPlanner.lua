@@ -313,7 +313,7 @@ function FLT:CreateTalentPlannerPanel(parent)
 
   -- Class selector lives in a narrow left rail. This frees a full horizontal
   -- row and gives the talent trees more vertical room.
-  local rail=CreateFrame("Frame",nil,panel); rail:SetPoint("TOPLEFT",8,-74); rail:SetPoint("BOTTOMLEFT",8,4); rail:SetWidth(122)
+  local rail=CreateFrame("Frame",nil,panel); rail:SetPoint("TOPLEFT",8,-74); rail:SetSize(122,481) -- fixed: a taller window leaves it at the top (user 22.10.)
   UI.FramedPanel(rail)
   -- top of the rail: spellbook -> what the class trainer teaches next
   do
@@ -433,7 +433,7 @@ function FLT:CreateTalentPlannerPanel(parent)
   end
 
   local footer=CreateFrame("Frame",nil,panel)
-  footer:SetPoint("BOTTOMLEFT",138,4); footer:SetSize(858,32)
+  footer:SetPoint("TOPLEFT",138,-523); footer:SetSize(858,32) -- stays under the trees in a taller window (user 22.10.)
   local fbg=tex(footer,"BACKGROUND",0.075,0.062,0.040,0.96); fbg:SetPoint("TOPLEFT",2,-2); fbg:SetPoint("BOTTOMRIGHT",-2,2)
   UI.OrnateFrame(footer,footer,10,1,"OVERLAY",1)
   statusText=FLT.NewFS(footer, nil,"OVERLAY","GameFontHighlightSmall")
