@@ -19,6 +19,7 @@ local DEFAULTS = {
   gearValue = true, -- Gear Planner Value in item tooltips: on (user 16.10.)
   spellbookTrainer = true, -- trainer button in the spellbook: on (user 22.10.)
   classBright = true, -- brighter class colors: on (user 22.10.)
+  mapFog = true, -- Remove Fog: on (user 22.10.)
 }
 
 local function db()
@@ -1581,6 +1582,7 @@ on("bagSlots", updateBagSlots)
 on("questXP", updateXP)
 on("classColors", refreshClassColors)
 on("classBright", refreshClassColors)
+on("mapFog", function() if FLT.RefreshMapFog then FLT.RefreshMapFog() end end)
 on("durability", function() warnedDurability = false; checkDurability() end)
 
 -- test hooks
