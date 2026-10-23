@@ -18,6 +18,7 @@ local W, specName, autoTree -- current weights; the talent tree with the most po
 local values = {}  -- [slot][itemID] = value
 local worn = {}    -- [slot] = value of the worn item (false = empty)
 local speeds = {}  -- [itemID] = weapon speed (tooltip data)
+local classOK = {} -- [itemID] = false when the item has "Classes: ..." without the player's class
 
 local function curveAt(curve, level)
   local n = #curve
@@ -95,6 +96,33 @@ local function weaponSpeed(id)
   return s or nil
 end
 
+-- class-only items ("Classes: Warlock"): no Value for other classes (user 23.10.: arrow on a warlock item for a priest)
+local classPat
+local function forMyClass(id)
+  local ok = classOK[id]
+  if ok ~= nil then return ok end
+  local data = type(C_TooltipInfo) == "table" and C_TooltipInfo.GetItemByID and C_TooltipInfo.GetItemByID(id)
+  if not (data and data.lines and data.lines[1]) then return true end -- no data yet: ask again later
+  classPat = classPat or ("^" .. (type(ITEM_CLASSES_ALLOWED) == "string" and ITEM_CLASSES_ALLOWED or "Classes: %s"):gsub("[%^%$%(%)%.%[%]%*%+%-%?]", "%%%0"):gsub("%%s", "(.+)") .. "$")
+  ok = true
+  for _, line in ipairs(data.lines) do
+    local list = (line.leftText or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):match(classPat)
+    if list then
+      local _, cls = UnitClass("player")
+      local m = LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[cls] or UnitClass("player")
+      local f = LOCALIZED_CLASS_NAMES_FEMALE and LOCALIZED_CLASS_NAMES_FEMALE[cls]
+      ok = false
+      for name in list:gmatch("[^,]+") do
+        name = name:match("^%s*(.-)%s*$")
+        if name == m or name == f then ok = true; break end
+      end
+      break
+    end
+  end
+  classOK[id] = ok
+  return ok
+end
+
 local function score(stats, slot, id, isWand)
   local total = 0
   for k, v in pairs(stats) do
@@ -170,6 +198,8 @@ local function wornValue(slot)
   if v ~= nil then return v end
   local link = GetInventoryItemLink("player", slot)
   if not link then worn[slot] = 0; return 0 end
+  -- the item's own stats only: the enchant is taken out of the link (user 23.10.), its random bonus stays
+  link = link:gsub("(item:%d+):%d*", "%1:0", 1)
   local id = tonumber(link:match("item:(%d+)"))
   v = id and itemValue(id, slot, link)
   if v then worn[slot] = v end
@@ -191,7 +221,7 @@ function GV.Upgrade(id)
   if not slots then return nil end
   local slot = slotFor(loc, slots)
   local v = itemValue(id, slot)
-  if not v then return nil end
+  if not v or not forMyClass(id) then return nil end
   for _, s in ipairs(slots) do
     if GetInventoryItemID and GetInventoryItemID("player", s) == id then return v, 0, true end
   end
@@ -253,4 +283,4 @@ for _, e in ipairs({ "PLAYER_LEVEL_UP", "PLAYER_TALENT_UPDATE", "CHARACTER_POINT
 ev:SetScript("OnEvent", function(_, event)
   if event == "PLAYER_EQUIPMENT_CHANGED" then wipe(worn) else W = nil end
 end)
-GV._reset = function() W = nil; wipe(values); wipe(worn); wipe(speeds) end -- tests
+GV._reset = function() W = nil; wipe(values); wipe(worn); wipe(speeds); wipe(classOK) end -- tests
