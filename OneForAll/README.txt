@@ -67,6 +67,12 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+5.7.2 - Item compare fixes
+------------------------------------------------------------
+- Upgrade / downgrade arrows compare the items' own stats only: an enchant on
+  the worn item no longer counts.
+- Items for other classes only ("Classes: Warlock") no longer get an arrow.
+
 5.7.1 - Remove Fog, AddOns list
 ------------------------------------------------------------
 - Quality of Life > World Map: new option "Remove Fog" (on by default) shows
