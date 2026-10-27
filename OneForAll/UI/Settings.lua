@@ -29,7 +29,7 @@ local function createSettingsPanel(parent)
 
   -- Yellow "!" (New) behind section titles, kept for the whole 5.6.x line, emptied when
   -- 5.7.0 starts (TODO.md "Neu-Markierungen"). 5.6.1: skins and window opacity.
-  local NEW_SECTIONS = {} -- emptied when 5.7.0 started (the 5.6.x marks)
+  local NEW_SECTIONS = {} -- empty since 5.7.0; no marks in 6.0.0 (user 27.10.)
   local refreshers = {}
   local colY = { -4, -4 }
 
@@ -203,23 +203,7 @@ local function createSettingsPanel(parent)
 
   -- "Popups & alerts" moved to Quality of Life (5.6.8, user 22.10.)
 
-  -- Skin: Gold / Dark Silver x Classic / Modern (UI.SKINS); applied on the next /reload.
-  local look = section(2, "Skin", "Interface\\Icons\\INV_Misc_Gem_Pearl_04")
-  local skinButtons = {}
-  for i, sk in ipairs(UI.SKINS) do
-    local key = sk.key
-    local b = look:button(sk.label, 150, function()
-      UI.AskSkin(key)
-    end, ((i - 1) % 2) * 160)
-    skinButtons[key] = b
-    if i % 2 == 0 then look:nextRow() end
-  end
-  refreshers[#refreshers + 1] = function()
-    for key, b in pairs(skinButtons) do b:SetActive(FLT.GetSkinKey() == key) end
-  end
-  look:text("Dark Silver turns the gold frames, buttons and highlights grey and dims the pictures a little. Modern uses plain frames and buttons with rounded corners. Switching reloads the interface.")
-  look:finish()
-
+  -- the Skin section is gone since 5.7.3: one look (Gold Modern) for everyone (user 27.10.)
   local win = section(2, "Window", "Interface\\Icons\\INV_Misc_Spyglass_02")
   local rb = win:button("Reset size & position", 180, function() if UI.ResetWindow then UI.ResetWindow() end end)
   -- the grip hint lives in the tooltip to keep the page compact
@@ -230,7 +214,10 @@ local function createSettingsPanel(parent)
   rb:SetScript("OnLeave", function() GameTooltip:Hide() end)
   win:button("Noteworthy changes", 160, function() if FLT.ShowNews then FLT.ShowNews() end end, 192)
   win:nextRow()
-  -- window opacity (backgrounds only, applies at once); modern style only
+  -- the welcome setup again (5.7.3, user 27.10.)
+  local sb = win:button("Welcome setup", 180, function() if FLT.ShowWelcome then FLT.ShowWelcome() end end)
+  win:nextRow()
+  -- window opacity (backgrounds only, applies at once)
   local function opacityRow(label, tip, minV, get, set)
     local box = win.box
     local l = FLT.NewFS(box, nil, "OVERLAY", "GameFontHighlight"); l:SetPoint("TOPLEFT", 14, win.y - 6); l:SetText(label)
@@ -252,9 +239,9 @@ local function createSettingsPanel(parent)
     end
     win.rowMax = math.min(win.rowMax, win.y - 30); win:nextRow()
   end
-  if FLT.FrameStyleIsModern and FLT.FrameStyleIsModern() then opacityRow("Window opacity", "Lets the world shine through the window's backgrounds. Text and pictures stay solid. Mouse wheel or drag.", 70,
+  opacityRow("Window opacity", "Lets the world shine through the window's backgrounds. Text and pictures stay solid. Mouse wheel or drag.", 70,
     function() return UI.GetWindowAlpha and UI.GetWindowAlpha() end,
-    function(a) if UI.SetWindowAlpha then UI.SetWindowAlpha(a) end end) end
+    function(a) if UI.SetWindowAlpha then UI.SetWindowAlpha(a) end end)
   win:finish()
 
   local bottom = math.min(colY[1], colY[2])

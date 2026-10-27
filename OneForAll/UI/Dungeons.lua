@@ -782,18 +782,11 @@ local function createDungeonPanel(parent)
 
   -- Header band at the top of a list panel: the dungeon's art fades in from
   -- the right behind the title, closed by a line in the dungeon's accent.
-  local function listBand(f,d,noArt)
+  -- the header band of the left lists (bosses, quests, key / attunement): plain, no picture (bosses since 5.7.x,
+  -- quests and key the same since 5.7.3, user 27.10.)
+  local function listBand(f)
     local base=f:CreateTexture(nil,"BORDER",nil,0); base:SetPoint("TOPLEFT",4,-4); base:SetPoint("TOPRIGHT",-4,-4); base:SetHeight(36)
     base:SetColorTexture(FLT.SkinC(0.03,0.03,0.035,0.85))
-    -- same landscape silhouettes as the level bands of the dungeon list
-    -- (the dungeon picture is already shown in the header and the detail)
-    -- (test: the boss list shows no picture here)
-    if not noArt then
-      local art=f:CreateTexture(nil,"BORDER",nil,1); art:SetAllPoints(base)
-      local strip=0
-      for bi,br in ipairs(BRACKETS) do if (d.minLevel or 0)>=br.min and (d.minLevel or 0)<=br.max then strip=(bi-1)%3 end end
-      FLT.SetTex(art, ASSET_ROOT.."band_silhouettes"); art:SetTexCoord(0.3,1,strip*0.25,strip*0.25+0.25); art:SetAlpha(0.85)
-    end
     local lea=f:CreateTexture(nil,"BORDER",nil,2); lea:SetAllPoints(base); FLT.SetTex(lea, ASSET_ROOT.."leather"); lea:SetVertexColor(FLT.SkinC(0.5,0.45,0.4)); lea:SetAlpha(0.15)
     local line=f:CreateTexture(nil,"ARTWORK"); FLT.SetTex(line, ASSET_ROOT.."divider_ornate")
     line:SetPoint("LEFT",base,"BOTTOMLEFT",0,0); line:SetPoint("RIGHT",base,"BOTTOMRIGHT",0,0); line:SetHeight(16)
@@ -896,7 +889,7 @@ local function createDungeonPanel(parent)
 
     local left=dynFrame("Frame"); left:SetPoint("TOPLEFT",0,0); left:SetPoint("BOTTOMLEFT",0,0); left:SetWidth(390)
     framedPanel(left)
-    listBand(left,d,true)
+    listBand(left)
     local lh=dynText(left,"GameFontNormalLarge"); lh:SetPoint("TOPLEFT",16,-14); lh:SetText("Bosses  |  "..#(d.bosses or {})); lh:SetTextColor(FLT.SkinC(1,0.82,0.20))
 
     local bsf=dynFrame("ScrollFrame",left,"UIPanelScrollFrameTemplate"); bsf:SetPoint("TOPLEFT",10,-50); bsf:SetPoint("BOTTOMRIGHT",-3,8); tidyScroll(bsf,left)
@@ -1204,7 +1197,7 @@ local function createDungeonPanel(parent)
 
     local left=dynFrame("Frame"); left:SetPoint("TOPLEFT",0,0); left:SetPoint("BOTTOMLEFT",0,0); left:SetWidth(390)
     framedPanel(left)
-    listBand(left,d)
+    listBand(left)
     local lh=dynText(left,"GameFontNormalLarge"); lh:SetPoint("TOPLEFT",16,-14); lh:SetText("Quests  |  "..#quests); lh:SetTextColor(FLT.SkinC(1,0.82,0.20))
     local allianceBtn=UI.GoldButton(left,"Alliance",92,22,nil,12); allianceBtn:SetPoint("TOPRIGHT",-108,-10)
     local hordeBtn=UI.GoldButton(left,"Horde",92,22,nil,12); hordeBtn:SetPoint("TOPRIGHT",-12,-10)
@@ -1535,7 +1528,7 @@ local function createDungeonPanel(parent)
 
     local left=dynFrame("Frame"); left:SetPoint("TOPLEFT",0,0); left:SetPoint("BOTTOMLEFT",0,0); left:SetWidth(390)
     framedPanel(left)
-    listBand(left,d)
+    listBand(left)
     local lh=dynText(left,"GameFontNormalLarge"); lh:SetPoint("TOPLEFT",16,-14); lh:SetText(d.raid and "Attunement" or "Key"); lh:SetTextColor(FLT.SkinC(1,0.82,0.20))
     if split then
       local allianceBtn=UI.GoldButton(left,"Alliance",92,22,nil,12); allianceBtn:SetPoint("TOPRIGHT",-108,-10)

@@ -16,12 +16,57 @@ local plannerState = {}
 
 -- Talent icon layout. Keep enough breathing room for the native Quickslot frame
 -- while still fitting four columns and seven rows in each OneForAll tree panel.
-local TALENT_BUTTON_SIZE = 40
+local TALENT_BUTTON_SIZE = 36 -- 40 -> 36 with the taller trees (user 27.10.)
 local TALENT_ICON_INSET = 3
-local GRID_X0 = 49 -- centers the 4-column grid in the 282px tree panel
+local GRID_X_STEP = 66 -- more room between the talents, like the talent sites (user 27.10.)
+local GRID_X0 = math.floor((282 - (3 * GRID_X_STEP + TALENT_BUTTON_SIZE)) / 2) -- centers the 4-column grid in the 282px tree panel
 local GRID_Y0 = 46
-local GRID_X_STEP = 48 -- same as GRID_Y_STEP: equal spacing in both directions
-local GRID_Y_STEP = 48
+local GRID_Y_STEP = 56
+
+-- The game's own talent tree pictures (Interface\TalentFrame, also in the Forever client; not shipped with the
+-- addon, user 27.10.): four pieces 256+64 x 256+128, the picture is 300 x 331 of it. Shown "cover" style in
+-- the tree panel: full height, cut at the sides.
+local TREE_ART = {
+  WARRIOR = { "WarriorArms", "WarriorFury", "WarriorProtection" }, PALADIN = { "PaladinHoly", "PaladinProtection", "PaladinCombat" },
+  HUNTER = { "HunterBeastMastery", "HunterMarksmanship", "HunterSurvival" }, ROGUE = { "RogueAssassination", "RogueCombat", "RogueSubtlety" },
+  PRIEST = { "PriestDiscipline", "PriestHoly", "PriestShadow" }, SHAMAN = { "ShamanElementalCombat", "ShamanEnhancement", "ShamanRestoration" },
+  MAGE = { "MageArcane", "MageFire", "MageFrost" }, WARLOCK = { "WarlockCurses", "WarlockSummoning", "WarlockDestruction" },
+  DRUID = { "DruidBalance", "DruidFeralCombat", "DruidRestoration" },
+}
+local ART_W, ART_H = 300, 331
+local ART_PIECES = { { "TopLeft", 0, 0, 256, 256 }, { "TopRight", 256, 0, 64, 256 }, { "BottomLeft", 0, 256, 256, 128 }, { "BottomRight", 256, 256, 64, 128 } }
+-- the pieces of one tree picture on a panel (inner size w x h, inset px): textures made once, texture set per class
+local function treeArt(p, w, h, inset)
+  local s = h / ART_H
+  local cx0 = (ART_W - w / s) / 2 -- art pixels cut at each side
+  local cx1 = ART_W - cx0
+  p.art = {}
+  for i, pc in ipairs(ART_PIECES) do
+    local x0, y0, pw, ph = pc[2], pc[3], pc[4], pc[5]
+    local ax0, ax1 = math.max(x0, cx0), math.min(x0 + pw, cx1)
+    local ay0, ay1 = y0, math.min(y0 + ph, ART_H)
+    if ax1 > ax0 and ay1 > ay0 then
+      local t = p:CreateTexture(nil, "BACKGROUND", nil, 6)
+      t:SetPoint("TOPLEFT", inset + (ax0 - cx0) * s, -(inset + ay0 * s))
+      t:SetSize((ax1 - ax0) * s, (ay1 - ay0) * s)
+      t:SetTexCoord((ax0 - x0) / pw, (ax1 - x0) / pw, (ay0 - y0) / ph, (ay1 - y0) / ph)
+      t.piece = pc[1]
+      p.art[#p.art + 1] = t
+    end
+  end
+  -- a dark veil so icons and lines stay readable
+  local veil = p:CreateTexture(nil, "BACKGROUND", nil, 7); veil:SetPoint("TOPLEFT", inset, -inset); veil:SetPoint("BOTTOMRIGHT", -inset, inset)
+  veil:SetColorTexture(0, 0, 0, 0.35); p.art.veil = veil
+end
+local function setTreeArt(p, name)
+  if not p.art then return end
+  local ok = name ~= nil
+  for _, t in ipairs(p.art) do
+    if ok and t:SetTexture("Interface\\TalentFrame\\" .. name .. "-" .. t.piece) == false then ok = false end
+  end
+  for _, t in ipairs(p.art) do t:SetShown(ok) end
+  p.art.veil:SetShown(ok)
+end
 
 local function tex(parent, layer, r,g,b,a)
   local t=parent:CreateTexture(nil,layer or "BACKGROUND")
@@ -285,6 +330,140 @@ function FLT:DumpTalents()
   return classes,talents
 end
 
+-- Build codes (5.7.3, user 27.10.): import links of talentsforever.com and wowforevertalents.com and our own
+-- string, export our own string. All three use one digit per talent (its rank) in the order of TalentData.lua
+-- (tree, row, column), trees joined by "-", trailing zeros dropped:
+--   talentsforever:    talentsforever.com/<class>/<level>/<t1>-<t2>-<t3>[-<order>]-<version>
+--   wowforevertalents: wowforevertalents.com/<class>/?t=<version letter><t1>-<t2>-<t3>
+--   ours:              OFA1:<CLASS>:<x/y/z>:<t1>-<t2>-<t3>  (x/y/z is only for reading, not used)
+local TC = {}
+FLT.TalentCode = TC
+local treeCache = {}
+-- the talents of a class per tree, in code order: { [tree] = { {key=, max=}, ... } }
+function TC.Trees(classID)
+  if treeCache[classID] then return treeCache[classID] end
+  local data = FLT.TALENT_DATA and FLT.TALENT_DATA[classID]
+  if not data then return nil end
+  local trees = { {}, {}, {} }
+  for _, t in ipairs(data.talents) do
+    local list = trees[t[1]]
+    if list then list[#list + 1] = { key = string.lower(t[5]), max = t[4], row = t[2], col = t[3] } end
+  end
+  for i = 1, 3 do table.sort(trees[i], function(a, b) if a.row ~= b.row then return a.row < b.row end return a.col < b.col end) end
+  treeCache[classID] = trees
+  return trees
+end
+local function classByToken(token)
+  token = token and string.upper(token)
+  for id, d in pairs(FLT.TALENT_DATA or {}) do if d.token == token then return id end end
+end
+-- text -> classID, { tree digit strings } or nil, error text
+function TC.Parse(text)
+  text = type(text) == "string" and text:gsub("%s", "") or ""
+  local token, codes
+  local own = text:match("^OFA1:(.+)$")
+  if own then
+    local parts = {}
+    for p in (own .. ":"):gmatch("([^:]*):") do parts[#parts + 1] = p end
+    token, codes = parts[1], parts[#parts]
+  elseif text:lower():find("wowforevertalents") then
+    token = text:match("wowforevertalents%.com/(%a+)")
+    codes = text:match("[?&]t=([%w%-]+)")
+    codes = codes and codes:gsub("^%a+", "") -- the version letter in front
+  elseif text:lower():find("talentsforever") then
+    local cls, rest = text:match("talentsforever%.com/(%a+)/%d+/([%w%-]+)")
+    token, codes = cls, rest
+  else
+    return nil, "Paste a build link of talentsforever.com or wowforevertalents.com, or an OneForAll build string."
+  end
+  local classID = classByToken(token)
+  if not classID then return nil, "Unknown class in the build." end
+  if not codes then return nil, "No talents found in the build." end
+  local parts = {}
+  for p in (codes .. "-"):gmatch("([^%-]*)%-") do parts[#parts + 1] = p end
+  local trees = { parts[1] or "", parts[2] or "", parts[3] or "" }
+  local data, total = TC.Trees(classID), 0
+  for i = 1, 3 do
+    if not trees[i]:match("^%d*$") then return nil, "The build has an unknown format." end
+    if #trees[i] > #data[i] then return nil, "The build does not fit the current talent trees (made for another game version?)." end
+    for k = 1, #trees[i] do
+      local r = tonumber(trees[i]:sub(k, k))
+      if r > data[i][k].max then return nil, "The build does not fit the current talent trees (made for another game version?)." end
+      total = total + r
+    end
+  end
+  if total > 51 then return nil, "The build has more than 51 points." end
+  return classID, trees
+end
+-- classID, { [talent key] = rank } -> our string
+function TC.Encode(classID, ranks)
+  local data = TC.Trees(classID)
+  if not data then return nil end
+  local out, sums = {}, {}
+  for i = 1, 3 do
+    local d, n = {}, 0
+    for k, t in ipairs(data[i]) do local r = ranks[t.key] or 0; d[k] = tostring(r); n = n + r end
+    out[i] = (table.concat(d):gsub("0+$", "")); sums[i] = n
+  end
+  return string.format("OFA1:%s:%d/%d/%d:%s", FLT.TALENT_DATA[classID].token, sums[1], sums[2], sums[3], table.concat(out, "-"))
+end
+-- the tree digit strings -> { [talent key] = rank }
+function TC.Ranks(classID, trees)
+  local data, out = TC.Trees(classID), {}
+  for i = 1, 3 do
+    for k = 1, #trees[i] do local r = tonumber(trees[i]:sub(k, k)); if r > 0 then out[data[i][k].key] = r end end
+  end
+  return out
+end
+
+-- the import / export window (built on first use)
+local codeFrame
+local function codeWindow()
+  if codeFrame then return codeFrame end
+  local UI = FLT.UI
+  local f = CreateFrame("Frame", "OneForAllTalentCode", UIParent)
+  f:SetSize(520, 150); f:SetPoint("CENTER", 0, 80); f:SetFrameStrata("FULLSCREEN_DIALOG"); f:EnableMouse(true)
+  f:SetMovable(true); f:RegisterForDrag("LeftButton"); f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
+  UI.FramedPanel(f)
+  for _, t in ipairs(UI.OrnateFrame(f, f, 16, 3, "OVERLAY", 4)) do t:SetVertexColor(FLT.SkinC(1, 1, 1, 1)) end
+  UI.CloseButton(f):SetPoint("TOPRIGHT", -12, -12)
+  f.title = FLT.NewFS(f, nil, "OVERLAY", "GameFontNormalLarge"); f.title:SetPoint("TOPLEFT", 18, -16); f.title:SetTextColor(FLT.SkinC(1, 0.82, 0.2))
+  f.hint = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); f.hint:SetPoint("TOPLEFT", 18, -40); f.hint:SetWidth(480); f.hint:SetJustifyH("LEFT")
+  f.hint:SetTextColor(0.80, 0.77, 0.70)
+  f.eb = FLT.SkinBlizz(CreateFrame("EditBox", nil, f, "InputBoxTemplate")); f.eb:SetSize(470, 22); f.eb:SetPoint("TOPLEFT", 24, -72)
+  f.eb:SetAutoFocus(false); f.eb:SetMaxLetters(400); f.eb:SetFontObject("GameFontHighlightSmall")
+  f.eb:SetScript("OnEscapePressed", function() f:Hide() end)
+  f.eb:SetScript("OnTextChanged", function(b, user) if user and f.readOnly then b:SetText(f.value or ""); b:HighlightText() end end)
+  f.eb:SetScript("OnEditFocusGained", function(b) if f.readOnly then b:HighlightText() end end)
+  f.eb:SetScript("OnEnterPressed", function() if not f.readOnly and f.go:IsShown() then f.go:Click() end end)
+  f.msg = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); f.msg:SetPoint("BOTTOMLEFT", 20, 22); f.msg:SetWidth(330); f.msg:SetJustifyH("LEFT")
+  f.go = UI.GoldButton(f, "Import", 120, 24, nil, 12); f.go:SetPoint("BOTTOMRIGHT", -18, 16)
+  if UISpecialFrames then table.insert(UISpecialFrames, "OneForAllTalentCode") end
+  f:Hide()
+  codeFrame = f
+  return f
+end
+function TC.ShowExport(text)
+  local f = codeWindow()
+  f.readOnly, f.value = true, text
+  f.title:SetText("Export build")
+  f.hint:SetText("Ctrl+C copies the build. Paste it into Import (Talent Trees) to load it again, or share it.")
+  f.eb:SetText(text); f.msg:SetText(""); f.go:Hide()
+  f:Show(); f:Raise(); f.eb:SetFocus(); f.eb:HighlightText()
+end
+function TC.ShowImport(onImport)
+  local f = codeWindow()
+  f.readOnly, f.value = false, nil
+  f.title:SetText("Import build")
+  f.hint:SetText("Paste a build link of talentsforever.com or wowforevertalents.com, or an OneForAll build string (Ctrl+V).")
+  f.eb:SetText(""); f.msg:SetText(""); f.go:Show()
+  f.go:SetScript("OnClick", function()
+    local err = onImport(f.eb:GetText())
+    if err then f.msg:SetText("|cffff6040" .. err .. "|r") else f:Hide() end
+  end)
+  f:Show(); f:Raise(); f.eb:SetFocus()
+end
+
 function FLT:CreateTalentPlannerPanel(parent)
   local panel=CreateFrame("Frame",nil,parent)
   local UI=FLT.UI
@@ -305,6 +484,7 @@ function FLT:CreateTalentPlannerPanel(parent)
   local summary={}
   local currentConfig,currentSpec
   local currentMeta,currentPrereqs={},{}
+  local stateIsValid -- forward (Import uses it)
   local treeOffset={0,0,0}
 
   local function gridLeft(treeIndex,col)
@@ -350,9 +530,9 @@ function FLT:CreateTalentPlannerPanel(parent)
   end
 
   local header=CreateFrame("Frame",nil,panel)
-  header:SetPoint("TOPLEFT",138,-74); header:SetSize(858,28)
+  header:SetPoint("TOPLEFT",138,-74); header:SetSize(858,22) -- slimmer bars, more height for the trees (user 27.10.)
   local hbg=tex(header,"BACKGROUND",0.075,0.062,0.040,0.96); hbg:SetPoint("TOPLEFT",2,-2); hbg:SetPoint("BOTTOMRIGHT",-2,2)
-  UI.OrnateFrame(header,header,10,1,"OVERLAY",1)
+  UI.OrnateFrame(header,header,8,1,"OVERLAY",1)
   local headerStatOrder={"level","available","spent","remaining"}
   local function stat(label)
     local f=FLT.NewFS(header, nil,"OVERLAY","GameFontHighlightSmall")
@@ -408,6 +588,49 @@ function FLT:CreateTalentPlannerPanel(parent)
       copyInto(presetsFor(selectedClass)[i],st); panel:RefreshTalentPlanner()
     end,"Reset")
   end)
+  -- Import / Export (5.7.3, user 27.10.)
+  local imp=UI.GoldButton(rail,"Import",50,22,nil,11); imp:SetPoint("TOPLEFT",9,cy-132)
+  local exp=UI.GoldButton(rail,"Export",50,22,nil,11); exp:SetPoint("TOPLEFT",63,cy-132)
+  for _,b in ipairs({imp,exp}) do
+    b:SetScript("OnLeave",function() GameTooltip:Hide() end)
+  end
+  imp:SetScript("OnEnter",function(self)
+    GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine("Import build",1,0.82,0)
+    GameTooltip:AddLine("Load a build from a talentsforever.com or wowforevertalents.com link, or an OneForAll build string.",1,1,1,true); GameTooltip:Show()
+  end)
+  exp:SetScript("OnEnter",function(self)
+    GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine("Export build",1,0.82,0)
+    GameTooltip:AddLine("The talents shown here as a short text to copy and share. Import reads it again.",1,1,1,true); GameTooltip:Show()
+  end)
+  exp:SetScript("OnClick",function()
+    local st=stateFor(selectedClass); local ranks={}
+    for nodeID,m in pairs(currentMeta) do local r=st.ranks[nodeID] or 0; if r>0 and m.key then ranks[m.key]=r end end
+    local text=TC.Encode(selectedClass,ranks)
+    if text then TC.ShowExport(text) end
+  end)
+  imp:SetScript("OnClick",function()
+    TC.ShowImport(function(text)
+      local classID,trees=TC.Parse(text)
+      if not classID then return trees end
+      selectedClass=classID
+      panel:RefreshTalentPlanner() -- the trees of that class, so its talents have node IDs
+      local byKey={}
+      for nodeID,m in pairs(currentMeta) do if m.key then byKey[m.key]=m end end
+      local st=stateFor(classID)
+      local want=TC.Ranks(classID,trees)
+      local new={ranks={},entries={}}
+      for key,r in pairs(want) do
+        local m=byKey[key]
+        if not m then return "A talent of this build was not found in the game's talent trees." end
+        new.ranks[m.id]=r; new.entries[m.id]=m.entryID
+      end
+      if not stateIsValid(new) then return "The build skips required points or talents (made for another game version?)." end
+      copyInto(st,new)
+      panel:RefreshTalentPlanner()
+      local class=classByID(classID)
+      statusText:SetText(string.format("Build imported for %s - Save Preset keeps it.",class and class.name or "?"))
+    end)
+  end)
   local function updatePresetButtons()
     local i=presetIndex()
     for k,b in ipairs(presetButtons) do b:SetActive(k==i) end
@@ -423,19 +646,20 @@ function FLT:CreateTalentPlannerPanel(parent)
     copyInto(stateFor(selectedClass),presetsFor(selectedClass)[1])
   end
 
-  local treeTop=-108
+  local treeTop=-100
   for i=1,3 do
     local p=CreateFrame("Frame",nil,panel); treePanels[i]=p
-    p:SetPoint("TOPLEFT",138+(i-1)*288,treeTop); p:SetSize(282,382)
+    p:SetPoint("TOPLEFT",138+(i-1)*288,treeTop); p:SetSize(282,427)
     UI.FramedPanel(p)
+    treeArt(p,276,421,3)
     local title=FLT.NewFS(p, nil,"OVERLAY","GameFontNormalLarge"); title:SetPoint("TOP",0,-9); title:SetText("Tree "..i); title:SetTextColor(FLT.SkinC(1,0.82,0.20)); p.title=title
     local pts=FLT.NewFS(p, nil,"OVERLAY","GameFontNormalSmall"); pts:SetPoint("TOP",0,-31); pts:SetText("0 points"); pts:SetTextColor(FLT.SkinC(0.72,0.72,0.72)); p.points=pts
   end
 
   local footer=CreateFrame("Frame",nil,panel)
-  footer:SetPoint("TOPLEFT",138,-523); footer:SetSize(858,32) -- stays under the trees in a taller window (user 22.10.)
+  footer:SetPoint("TOPLEFT",138,-531); footer:SetSize(858,24) -- stays under the trees in a taller window (user 22.10.)
   local fbg=tex(footer,"BACKGROUND",0.075,0.062,0.040,0.96); fbg:SetPoint("TOPLEFT",2,-2); fbg:SetPoint("BOTTOMRIGHT",-2,2)
-  UI.OrnateFrame(footer,footer,10,1,"OVERLAY",1)
+  UI.OrnateFrame(footer,footer,8,1,"OVERLAY",1)
   statusText=FLT.NewFS(footer, nil,"OVERLAY","GameFontHighlightSmall")
   statusText:SetPoint("CENTER",-25,0); statusText:SetWidth(560); statusText:SetJustifyH("CENTER")
   local clickHint=FLT.NewFS(footer, nil,"OVERLAY","GameFontHighlightSmall")
@@ -542,7 +766,7 @@ function FLT:CreateTalentPlannerPanel(parent)
     return true
   end
 
-  local function stateIsValid(st, treeIndex)
+  function stateIsValid(st, treeIndex)
     for nodeID,rank in pairs(st.ranks) do
       local m=currentMeta[nodeID]
       if rank and rank>0 and m and (not treeIndex or m.tree==treeIndex) then
@@ -622,7 +846,10 @@ function FLT:CreateTalentPlannerPanel(parent)
     local s=spent(st)
     summary.level:SetText("Level: "..tostring(math.min(60,9+s)))
     summary.spent:SetText("Spent: "..s); summary.remaining:SetText("Remaining: "..math.max(0,51-s))
-    for i=1,3 do treePanels[i].title:SetText(class.trees[i] or ("Tree "..i)); treePanels[i].points:SetText("0 points") end
+    for i=1,3 do
+      treePanels[i].title:SetText(class.trees[i] or ("Tree "..i)); treePanels[i].points:SetText("0 points")
+      setTreeArt(treePanels[i],TREE_ART[class.token] and TREE_ART[class.token][i])
+    end
 
     currentSpec=getSpecID(selectedClass)
     if not currentSpec then statusText:SetText("No Forever talent specialization data was found for "..class.name.."."); return end
@@ -670,9 +897,11 @@ function FLT:CreateTalentPlannerPanel(parent)
     buildPrerequisitesAndConnections(st,useReference)
 
     -- Second pass: appearance, interaction and tooltips now use the complete graph.
+    -- All 51 points spent: talents without a point turn grey, like on the talent sites (user 27.10.)
+    local full=spent(st)>=51
     for nodeID,m in pairs(currentMeta) do
       local b=m.button; local rank=st.ranks[nodeID] or 0
-      local unlocked=requirementsMet(m,st)
+      local unlocked=requirementsMet(m,st) and not full
       b.rank:SetText(string.format("%d/%d",rank,b.maxRanks or 1))
       local er,eg,eb
       if rank>0 then
@@ -682,6 +911,7 @@ function FLT:CreateTalentPlannerPanel(parent)
       else
         b.icon:SetVertexColor(FLT.SkinC(0.40,0.40,0.40,0.82)); er,eg,eb=0.40,0.29,0.10
       end
+      if b.icon.SetDesaturated then b.icon:SetDesaturated(full and rank==0) end
       if b.slot then b.slot:SetVertexColor(FLT.SkinC(er,eg,eb,0.98)) end
       if b.glow then b.glow:SetShown(rank>0) end
       if rank>0 and rank>=(b.maxRanks or 1) then b.rank:SetTextColor(FLT.SkinC(1,0.82,0.25))

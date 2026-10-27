@@ -46,6 +46,9 @@ local function isCandidate(f)
   local name = f.GetName and f:GetName()
   if type(name) ~= "string" or name == "" then return false end
   if name:find("^LibDBIcon10_") then return true end
+  -- D4Lib buttons (MapUtils, ImproveAny ... by D4KiR): "MinimapButton_D4Lib_LibDBIcon_<name>"; they start with
+  -- "Minimap" and fell through SKIP_PREFIX (user 25.10.)
+  if name:find("^MinimapButton_") and name:find("LibDBIcon", 1, true) then return true end
   for _, p in ipairs(SKIP_PREFIX) do if name:sub(1, #p) == p then return false end end
   for _, w in ipairs(SKIP_WORD) do if name:find(w) then return false end end
   local clickable = (f.IsObjectType and f:IsObjectType("Button"))
@@ -180,23 +183,19 @@ end
 local function create()
   if collector then return end
   collector = CreateFrame("Button", "OneForAllMinimapCollector", UIParent)
-  collector:SetSize(42, 42); collector:SetScale(SCALE)
+  collector:SetSize(34, 42); collector:SetScale(SCALE) -- the card logo (5.7.3, user 26.10.)
   collector:SetFrameStrata("MEDIUM"); collector:SetFrameLevel(20)
   collector:SetMovable(true); collector:SetClampedToScreen(true)
   collector:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   collector:RegisterForDrag("LeftButton")
   -- soft round shadow around the gold ring
-  local shadow = collector:CreateTexture(nil, "BACKGROUND"); shadow:SetPoint("TOPLEFT", -4, 4); shadow:SetPoint("BOTTOMRIGHT", 4, -4)
-  shadow:SetTexture(UI.ASSET_ROOT .. "ring_shadow"); shadow:SetAlpha(0.45)
-  local icon = collector:CreateTexture(nil, "ARTWORK"); icon:SetPoint("TOPLEFT", 4, -4); icon:SetPoint("BOTTOMRIGHT", -4, 4)
-  FLT.SetTex(icon, UI.ASSET_ROOT .. "minimap_icon"); icon:SetTexCoord(0.06, 0.94, 0.06, 0.94)
-  if icon.AddMaskTexture and collector.CreateMaskTexture then
-    local m = collector:CreateMaskTexture(); m:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-    m:SetAllPoints(icon); icon:AddMaskTexture(m)
-  end
-  local ring = collector:CreateTexture(nil, "OVERLAY"); ring:SetAllPoints(); FLT.SetTex(ring, UI.ASSET_ROOT .. "ring_gold")
-  local hi = collector:CreateTexture(nil, "HIGHLIGHT"); hi:SetPoint("TOPLEFT", 2, -2); hi:SetPoint("BOTTOMRIGHT", -2, 2)
-  hi:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"); hi:SetBlendMode("ADD")
+  -- the card logo in the chosen color (QoL "logoColor"); the picture sits in the middle 46 of 64 pixels
+  local icon = collector:CreateTexture(nil, "ARTWORK"); icon:SetAllPoints()
+  icon:SetTexture(FLT.LogoTexture and FLT.LogoTexture("card") or (UI.ASSET_ROOT .. "logo_card_teal")); icon:SetTexCoord(9 / 64, 55 / 64, 0, 1)
+  FLT.collectorIcon = icon
+  local hi = collector:CreateTexture(nil, "HIGHLIGHT"); hi:SetAllPoints()
+  hi:SetTexture(icon:GetTexture() or (UI.ASSET_ROOT .. "logo_card_teal")); hi:SetTexCoord(9 / 64, 55 / 64, 0, 1); hi:SetBlendMode("ADD"); hi:SetAlpha(0.3)
+  FLT.collectorHi = hi
 
   bar = CreateFrame("Frame", "OneForAllMinimapCollectorBar", UIParent)
   -- MEDIUM like LibDBIcon buttons (their strata/level may be fixed), low level so they draw on top
@@ -213,7 +212,11 @@ local function create()
   bar.empty:SetText("No minimap buttons of other addons found.")
 
   collector:SetScript("OnClick", function(_, mouse)
-    if mouse == "RightButton" then if FLT.ToggleUI then FLT:ToggleUI() end; return end
+    if mouse == "RightButton" then
+      if IsShiftKeyDown and IsShiftKeyDown() then if FLT.CraftList then FLT.CraftList.Toggle() end -- user 24.10.
+      elseif FLT.ToggleUI then FLT:ToggleUI() end
+      return
+    end
     toggleBar()
   end)
   collector:SetScript("OnDragStart", function(self) if bar:IsShown() then bar:Hide() end; self:StartMoving() end)
@@ -223,6 +226,7 @@ local function create()
     GameTooltip:AddLine(FLT.DISPLAY_NAME or "OneForAll", 1, 0.82, 0)
     GameTooltip:AddLine("Left-click: Minimap buttons", 1, 1, 1)
     GameTooltip:AddLine("Right-click: Open / close OneForAll", 1, 1, 1)
+    GameTooltip:AddLine("Shift-right-click: Crafting List", 1, 1, 1)
     GameTooltip:AddLine("Drag: Move", 0.75, 0.75, 0.75)
     GameTooltip:Show()
   end)
@@ -242,7 +246,9 @@ function FLT.MinimapCollectorRefresh()
     if bar then bar:Hide() end
     if collector then collector:Hide() end
     for _, f in ipairs(sortedFrames()) do release(f) end
-    if own then own:Show() end
+    -- QoL "mmHide" (5.7.3, user 23.10., off by default): no button of ours at the minimap; OneForAll stays
+    -- reachable from the game's AddOns list at the minimap and /ofa. With the collector on, its button stays.
+    if own then own:SetShown(not (qol() and qol().Get("mmHide"))) end
   end
 end
 
@@ -286,6 +292,6 @@ end
 ev:SetScript("OnEvent", function(...) FLT.SafeCall("Collector", onEventSafe, ...) end)
 
 if FLT.QoL and FLT.QoL.On then
-  FLT.QoL.On("mmCollect", FLT.MinimapCollectorRefresh)
+  FLT.QoL.On("mmCollect", FLT.MinimapCollectorRefresh); FLT.QoL.On("mmHide", FLT.MinimapCollectorRefresh)
   FLT.QoL.On("mmDir", function() if bar and bar:IsShown() then layout() end end)
 end

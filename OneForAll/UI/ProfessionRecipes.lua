@@ -88,6 +88,21 @@ local function readSkillLines()
 end
 
 local browser -- set when created; refreshed after scans
+-- the browser holds the secure craft buttons (RecipeBar): resizing it in combat is blocked (ADDON_ACTION_BLOCKED
+-- SetHeight, user 27.10.: SKILL_LINES_CHANGED from a weapon skill-up in combat) -> wait for the end of combat
+local refreshAfterCombat
+local function refreshBrowser(onlyShown)
+  if not (browser and browser.Refresh) or (onlyShown and not browser:IsShown()) then return end
+  if InCombatLockdown and InCombatLockdown() then
+    if not refreshAfterCombat then
+      refreshAfterCombat = CreateFrame("Frame")
+      refreshAfterCombat:SetScript("OnEvent", function(self) self:UnregisterAllEvents(); refreshBrowser(true) end)
+    end
+    refreshAfterCombat:RegisterEvent("PLAYER_REGEN_ENABLED")
+    return
+  end
+  browser:Refresh(true)
+end
 local lastScan = {}
 
 -- Which of our professions does a set of recipe spell IDs belong to?
@@ -263,11 +278,11 @@ local function scanTradeSkill()
   lastScan = {prof = prof, count = #known, matched = n, skill = rank, stats = stats}
   readSkillLines()
   if FLT.OnProfessionScan then FLT.OnProfessionScan() end
-  if browser and browser.Refresh then browser:Refresh(true) end
+  refreshBrowser()
 end
 
 FLT.RefreshRecipeBrowser = function()
-  if browser and browser:IsShown() and browser.Refresh then browser:Refresh(true) end
+  refreshBrowser(true)
 end
 
 local scanPending = false
@@ -298,7 +313,7 @@ do
                       "NEW_RECIPE_LEARNED", "SKILL_LINES_CHANGED", "PLAYER_LOGIN"}) do pcall(ev.RegisterEvent, ev, e) end
   ev:SetScript("OnEvent", function(_, event)
     if event == "SKILL_LINES_CHANGED" or event == "PLAYER_LOGIN" then
-      readSkillLines(); cleanAllProfessions(); if browser and browser:IsShown() then browser:Refresh(true) end
+      readSkillLines(); cleanAllProfessions(); refreshBrowser(true)
     else
       scanSoon()
     end
@@ -439,7 +454,7 @@ function UI.CreateRecipeBrowser(parent)
   local tick = 0
   f:SetScript("OnUpdate", function(_, elapsed)
     tick = tick + (elapsed or 0)
-    if tick >= 60 then tick = 0; f:Refresh(true) end
+    if tick >= 60 and not (InCombatLockdown and InCombatLockdown()) then tick = 0; f:Refresh(true) end -- not in combat (secure craft buttons)
   end)
 
   -- Legend for the check columns (top right)
@@ -491,6 +506,10 @@ function UI.CreateRecipeBrowser(parent)
   UI.FramedPanel(right)
   local rsf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, right, "UIPanelScrollFrameTemplate")); rsf:SetPoint("TOPLEFT", 14, -12); rsf:SetPoint("BOTTOMRIGHT", -28, 10)
   local rchild = CreateFrame("Frame", nil, rsf); rchild:SetSize(420, 1); rsf:SetScrollChild(rchild)
+  -- Crafting List / Craft buttons stacked right of Skill / Use / Learned from (5.7.3, user 24.10.; UI/CraftList.lua).
+  -- Anchored once, it scrolls with the detail.
+  local recipeBar = FLT.CraftList and FLT.CraftList.RecipeBar(rchild)
+  if recipeBar then recipeBar:SetPoint("TOPRIGHT", rchild, "TOPRIGHT", -32, -100); recipeBar:Hide() end
   UI.AutoHideScrollBar(rsf)
 
   -- favourite star (top right of the detail panel)
@@ -533,19 +552,19 @@ function UI.CreateRecipeBrowser(parent)
     for _, w in ipairs(detailWidgets) do w:Hide() end
     wipe(detailWidgets)
   end
-  local function dtext(template, w)
-    local t = FLT.NewFS(rchild, nil, "OVERLAY", template or "GameFontHighlightSmall")
+  local function dtext(template, w, parent)
+    local t = FLT.NewFS(parent or rchild, nil, "OVERLAY", template or "GameFontHighlightSmall")
     if w then t:SetWidth(w); t:SetJustifyH("LEFT") end
     detailWidgets[#detailWidgets + 1] = t
     return t
   end
-  local function dframe(kind, template)
-    local fr = CreateFrame(kind or "Frame", nil, rchild, template)
+  local function dframe(kind, template, parent)
+    local fr = CreateFrame(kind or "Frame", nil, parent or rchild, template)
     detailWidgets[#detailWidgets + 1] = fr
     return fr
   end
-  local function itemRow(id, y, label, sub, count)
-    local b = dframe("Button"); b:SetSize(400, 30); b:SetPoint("TOPLEFT", 0, y)
+  local function itemRow(id, y, label, sub, count, parent)
+    local b = dframe("Button", nil, parent); b:SetSize(parent and 384 or 400, 30); b:SetPoint("TOPLEFT", parent and 8 or 0, y)
     UI.CardRow(b)
     local ic = b:CreateTexture(nil, "ARTWORK"); ic:SetSize(24, 24); ic:SetPoint("LEFT", 4, 0); FLT.SetTex(ic, itemIcon(id))
     local t = FLT.NewFS(b, nil, "OVERLAY", "GameFontHighlight"); t:SetPoint("LEFT", 36, sub and 6 or 0); t:SetWidth(300); t:SetJustifyH("LEFT"); t:SetText(label or itemName(id) or ("Item " .. id))
@@ -557,19 +576,33 @@ function UI.CreateRecipeBrowser(parent)
     b:SetScript("OnClick", function(_, button) if H and H.handleDungeonItemClick and H.normalizeDungeonItem then H.handleDungeonItemClick(H.normalizeDungeonItem({id, label or ""}), button) end end)
     return b
   end
-  local function npcRow(n, y)
-    local row = dframe("Frame"); row:SetSize(400, 22); row:SetPoint("TOPLEFT", 8, y)
+  local function npcRow(n, y, parent)
+    local row = dframe("Frame", nil, parent); row:SetSize(parent and 376 or 400, 22); row:SetPoint("TOPLEFT", parent and 14 or 8, y)
+    -- thin line under each row (like the family abilities of Hunter Pets)
+    local sep = UI.makeTexture(row, "BORDER", 0.72, 0.50, 0.12, 0.18); sep:SetPoint("BOTTOMLEFT", 0, -1); sep:SetPoint("BOTTOMRIGHT", 0, -1); sep:SetHeight(1)
     local t = FLT.NewFS(row, nil, "OVERLAY", "GameFontHighlightSmall"); t:SetPoint("LEFT", 0, 0); t:SetWidth(300); t:SetJustifyH("LEFT")
     local fac = n.fac == "A" and " |cff4f9fff(Alliance)|r" or (n.fac == "H" and " |cffff5040(Horde)|r" or "")
     t:SetText((n[2] or "?") .. "  |cff9d9d9d- " .. (n[3] or "?") .. "|r" .. fac)
     if n[4] and n[5] then
-      local mb = UI.GoldButton(row, "Map", 62, 20, UI.ASSET_ROOT .. "icon_map", 11); mb:SetPoint("RIGHT", -4, 0)
+      local mb = UI.GoldButton(row, "Map", 62, 20, UI.ASSET_ROOT .. "icon_map", 11); mb:SetPoint("RIGHT", 0, 0)
       mb:SetScript("OnClick", function() FLT:ShowOnMap({mapID = n[4], x = n[5], y = n[6], zone = n[3], name = n[2]}) end)
     end
   end
 
+  -- framed box with a small-caps title, like Hunter Pets (5.7.3, user 24.10.); build(box, y) fills it from y down and
+  -- returns where it ended; returns the y below the box
+  local function section(title, y0, build)
+    local b = dframe("Frame"); b:SetPoint("TOPLEFT", 0, y0); b:SetWidth(400)
+    UI.FramedPanel(b)
+    local t = UI.SmallCaps(b, title, 15, 11, GOLD); t:SetPoint("TOPLEFT", 12, -9)
+    local h = -build(b, -32) + 8
+    b:SetHeight(h)
+    return y0 - h - 10
+  end
+
   local function showDetail(r, keepScroll)
     clearDetail()
+    if recipeBar then recipeBar:SetRecipe(prof, r) end
     if not r then return end
     local p = profDB(prof)
     local y = 0
@@ -598,13 +631,16 @@ function UI.CreateRecipeBrowser(parent)
     local dv = rchild:CreateTexture(nil, "ARTWORK"); FLT.SetTex(dv, UI.ASSET_ROOT .. "divider_ornate"); dv:SetSize(400, 16); dv:SetPoint("TOPLEFT", 0, y - 48)
     detailWidgets[#detailWidgets + 1] = dv
     y = y - 70
+    local textW = (recipeBar and recipeBar:IsShown()) and 176 or 290 -- the Crafting List / Craft stack sits on the right
+    local box, by -- the Details box and the y inside it
 
     local function line(label, text)
-      local h = dtext("GameFontNormalSmall"); h:SetPoint("TOPLEFT", 0, y); h:SetText(label); h:SetTextColor(FLT.SkinC(unpack(GOLD)))
-      local b = dtext("GameFontHighlightSmall", 310); b:SetPoint("TOPLEFT", 96, y); b:SetText(text)
-      y = y - math.max(18, (b:GetStringHeight() or 14) + 6)
+      local h = dtext("GameFontNormalSmall", nil, box); h:SetPoint("TOPLEFT", 12, by); h:SetText(label); h:SetTextColor(FLT.SkinC(unpack(GOLD)))
+      local b = dtext("GameFontHighlightSmall", textW, box); b:SetPoint("TOPLEFT", 104, by); b:SetText(text)
+      by = by - math.max(18, (b:GetStringHeight() or 14) + 6)
     end
     local function c(col, v) local k = DIFF[col]; return string.format("|cff%02x%02x%02x%s|r", math.floor(k[1] * 255), math.floor(k[2] * 255), math.floor(k[3] * 255), tostring(v)) end
+    y = section("Details", y, function(b, y1) box, by = b, y1
     line("Skill", (r.req and ("learn at " .. r.req .. "   ") or "") .. c("yellow", r.y) .. "  " .. c("green", r.g) .. "  " .. c("gray", r.gr))
     if r.lv then
       local pl = UnitLevel and UnitLevel("player") or 0
@@ -629,14 +665,18 @@ function UI.CreateRecipeBrowser(parent)
       learn = (r.rn or "Recipe item") .. "\n" .. (#how > 0 and table.concat(how, "  +  ") or "|cff9d9d9dSource not known yet|r")
     else learn = "Profession trainer" end
     line("Learned from", learn)
-    y = y - 4
+    -- the Crafting List / Craft stack (anchored in rchild at y -100) must fit into the box
+    if recipeBar and recipeBar:IsShown() then by = math.min(by, -30 - recipeBar:UsedHeight()) end
+    return by + 4 end)
 
-    local h = dtext("GameFontNormal"); h:SetPoint("TOPLEFT", 0, y); h:SetText("Reagents"); h:SetTextColor(FLT.SkinC(unpack(GOLD))); y = y - 22
-    for _, rg in ipairs(r.r or {}) do
-      local have = GetItemCount and GetItemCount(rg[1], true) or 0
-      local col = have >= rg[2] and "|cff59ff73" or "|cffff6060"
-      itemRow(rg[1], y, itemName(rg[1]) or (rg[3] ~= "" and rg[3]) or nil, nil, col .. have .. "|r / " .. rg[2]); y = y - 32
-    end
+    y = section("Reagents", y, function(b, ry)
+      for _, rg in ipairs(r.r or {}) do
+        local have = GetItemCount and GetItemCount(rg[1], true) or 0
+        local col = have >= rg[2] and "|cff59ff73" or "|cffff6060"
+        itemRow(rg[1], ry, itemName(rg[1]) or (rg[3] ~= "" and rg[3]) or nil, nil, col .. have .. "|r / " .. rg[2], b); ry = ry - 32
+      end
+      return ry + 2
+    end) + 10
 
     -- Who else can craft it: online first, with zone and a whisper button.
     local INST = { raid = "in a raid", party = "in a dungeon", pvp = "in a battleground", arena = "in an arena", scenario = "in a scenario" }
@@ -721,31 +761,38 @@ function UI.CreateRecipeBrowser(parent)
     knowers("Other OneForAll users online who know it", others, "|cff5ab3ff", false)
 
     if r.ri then
-      y = y - 6
-      local h2 = dtext("GameFontNormal"); h2:SetPoint("TOPLEFT", 0, y); h2:SetText("Recipe"); h2:SetTextColor(FLT.SkinC(unpack(GOLD))); y = y - 22
-      itemRow(r.ri, y, r.rn); y = y - 34
-      local src = r.src or {}
-      if src.v then
-        local t = dtext("GameFontNormalSmall"); t:SetPoint("TOPLEFT", 0, y); t:SetText("Sold by"); y = y - 18
-        for _, n in ipairs(src.v) do npcRow(n, y); y = y - 22 end
-      end
-      if src.d then
-        local t = dtext("GameFontNormalSmall"); t:SetPoint("TOPLEFT", 0, y)
-        t:SetText("Drops from" .. ((src.dn and src.dn > #src.d) and string.format("  |cff9d9d9d(%d of %d shown)|r", #src.d, src.dn) or "")); y = y - 18
-        for _, n in ipairs(src.d) do npcRow(n, y); y = y - 22 end
-      end
-      if src.qs then
-        local t = dtext("GameFontNormalSmall"); t:SetPoint("TOPLEFT", 0, y); t:SetText("Quest reward"); y = y - 18
-        for _, q in ipairs(src.qs) do local qt = dtext("GameFontHighlightSmall", 380); qt:SetPoint("TOPLEFT", 8, y); qt:SetText(q[2]); y = y - 18 end
-      end
-      if not (src.v or src.d or src.qs) then
-        local t = dtext("GameFontDisableSmall", 400); t:SetPoint("TOPLEFT", 0, y)
-        t:SetText(r.fav and "Bought with Merchant's Favor - see the Favor pages." or "Where this recipe comes from is not known yet."); y = y - 18
-      end
+      y = section("Recipe", y - 10, function(b, ry)
+        itemRow(r.ri, ry, r.rn, nil, nil, b); ry = ry - 38
+        local src = r.src or {}
+        local function sub(text)
+          local t = dtext("GameFontNormalSmall", nil, b); t:SetPoint("TOPLEFT", 12, ry); t:SetText(text); t:SetTextColor(FLT.SkinC(unpack(GOLD))); ry = ry - 20
+        end
+        if src.v then
+          sub("Sold by")
+          for _, n in ipairs(src.v) do npcRow(n, ry, b); ry = ry - 24 end
+          ry = ry - 6
+        end
+        if src.d then
+          sub("Drops from" .. ((src.dn and src.dn > #src.d) and string.format("  |cff9d9d9d(%d of %d shown)|r", #src.d, src.dn) or ""))
+          for _, n in ipairs(src.d) do npcRow(n, ry, b); ry = ry - 24 end
+          ry = ry - 6
+        end
+        if src.qs then
+          sub("Quest reward")
+          for _, q in ipairs(src.qs) do local qt = dtext("GameFontHighlightSmall", 370, b); qt:SetPoint("TOPLEFT", 14, ry); qt:SetText(q[2]); ry = ry - 18 end
+        end
+        if not (src.v or src.d or src.qs) then
+          local t = dtext("GameFontDisableSmall", 370, b); t:SetPoint("TOPLEFT", 12, ry)
+          t:SetText(r.fav and "Bought with Merchant's Favor - see the Favor pages." or "Where this recipe comes from is not known yet."); ry = ry - 18
+        end
+        return ry
+      end)
     end
     rchild:SetHeight(math.max(1, -y + 10))
     if not keepScroll then rsf:SetVerticalScroll(0) end
   end
+
+  if recipeBar then recipeBar.onChange = function() if selected then showDetail(selected, true) end end end
 
   local function rowFor(i)
     if rows[i] then return rows[i] end
@@ -861,7 +908,7 @@ function UI.CreateRecipeBrowser(parent)
     lchild:SetHeight(math.max(1, #vis * ROW_STEP + 4))
     if not keepScroll then lsf:SetVerticalScroll(0) end
     f:DrawRows()
-    if selected then showDetail(selected, keepScroll) else clearDetail() end
+    if selected then showDetail(selected, keepScroll) else clearDetail(); if recipeBar then recipeBar:SetRecipe(nil) end end
     paintStar()
   end
 

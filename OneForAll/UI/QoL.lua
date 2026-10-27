@@ -11,7 +11,7 @@ local openDropDown -- below
 -- Yellow "!" (tooltip "New") next to options added since the last live release.
 -- Kept for all versions of a minor line (5.7.0 ... 5.7.x); emptied when the next minor line
 -- (5.8.0) starts (TODO.md "Neu-Markierungen").
-local NEW_TAGS = { classBright = "5.7.0", spellbookTrainer = "5.7.0", mapFog = "5.7.1" } -- 5.6.x marks removed when 5.7.0 started (user 22.10.)
+local NEW_TAGS = {} -- all marks removed for 6.0.0, a clean start (user 27.10.); new ones from 6.1.0 on
 -- placed left of the checkbox (or of the label when there is none), user 16.10.
 local function newTag(parent, anchor, key, dx)
   if not NEW_TAGS[key] then return end
@@ -31,6 +31,7 @@ local PREVIEWS = {
   bagsFull = { title = "Bags full helper", tex = "preview_bagsfull", w = 560, h = 183, t = 167 / 256 },
   questXP = { title = "Quest XP on the experience bar", tex = "preview_questxp", w = 640, h = 119, t = 190 / 256 },
   mmCollect = { title = "Collect minimap buttons", tex = "preview_collector", w = 384, h = 164, t = 219 / 256 },
+  nodeGlow = { title = "Sparkle on herbs & ore", tex = "preview_nodeglow", w = 300, h = 300, t = 1 }, -- user 26.10.
 }
 local previewFrame
 local function showPreview(key)
@@ -74,7 +75,9 @@ local function itemLook(id)
   if not name then pcall(function() if C_Item and C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end end) end
   return name, quality, icon or "Interface\\Icons\\INV_Misc_QuestionMark"
 end
-local function showNeverList(owner, onChange)
+-- src (optional): another list in the same menu - { get, remove, clear, title, empty, removeTip, confirm }
+-- (the own junk list, 5.7.3)
+local function showNeverList(owner, onChange, src)
   local Q = FLT.QoL
   if not neverMenu then
     local catcher = CreateFrame("Button", nil, UIParent); catcher:SetAllPoints(UIParent)
@@ -99,7 +102,7 @@ local function showNeverList(owner, onChange)
       r.text = FLT.NewFS(r, nil, "OVERLAY", "GameFontHighlight"); r.text:SetPoint("LEFT", 26, 0); r.text:SetWidth(222); r.text:SetJustifyH("LEFT"); r.text:SetWordWrap(false)
       r.x = CreateFrame("Button", nil, r); r.x:SetSize(16, 16); r.x:SetPoint("RIGHT", -4, 0)
       r.x:SetNormalTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up"); r.x:SetHighlightTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Highlight", "ADD")
-      r.x:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText("Remove from the list"); GameTooltip:AddLine("The bags full helper may suggest this item again.", 1, 1, 1, true); GameTooltip:Show() end)
+      r.x:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText("Remove from the list"); GameTooltip:AddLine(neverMenu.src.removeTip, 1, 1, 1, true); GameTooltip:Show() end)
       r.x:SetScript("OnLeave", function() GameTooltip:Hide() end)
       r:SetScript("OnEnter", function(self)
         hi:Show()
@@ -117,11 +120,16 @@ local function showNeverList(owner, onChange)
   end
   local m = neverMenu
   if m:IsShown() and m.owner == owner then m:Hide(); return end
+  src = src or { get = Q.GetNeverItems, remove = Q.RemoveNever, clear = Q.ClearNever, title = "Never suggested",
+    empty = "Nothing on the list. In the bags full helper, the X button puts an item here so it is never suggested again.",
+    removeTip = "The bags full helper may suggest this item again.", confirm = "Remove all items from the\n\"never suggest\" list?" }
+  m.src = src
+  m.empty:SetText(src.empty)
   local retried = false
   m.fill = function()
-    local ids = Q.GetNeverItems(); m.ids = ids
+    local ids = src.get(); m.ids = ids
     m.offset = math.max(0, math.min(m.offset, #ids - NEVER_ROWS))
-    m.title:SetText("Never suggested  |  " .. #ids .. (#ids == 1 and " item" or " items"))
+    m.title:SetText(src.title .. "  |  " .. #ids .. (#ids == 1 and " item" or " items"))
     m.empty:SetShown(#ids == 0)
     local missing = false
     for i, r in ipairs(m.rows) do
@@ -134,7 +142,7 @@ local function showNeverList(owner, onChange)
         r.text:SetText(name or ("Item " .. id))
         local c = quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
         if c then r.text:SetTextColor(c.r, c.g, c.b) else r.text:SetTextColor(0.92, 0.90, 0.84) end
-        r.x:SetScript("OnClick", function() Q.RemoveNever(id); m.fill(); if onChange then onChange() end end)
+        r.x:SetScript("OnClick", function() src.remove(id); m.fill(); if onChange then onChange() end end)
         r:Show()
       else
         r.id = nil; r:Hide()
@@ -151,7 +159,7 @@ local function showNeverList(owner, onChange)
   end
   m.clear:SetScript("OnClick", function()
     m:Hide()
-    UI.Confirm("Remove all items from the\n\"never suggest\" list?", function() Q.ClearNever(); if onChange then onChange() end end, "Remove all")
+    UI.Confirm(src.confirm, function() src.clear(); if onChange then onChange() end end, "Remove all")
   end)
   m.offset = 0
   m.fill()
@@ -198,9 +206,17 @@ local function createQoLPanel(parent)
   local refreshers, cats, current, search = {}, {}, nil, ""
   local layout, updateCounts -- below
 
-  local function hint(widget, title, text)
+  -- at: a font string to show the tooltip next to (option rows: right of the option name instead of far right
+  -- at the window edge, user 24.10.)
+  local function hint(widget, title, text, at)
     widget:HookScript("OnEnter", function(self)
-      GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(title, FLT.SkinC(1, 0.82, 0))
+      if at then
+        GameTooltip:SetOwner(self, "ANCHOR_NONE"); GameTooltip:ClearAllPoints()
+        GameTooltip:SetPoint("LEFT", at, "RIGHT", 34, -6)
+      else
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      end
+      GameTooltip:AddLine(title, FLT.SkinC(1, 0.82, 0))
       if text then GameTooltip:AddLine(text, 1, 1, 1, true) end
       GameTooltip:Show()
     end)
@@ -232,7 +248,7 @@ local function createQoLPanel(parent)
     r.desc:SetJustifyH("LEFT"); r.desc:SetWordWrap(false); r.desc:SetText(desc or "")
     r.rightW = 0
     r.find = (label .. " " .. (desc or "") .. " " .. (tip or "") .. " " .. g.name .. " " .. g.cat.label):lower()
-    if tip then hint(r, label, tip) end
+    if tip then hint(r, label, tip, r.label) end
     r.name, r.tip = label, tip
     g.rows[#g.rows + 1] = r
     return r
@@ -264,7 +280,7 @@ local function createQoLPanel(parent)
     cb:SetScript("OnClick", function(b) set(b:GetChecked() and true or false); if onChange then onChange() end; updateCounts() end)
     r:SetScript("OnClick", function() cb:Click() end)
     refreshers[#refreshers + 1] = function() cb:SetChecked(get()) end
-    if r.tip then hint(cb, r.name, r.tip) end
+    if r.tip then hint(cb, r.name, r.tip, r.label) end
     g.cat.checks[#g.cat.checks + 1] = get
     if key then
       if newTag(r, cb, key, 4) then g.cat.new = true end
@@ -330,12 +346,33 @@ local function createQoLPanel(parent)
     refreshers[#refreshers + 1] = r.show
   end
   check(g, "Copy chat button", "Adds a button to every chat window to copy its text.", "A small button at the top right of every chat window. It opens the chat text so you can select and copy it (Ctrl+C).", "copyChat")
+  check(g, "Hide chat button", "A button next to the chat hides and shows it.", "It sits above the chat menu button. Also as a key: Key Bindings > OneForAll > Hide / show chat. Pressing Enter to type brings the chat back.", "chatHide")
+  choice(g, "Hide chat after", "Hides the chat after that long without a new message.", "A new message or typing shows it again. Not while the mouse is on the chat.", "chatAutoHide", Q.CHAT_HIDE_OPTIONS)
   g = group(c, "Minimap")
+  choice(g, "Logo color", "The color of the OneForAll minimap button.", "Also the button of the minimap button collector.", "logoColor", Q.LOGO_COLORS)
+  -- "Collect minimap buttons" and "Hide the OneForAll button" exclude each other: the one that is on greys out
+  -- the other (user 24.10.; the bar needs its button)
+  local collectRow, hideRow
+  local function paintMinimap()
+    if not (collectRow and hideRow) then return end
+    if Q.Get("mmCollect") and Q.Get("mmHide") then Q.Set("mmHide", false) end -- both on (beta1): the collector wins
+    local function look(r, on) r.cb:SetEnabled(on); r:SetEnabled(on); r.label:SetAlpha(on and 1 or 0.45); r.desc:SetAlpha(on and 1 or 0.45) end
+    look(hideRow, not Q.Get("mmCollect")); look(collectRow, not Q.Get("mmHide"))
+  end
   do
-    local r = check(g, "Collect minimap buttons", "Puts the minimap buttons of other addons into one bar.", "The bar opens from a bigger OneForAll button that you can drag anywhere (it is not tied to the minimap). Right-click that button to open OneForAll. Switching this off puts all buttons back on the minimap.", "mmCollect")
-    button(r, "Reset", 60, "Puts the minimap button collector back to its default place next to the minimap.", function() if FLT.ResetMinimapCollector then FLT.ResetMinimapCollector() end end)
+    collectRow = row(g, "Collect minimap buttons", "Puts the minimap buttons of other addons into one bar.", "The bar opens from a bigger OneForAll button that you can drag anywhere (it is not tied to the minimap). Right-click that button to open OneForAll. Switching this off puts all buttons back on the minimap. Not together with \"Hide the OneForAll button\".")
+    switch(collectRow, g, "mmCollect", nil, nil, paintMinimap)
+    button(collectRow, "Reset", 60, "Puts the minimap button collector back to its default place next to the minimap.", function() if FLT.ResetMinimapCollector then FLT.ResetMinimapCollector() end end)
   end
   choice(g, "Bar opens", "Where the bar opens next to the OneForAll button.", "Automatic: towards the middle of the screen.", "mmDir", Q.MM_DIR_OPTIONS, nil, 24)
+  hideRow = row(g, "Hide the OneForAll button", "No OneForAll button at the minimap.", "Open OneForAll from the game's AddOns list at the minimap or with /ofa. Not together with \"Collect minimap buttons\": the bar needs its button.")
+  switch(hideRow, g, "mmHide", nil, nil, paintMinimap)
+  refreshers[#refreshers + 1] = paintMinimap
+  do
+    local mr = check(g, "Move the minimap", "Hold Shift and drag the minimap to move it.", "Moves the whole minimap with its zone text and buttons. A click without Shift still pings as usual.", "mmMove")
+    button(mr, "Reset", 60, "Puts the minimap back to its default place.", function() if FLT.ResetMinimapPosition then FLT.ResetMinimapPosition() end end)
+  end
+  check(g, "Square minimap", "A square minimap with a thin black frame.", "The round border and the compass are hidden; minimap buttons of other addons follow the square edge. Does nothing with ElvUI or when another addon already makes the minimap square.", "mmSquare")
 
   -- LOOT & VENDORS
   c = category("loot", "Loot & Vendors", "Interface\\Icons\\INV_Misc_Bag_10", "Looting, merchants, full bags and the loot feed.")
@@ -345,7 +382,18 @@ local function createQoLPanel(parent)
   check(g, "Quicker loot", "Takes everything at once when the game auto loots.", "Instead of item by item.", "quickLoot")
   g = group(c, "Merchants")
   check(g, "Auto repair", "Repairs all gear at merchants that can repair.", nil, "autoRepair")
-  check(g, "Sell junk", "Sells all grey items when you open a merchant.", nil, "sellJunk")
+  check(g, "Sell junk", "Sells all grey items when you open a merchant.", "Also the items on your own junk list: Alt+right-click an item in your bags to put it on the list or take it off. Hold Shift at the merchant to skip.", "sellJunk")
+  do -- own junk list (5.7.3, GitHub #22)
+    local r = row(g, "Junk list", "Items you added with Alt+right-click in your bags.", "This character's list. Sell junk sells these items too.", 24)
+    local b = dropButton(r, 110)
+    local function show() local n = #Q.GetJunkItems(); b:SetLabel(n == 1 and "1 item" or (n .. " items")) end
+    local JUNK = { get = Q.GetJunkItems, remove = Q.RemoveJunk, clear = Q.ClearJunk, title = "Junk list",
+      empty = "Nothing on the list. Alt+right-click an item in your bags to add it - Sell junk then sells it at merchants.",
+      removeTip = "Sell junk will not sell this item any more.", confirm = "Remove all items from your junk list?" }
+    b:SetScript("OnClick", function(self) showNeverList(self, show, JUNK) end)
+    refreshers[#refreshers + 1] = show
+    newTag(r, r.label, "junkList")
+  end
   g = group(c, "Full bags")
   check(g, "Bags full helper", "When loot does not fit, offers to destroy the cheapest item.", "Suggests the cheapest item in your bags (value x stack), destroys it and loots with one click. Quest items, library books, recipes, set pieces, profession tools and items without value are never suggested. Items better than grey need a second click. /ofa cheapest shows it any time.", "bagsFull")
   check(g, "Only grey and white items", "The helper only suggests poor and common items.", nil, "bagsLowOnly", 24)
@@ -368,6 +416,20 @@ local function createQoLPanel(parent)
     local function show() move:SetLabel(Q.IsLootFeedUnlocked() and "Lock" or "Move"); move:SetActive(Q.IsLootFeedUnlocked()) end
     move:SetScript("OnClick", function() Q.SetLootFeedUnlocked(not Q.IsLootFeedUnlocked()); show() end)
     refreshers[#refreshers + 1] = show
+  end
+  g = group(c, "Gathering")
+  local r = check(g, "Sparkle on herbs & ore", "The herb or ore vein near you sparkles.", "Only for professions you have. Uses the game's soft targeting (interaction target): one object at a time, the nearest one around you. Vendors and other NPCs get nothing. Works only close up (about 15 yards) - a limit of the game. Changes a few game settings and gives them back when you switch this off. Idea and sparkle from the addon Lueur (MIT).", "nodeGlow")
+  do -- red warning sign behind the name: it changes soft targeting (user 25.10.)
+    local w = CreateFrame("Frame", nil, r); w:SetSize(22, 22); w:SetPoint("LEFT", r.label, "RIGHT", 32, 0) -- right of the preview spyglass
+    local x = w:CreateTexture(nil, "ARTWORK"); x:SetAllPoints(); FLT.SetTex(x, UI.ASSET_ROOT .. "icon_warning") -- as in the gear planner
+    w:EnableMouse(true) -- own tooltip, not the row's
+    w:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:AddLine("Care!", 1, 0.25, 0.25)
+      GameTooltip:AddLine("This option changes soft-targeting, read hint text!", 1, 1, 1, true)
+      GameTooltip:Show()
+    end)
+    w:SetScript("OnLeave", function() GameTooltip:Hide() end)
   end
 
   -- QUESTS
@@ -414,10 +476,11 @@ local function createQoLPanel(parent)
   -- WORLD MAP
   c = category("map", "World Map", "Interface\\Icons\\INV_Misc_Map_01", "Icons on the world map.")
   g = group(c, "Map Landmarks")
-  check(g, "Map Landmarks", "Dungeon entrances, flight masters, zeppelins and ships on the map.", "Your faction and neutral ones. Click an entrance to open that dungeon in OneForAll, Shift-click it for a map pin. Zeppelins, ships and flight masters show where they go and set a map pin on click.", "mapLandmarks")
+  check(g, "Map Landmarks", "Dungeon entrances, flight masters, ships, the tram and Library Books on the map.", "Your faction and neutral ones. Click an entrance to open that dungeon in OneForAll. Zeppelins, ships, the tram and flight masters show where they go.", "mapLandmarks")
   check(g, "Dungeon & raid entrances", "Click to open the dungeon in OneForAll.", nil, "lmDungeons", 24)
   check(g, "Flight masters", "Shows where they fly to.", nil, "lmFlight", 24)
-  check(g, "Zeppelins & ships", "Shows where they go.", nil, "lmTransport", 24)
+  check(g, "Zeppelins, ships & tram", "Shows where they go.", nil, "lmTransport", 24)
+  check(g, "Library Books", "A book icon where each Library Book you still need lies.", "Books in your bags or bank, turned in or marked by you are not shown. Click a book to see it in the Library Books tab.", "mapBooks", 24)
   g = group(c, "Exploration")
   check(g, "Remove Fog", "Shows the parts of a zone you have not explored yet.", "The world map normally hides the areas you have not visited. With this the whole zone map is shown.", "mapFog")
   g = group(c, "Dungeons")

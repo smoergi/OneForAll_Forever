@@ -121,7 +121,7 @@ end
 
 local function normalizeDungeonItem(item)
   if type(item) == "table" then
-    if item.name then return item end
+    if item.name or item.id then return item end -- {id = ...} alone too (Crafting List, user 26.10.)
     return {id=item[1],name=item[2],slot=item[3],quality=item[4]}
   end
   local rec = FLT.DUNGEON_ITEM_DB and FLT.DUNGEON_ITEM_DB[item]
@@ -326,8 +326,25 @@ end
 
 -- Chat links: only real client links are used (the server drops messages with
 -- self-built links). Items not cached yet are requested and inserted when ready.
+-- the auction house search box when the auction house is open (new and old auction window), user 26.10.
+local function auctionSearch(text)
+  local name = type(text) == "string" and text:match("|h%[(.-)%]|h")
+  if not name then return false end
+  local ah = AuctionHouseFrame
+  local bar = type(ah) == "table" and ah.IsShown and ah:IsShown() and ah.SearchBar
+  if bar and bar.SearchBox then
+    bar.SearchBox:SetText(name)
+    if bar.StartSearch then pcall(bar.StartSearch, bar) end
+    return true
+  end
+  local browse = BrowseName
+  if type(browse) == "table" and browse.IsVisible and browse:IsVisible() then browse:SetText(name); return true end
+  return false
+end
+
 local function insertChatText(text)
   if ChatEdit_InsertLink and ChatEdit_InsertLink(text) then return true end
+  if auctionSearch(text) then return true end
   if ChatFrame_OpenChat then ChatFrame_OpenChat(text); return true end
   return false
 end

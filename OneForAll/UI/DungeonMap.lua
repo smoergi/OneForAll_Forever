@@ -113,11 +113,7 @@ function UI.CreateDungeonMap(parent)
     p.label = FLT.NewFS(p, nil, "OVERLAY", "GameFontHighlightSmall"); p.label:SetPoint("TOP", p, "BOTTOM", 0, -3)
     p.label:SetShadowColor(0, 0, 0, 1); p.label:SetShadowOffset(1, -1)
     local hl = p:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetBlendMode("ADD")
-    if FLT.FrameStyleIsModern and FLT.FrameStyleIsModern() then
-      FLT.SetTex(hl, UI.ASSET_ROOT .. "ring_plain"); hl:SetVertexColor(FLT.SkinC(1, 0.85, 0.45, 0.8)) -- matches the plain boss ring
-    else
-      FLT.SetTex(hl, UI.ASSET_ROOT .. "ring_gold")
-    end
+    FLT.SetTex(hl, UI.ASSET_ROOT .. "ring_plain"); hl:SetVertexColor(FLT.SkinC(1, 0.85, 0.45, 0.8)) -- matches the plain boss ring
     p:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(self.title, 1, 0.82, 0)
       if self.tip then GameTooltip:AddLine(self.tip, 1, 1, 1, true) end

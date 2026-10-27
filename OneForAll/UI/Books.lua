@@ -219,6 +219,7 @@ local function createBooksPanel(frame)
     row:SetSize(ROW_INNER, ROW_H)
     row.book = book
     local card = Card(row, row, 4, ROW_BORDER, {0.060, 0.062, 0.074, 0.97}, "BACKGROUND", 0)
+    row.card = card
     local hi = row:CreateTexture(nil, "HIGHLIGHT"); hi:SetPoint("TOPLEFT", 1, -1); hi:SetPoint("BOTTOMRIGHT", -1, 1); hi:SetColorTexture(FLT.SkinC(0.90, 0.66, 0.22, 0.07))
     UI.HoverEdge(row)
     local sep = makeTexture(row, "BORDER", 0.72, 0.50, 0.12, 0.16); sep:SetPoint("LEFT", COL.actions - 2, 0); sep:SetSize(1, ROW_H - 12)
@@ -309,6 +310,25 @@ local function createBooksPanel(frame)
     for _, section in ipairs(sections) do
       local c = perSet[section.id] or { done = 0, n = #section.rows }
       section.info:SetText(string.format("%d / %d turned in", c.done, c.n))
+    end
+  end
+
+  -- from the world map (MapLandmarks.lua, 5.7.3): open the book's set, scroll to it and light it up for a moment
+  UI.ShowBook = function(book)
+    for _, row in ipairs(rows) do
+      if row.book == book then
+        if OneForAllDB.collapsedSets[book.set] then OneForAllDB.collapsedSets[book.set] = nil; relayout() end
+        C_Timer.After(0, function() -- positions are known one frame later
+          local top, rt = content:GetTop(), row:GetTop()
+          if top and rt then
+            local range = bookScroll:GetVerticalScrollRange() or 0
+            bookScroll:SetVerticalScroll(math.max(0, math.min(range, top - rt - 40)))
+          end
+          row.card:SetBorder(unpack(ROW_BORDER_HI))
+          C_Timer.After(2, function() if not row:IsMouseOver() then row.card:SetBorder(unpack(ROW_BORDER)) end end)
+        end)
+        return
+      end
     end
   end
 

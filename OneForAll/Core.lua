@@ -161,6 +161,7 @@ end
 function FLT:Refresh()
   self:ScanBags()
   if self.UIRefresh then self:UIRefresh() end
+  if self.MapLandmarks and self.MapLandmarks.BooksChanged then self.MapLandmarks.BooksChanged() end
 end
 
 function FLT:PrintDebug()
@@ -242,13 +243,8 @@ f:SetScript("OnEvent", function(_, event, arg1)
       }
     end
     if OneForAllDB.nearbyAlertsEnabled == nil then OneForAllDB.nearbyAlertsEnabled = true end
-    -- 5.6.1: everyone starts once with the Gold Modern skin (user 15.10.); a skin
-    -- picked afterwards is kept (the flag makes this a one-time switch).
-    if not OneForAllDB.skinDefault561 then
-      OneForAllDB.skinDefault561 = true
-      OneForAllDB.skin = nil            -- gold
-      OneForAllDB.frameStyle = "modern"
-    end
+    -- 5.7.3: one skin only (Gold Modern, user 27.10.); old skin choices are not read any more - clear them
+    OneForAllDB.skin, OneForAllDB.frameStyle, OneForAllDB.skinDefault561 = nil, nil, nil
   elseif event == "PLAYER_LOGIN" then
     FLT:Refresh()
     if FLT.CreateMinimapButton then FLT:CreateMinimapButton() end
@@ -276,6 +272,8 @@ SlashCmdList.ONEFORALL = function(cmd)
     OneForAllCharDB.manualDone = {}
     msg("Manual marks reset. Observed turn-ins are kept.")
     FLT:Refresh()
+  elseif cmd == "craft" then
+    if FLT.CraftList then FLT.CraftList.Toggle() end
   elseif cmd == "where" then
     -- Prints the current map and coordinates, to correct map pins in the data.
     local mapID = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
@@ -344,6 +342,8 @@ SlashCmdList.ONEFORALL = function(cmd)
     msg(#parts > 0 and ("Known pet abilities: " .. table.concat(parts, ", ")) or "No pet abilities found yet - summon your pet and try again.")
   elseif cmd == "news" then
     if FLT.ShowNews then FLT.ShowNews() end
+  elseif cmd == "setup" then
+    if FLT.ShowWelcome then FLT.ShowWelcome() end
   elseif cmd == "channel" then
     local st = FLT.RecipeShareStatus and FLT.RecipeShareStatus()
     if not st then return end

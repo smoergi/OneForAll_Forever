@@ -1,10 +1,12 @@
 local ADDON, FLT = ...
 
 -- Map Landmarks (Quality of Life, on by default with all parts, user 16.10.): icons on the world map for dungeon and raid
--- entrances, flight masters, zeppelin towers and ship docks. Entrances come from DungeonData.lua,
--- the rest from Data/MapLandmarks.lua. Click an entrance to open that dungeon in OneForAll, Shift-click
--- it for the map pin of Map.lua; the other icons only have a tooltip (user 16.10.). Flight masters: own
+-- entrances, flight masters, zeppelin towers, ship docks and the Deeprun Tram. Entrances come from DungeonData.lua,
+-- the rest from Data/MapLandmarks.lua. Click an entrance to open that dungeon in OneForAll; the other icons only
+-- have a tooltip (user 16.10.; the Shift-click map pin went in 5.7.3, user 23.10.: no use). Flight masters: own
 -- faction + neutral; ships and zeppelins: all, the other faction's marked "(Alliance only)" / "(Horde only)".
+-- Library Books (part "mapBooks", on by default, user 23.10./24.10.): a book icon where each book lies (FLT.BOOKS),
+-- only while it is "missing" (not in bags / bank, not turned in or marked); click opens it in the Library Books tab.
 -- Lean: nothing runs while the switch is off; with it on, pins are only placed when the world map
 -- shows or changes map (no OnUpdate), reused from a pool, and the per-map index is built once.
 
@@ -17,9 +19,12 @@ local KINDS = {
   dungeon = { atlas = "dungeon", w = 28, h = 28, key = "lmDungeons" },
   raid = { atlas = "raid", w = 30, h = 30, key = "lmDungeons" },
   flight = { file = ASSET .. "landmark_flight", w = 20, h = 20, key = "lmFlight" },
-  shipA = { file = ASSET .. "landmark_ship_a", w = 34, h = 34, key = "lmTransport" },
-  shipH = { file = ASSET .. "landmark_ship_h", w = 34, h = 34, key = "lmTransport" },
-  zeppelin = { file = ASSET .. "landmark_zeppelin", w = 40, h = 20, key = "lmTransport" },
+  -- ship / zeppelin: the user's drawings (tools/art/landmarks.py, 24.10.), one ship for both factions
+  shipA = { file = ASSET .. "landmark_ship", w = 34, h = 34, key = "lmTransport" },
+  shipH = { file = ASSET .. "landmark_ship", w = 34, h = 34, key = "lmTransport" },
+  zeppelin = { file = ASSET .. "landmark_zeppelin", w = 38, h = 38, key = "lmTransport" },
+  tram = { file = ASSET .. "landmark_tram", w = 34, h = 34, key = "lmTransport" },
+  book = { file = ASSET .. "landmark_book", w = 26, h = 26, key = "mapBooks" }, -- own art, tools/art/landmark_book.py
 }
 local SIDE_NAME = { A = "Alliance", H = "Horde" }
 
@@ -61,8 +66,17 @@ local function buildIndex()
     add(z[1], { kind = "zeppelin", x = z[2], y = z[3], dest = { select(4, unpack(z)) }, only = letter == "A" and "Horde" or nil })
   end
   for _, s in ipairs(data.ship or {}) do
-    add(s[1], { kind = s[4] == "A" and "shipA" or "shipH", x = s[2], y = s[3], dest = { s[5] },
+    add(s[1], { kind = s[4] == "A" and "shipA" or "shipH", x = s[2], y = s[3], dest = { select(5, unpack(s)) },
       only = not mine(s[4]) and SIDE_NAME[s[4]] or nil })
+  end
+  -- airships from Valanaar (5.7.3): zeppelin icon, sides like the ships
+  for _, s in ipairs(data.air or {}) do
+    add(s[1], { kind = "zeppelin", x = s[2], y = s[3], dest = { select(5, unpack(s)) }, only = not mine(s[4]) and SIDE_NAME[s[4]] or nil })
+  end
+  for _, t in ipairs(data.tram or {}) do add(t[1], { kind = "tram", x = t[2], y = t[3], dest = { t[4] } }) end
+  for _, b in ipairs(FLT.BOOKS or {}) do
+    local mapID = b.x and b.y and ((FLT.MAP_IDS and FLT.MAP_IDS[b.zone]) or (FLT.FindMapID and FLT:FindMapID(b.zone)))
+    if mapID then add(mapID, { kind = "book", x = b.x, y = b.y, book = b }) end
   end
 end
 
@@ -77,20 +91,20 @@ end
 
 local function onClick(pin)
   local e = pin.entry
-  if not (e and e.list) then return end
-  if IsShiftKeyDown and IsShiftKeyDown() then
-    if FLT.ShowOnMap then FLT:ShowOnMap({ mapID = e.mapID, x = e.x, y = e.y, name = e.list[1].name .. " entrance" }) end
+  if e and e.book then
+    if WorldMapFrame and WorldMapFrame:IsShown() and HideUIPanel then pcall(HideUIPanel, WorldMapFrame) end
+    FLT:OpenPanel("books")
+    if FLT.UI and FLT.UI.ShowBook then FLT.UI.ShowBook(e.book) end
     return
   end
-  do
-    if #e.list == 1 then openDungeon(e.list[1]); return end
-    local options = {}
-    for i, d in ipairs(e.list) do options[i] = { key = i, label = d.name } end
-    FLT.UI.OpenDropDown(pin, options, nil, function(i) openDungeon(e.list[i]) end, 230)
-  end
+  if not (e and e.list) then return end
+  if #e.list == 1 then openDungeon(e.list[1]); return end
+  local options = {}
+  for i, d in ipairs(e.list) do options[i] = { key = i, label = d.name } end
+  FLT.UI.OpenDropDown(pin, options, nil, function(i) openDungeon(e.list[i]) end, 230)
 end
 
-local KIND_LABEL = { flight = "Flight master", zeppelin = "Zeppelin", shipA = "Ship", shipH = "Ship" }
+local KIND_LABEL = { flight = "Flight master", zeppelin = "Zeppelin", shipA = "Ship", shipH = "Ship", tram = "Deeprun Tram" }
 local function onEnter(pin)
   local e = pin.entry
   if not e or not GameTooltip then return end
@@ -102,7 +116,13 @@ local function onEnter(pin)
     end
     GameTooltip:AddLine(e.kind == "raid" and "Raid entrance" or "Dungeon entrance", 0.8, 0.8, 0.8)
     GameTooltip:AddLine(#e.list > 1 and "Click: choose one to open in OneForAll" or "Click: open in OneForAll", 0.4, 0.8, 1)
-    GameTooltip:AddLine("Shift-click: set a map pin", 0.4, 0.8, 1)
+  elseif e.book then
+    local b = e.book
+    GameTooltip:AddLine(b.name, 1, 0.82, 0.2, true)
+    GameTooltip:AddLine("Library Book" .. (b.container and b.container ~= "Library Book" and (" (" .. b.container .. ")") or ""), 0.8, 0.8, 0.8)
+    if b.subzone then GameTooltip:AddLine(b.subzone, 1, 1, 1, true) end
+    if b.note then GameTooltip:AddLine(b.note, 0.85, 0.85, 0.85, true) end
+    GameTooltip:AddLine("Click: show in Library Books", 0.4, 0.8, 1)
   else
     local title = e.name or KIND_LABEL[e.kind]
     if e.only then title = title .. "  |cffff6060(" .. e.only .. " only)|r" end
@@ -166,7 +186,7 @@ function LM.Refresh()
   end
   for _, e in ipairs(list) do
     local k = KINDS[e.kind]
-    if Q(k.key) ~= false then
+    if Q(k.key) ~= false and (not e.book or FLT:GetBookState(e.book) == "missing") then
       local pin = acquire(child)
       setIcon(pin, e.kind)
       pin.entry = e
@@ -194,6 +214,10 @@ function LM.Apply()
   if Q("mapLandmarks") then hook() end
   LM.Refresh()
 end
+-- a book's state changed (bags, bank, turn-in, manual mark; FLT:Refresh): only while the map is open
+function LM.BooksChanged()
+  if Q("mapLandmarks") and Q("mapBooks") and WorldMapFrame and WorldMapFrame.IsShown and WorldMapFrame:IsShown() then LM.Refresh() end
+end
 
 LM._pool = pool -- for tools/tests/t_landmarks.lua
 function LM._reset() byMap = nil end
@@ -205,7 +229,7 @@ ev:SetScript("OnEvent", function(self)
   local Qo = FLT.QoL
   if Qo and Qo.On then
     Qo.On("mapLandmarks", LM.Apply)
-    Qo.On("lmDungeons", LM.Refresh); Qo.On("lmFlight", LM.Refresh); Qo.On("lmTransport", LM.Refresh)
+    Qo.On("lmDungeons", LM.Refresh); Qo.On("lmFlight", LM.Refresh); Qo.On("lmTransport", LM.Refresh); Qo.On("mapBooks", LM.Refresh)
   end
   if FLT.SafeCall then FLT.SafeCall("MapLandmarks", LM.Apply) else pcall(LM.Apply) end
 end)
