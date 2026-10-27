@@ -174,10 +174,9 @@ end
 
 local function createHeightGrip()
   local grip = CreateFrame("Button", nil, frame)
-  grip:SetSize(140, 10)
-  grip:SetPoint("BOTTOM", 0, 4)
+  grip:SetSize(140, 16)
+  grip:SetPoint("CENTER", frame, "BOTTOM", 0, 1) -- on the window's bottom line (user 27.10.)
   grip:SetFrameLevel(frame:GetFrameLevel() + 20)
-  grip:SetHeight(16)
   local bar = grip:CreateTexture(nil, "ARTWORK")
   bar:SetSize(64, 16); bar:SetPoint("CENTER")
   FLT.SetTex(bar, UI.ASSET_ROOT .. "grip_height"); bar:SetAlpha(0.8)
@@ -308,14 +307,14 @@ end
 
 function UI.LayoutTabs()
   if not frame then return end
-  local x = 18
+  local x = 26 -- flush with the panels' frames below, left and right (18 -> 32 -> 26 with gap 7, user 25.10.)
   for _, spec in ipairs(UI.OrderedPanels()) do
     local b = tabButtons[spec.key]
     if b then
       b:ClearAllPoints()
       if UI.IsTabVisible(spec.key) then
         b:SetPoint("TOPLEFT", x, -35); b:Show()
-        x = x + (spec.tabWidth or 130) + 6
+        x = x + (spec.tabWidth or 130) + 7
       else
         b:Hide()
       end
@@ -343,20 +342,15 @@ local function makeTab(parent, text, w, h)
   return b
 end
 
--- Ornate gold window frame (Assets\window_frame; plain rounded line in the modern
--- style, see OrnateFrame) drawn over the template's border; the template's own border is hidden.
+-- The window's rounded line (see OrnateFrame) drawn over the template's border; the template's own border is hidden.
 local function decorateWindow()
-  if FLT.FrameStyleIsModern and FLT.FrameStyleIsModern() then
-    -- modern: the template's backgrounds have square corners that stick out of the
-    -- rounded line, so they are hidden and replaced by an own rounded background
-    for _, r in ipairs({ frame:GetRegions() }) do
-      if r.GetObjectType and r:GetObjectType() == "Texture" then r:SetAlpha(0) end
-    end
-    if type(frame.Inset) == "table" and type(frame.Inset.NineSlice) == "table" then frame.Inset.NineSlice:SetAlpha(0) end
-    UI.MarkBG(UI.RoundRect(frame, frame, "BACKGROUND", -8, 12, 1, 0.065, 0.058, 0.048, 0.97), "base")
-  else
-    if type(frame.Bg) == "table" then UI.MarkBG(frame.Bg, "base") end
+  -- the template's backgrounds have square corners that stick out of the
+  -- rounded line, so they are hidden and replaced by an own rounded background
+  for _, r in ipairs({ frame:GetRegions() }) do
+    if r.GetObjectType and r:GetObjectType() == "Texture" then r:SetAlpha(0) end
   end
+  if type(frame.Inset) == "table" and type(frame.Inset.NineSlice) == "table" then frame.Inset.NineSlice:SetAlpha(0) end
+  UI.MarkBG(UI.RoundRect(frame, frame, "BACKGROUND", -8, 12, 1, 0.065, 0.058, 0.048, 0.97), "base")
   if type(frame.Inset) == "table" and type(frame.Inset.Bg) == "table" then UI.MarkBG(frame.Inset.Bg, "base") end
   if type(frame.NineSlice) == "table" then frame.NineSlice:SetAlpha(0) end
   for _, k in ipairs({ "TopLeftCorner", "TopRightCorner", "BotLeftCorner", "BotRightCorner", "TopBorder", "BottomBorder", "LeftBorder", "RightBorder" }) do
@@ -365,8 +359,8 @@ local function decorateWindow()
   -- own opaque title bar (the template's bar leaves a see-through strip)
   if type(frame.TitleBg) == "table" and frame.TitleBg.SetAlpha then frame.TitleBg:SetAlpha(0) end
   local bar = frame:CreateTexture(nil, "BORDER", nil, 1)
-  -- modern: 1 px further in so its square corners stay under the rounded window line
-  local pad = (FLT.FrameStyleIsModern and FLT.FrameStyleIsModern()) and 4 or 3
+  -- 4 px in, so its square corners stay under the rounded window line
+  local pad = 4
   bar:SetPoint("TOPLEFT", pad, -pad); bar:SetPoint("TOPRIGHT", -pad, -pad); bar:SetHeight(28 - pad)
   bar:SetColorTexture(FLT.SkinC(0.055, 0.047, 0.038, 1)); UI.MarkBG(bar, "base")
   local barShine = frame:CreateTexture(nil, "BORDER", nil, 2)
@@ -378,7 +372,26 @@ local function decorateWindow()
   local deco = CreateFrame("Frame", nil, frame)
   deco:SetAllPoints()
   deco:SetFrameLevel(frame:GetFrameLevel() + 18)
-  UI.OrnateFrame(deco, frame, 34, 7, "OVERLAY", 0, UI.ASSET_ROOT .. "window_frame")
+  local edge = UI.OrnateFrame(deco, frame, 34, 7, "OVERLAY", 0, UI.ASSET_ROOT .. "window_frame")
+  -- the height grip sits on the bottom line, with a small gap in the line around it and round line ends (user 27.10.):
+  -- the bottom piece is split in two; each inner end is a 14 px tile (Assets/line_cap: the frame texture's bottom strip
+  -- with a round end) placed exactly like the line piece, so it lines up with the line at any UI scale
+  do
+    local bl, br, bot = edge[3], edge[4], edge[6]
+    local gap, capW = 34, 14 -- gap: half of the grip bar (28) + 6 px on each side
+    local tex, cap = bot:GetTexture(), UI.ASSET_ROOT .. "line_cap"
+    local r, g, b, a = bot:GetVertexColor()
+    bot:ClearAllPoints(); bot:SetPoint("TOPLEFT", bl, "TOPRIGHT"); bot:SetPoint("BOTTOMRIGHT", frame, "BOTTOM", -gap - capW, 0)
+    local right = deco:CreateTexture(nil, "OVERLAY", nil, 0)
+    right:SetTexture(tex); right:SetTexCoord(bot:GetTexCoord()); right:SetVertexColor(r, g, b, a)
+    right:SetPoint("TOPRIGHT", br, "TOPLEFT"); right:SetPoint("BOTTOMLEFT", frame, "BOTTOM", gap + capW, 0)
+    local endL = deco:CreateTexture(nil, "OVERLAY", nil, 0)
+    endL:SetTexture(cap); endL:SetVertexColor(r, g, b, a)
+    endL:SetPoint("TOPLEFT", bot, "TOPRIGHT"); endL:SetPoint("BOTTOMRIGHT", frame, "BOTTOM", -gap, 0)
+    local endR = deco:CreateTexture(nil, "OVERLAY", nil, 0)
+    endR:SetTexture(cap); endR:SetTexCoord(1, 0, 0, 1); endR:SetVertexColor(r, g, b, a)
+    endR:SetPoint("TOPRIGHT", right, "TOPLEFT"); endR:SetPoint("BOTTOMLEFT", frame, "BOTTOM", gap, 0)
+  end
   -- the gold top edge covers the template's title position: move the title down
   if type(frame.TitleText) == "table" and frame.TitleText.ClearAllPoints then
     frame.TitleText:ClearAllPoints(); frame.TitleText:SetPoint("TOP", frame, "TOP", 0, -10)
@@ -387,7 +400,8 @@ local function decorateWindow()
   -- of the ornate corner (the template's red button is hidden)
   if type(frame.CloseButton) == "table" and frame.CloseButton.Hide then frame.CloseButton:Hide() end
   local close = UI.GoldButton(frame, "", 24, 20, UI.ASSET_ROOT .. "icon_close", 11)
-  close:SetPoint("CENTER", frame, "TOPRIGHT", -44, -15)
+  -- closer to the corner than the other three, with a small gap (user 24.10.)
+  close:SetPoint("CENTER", frame, "TOPRIGHT", -30, -15)
   close:SetFrameLevel(frame:GetFrameLevel() + 25)
   if close.icon then close.icon:ClearAllPoints(); close.icon:SetSize(14, 14); close.icon:SetPoint("CENTER", 0, 0) end
   close:SetScript("OnMouseDown", nil); close:SetScript("OnMouseUp", nil)
@@ -395,30 +409,9 @@ local function decorateWindow()
   close:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(CLOSE or "Close"); GameTooltip:Show() end)
   close:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-  -- skin menu left of the close button (brush): Gold / Dark Silver x Classic / Modern
-  local skinBtn = UI.GoldButton(frame, "", 24, 20, UI.ASSET_ROOT .. "icon_brush", 11)
-  skinBtn:SetPoint("RIGHT", close, "LEFT", -6, 0)
-  skinBtn:SetFrameLevel(frame:GetFrameLevel() + 25)
-  if skinBtn.icon then
-    skinBtn.icon:ClearAllPoints(); skinBtn.icon:SetSize(14, 14); skinBtn.icon:SetPoint("CENTER", 0, 0)
-    skinBtn.icon:SetVertexColor(FLT.SkinC(1, 0.80, 0.30))
-  end
-  skinBtn:SetScript("OnMouseDown", nil); skinBtn:SetScript("OnMouseUp", nil)
-  skinBtn:SetScript("OnClick", function(self)
-    GameTooltip:Hide()
-    UI.OpenDropDown(self, UI.SKINS, FLT.GetSkinKey(), function(key) UI.AskSkin(key) end, 170)
-  end)
-  skinBtn:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:SetText("Skin: " .. UI.SkinLabel(FLT.GetSkinKey()))
-    GameTooltip:AddLine("Click to choose a skin.", 1, 1, 1)
-    GameTooltip:Show()
-  end)
-  skinBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-  -- bug report button left of the skin switch
+  -- bug report button left of the close button (the skin button is gone since 5.7.3, user 27.10.)
   local bugBtn = UI.GoldButton(frame, "", 24, 20, UI.ASSET_ROOT .. "icon_bug", 11)
-  bugBtn:SetPoint("RIGHT", skinBtn, "LEFT", -6, 0)
+  bugBtn:SetPoint("CENTER", frame, "TOPRIGHT", -74, -15)
   bugBtn:SetFrameLevel(frame:GetFrameLevel() + 25)
   if bugBtn.icon then
     bugBtn.icon:ClearAllPoints(); bugBtn.icon:SetSize(14, 14); bugBtn.icon:SetPoint("CENTER", 0, 0)
@@ -433,6 +426,24 @@ local function decorateWindow()
     GameTooltip:Show()
   end)
   bugBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+  -- Discord left of the bug button (5.7.3, user 24.10.): a speech bubble (own art), opens the invite link to copy
+  local dcBtn = UI.GoldButton(frame, "", 24, 20, UI.ASSET_ROOT .. "icon_chat", 11)
+  dcBtn:SetPoint("RIGHT", bugBtn, "LEFT", -6, 0)
+  dcBtn:SetFrameLevel(frame:GetFrameLevel() + 25)
+  if dcBtn.icon then
+    dcBtn.icon:ClearAllPoints(); dcBtn.icon:SetSize(14, 14); dcBtn.icon:SetPoint("CENTER", 0, 0)
+    dcBtn.icon:SetVertexColor(FLT.SkinC(1, 0.80, 0.30))
+  end
+  dcBtn:SetScript("OnMouseDown", nil); dcBtn:SetScript("OnMouseUp", nil)
+  dcBtn:SetScript("OnClick", function() GameTooltip:Hide(); UI.ShowDiscord() end)
+  dcBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText("Discord")
+    GameTooltip:AddLine("Join the OneForAll Discord: news, questions and ideas.", 1, 1, 1)
+    GameTooltip:Show()
+  end)
+  dcBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
 local function createUI()
@@ -528,14 +539,10 @@ end
 -- /ofa scale [value]: without a value resets to 100 %; accepts 0.6-1.4 or 60-140.
 function UI.ResetWindow() FLT:SetWindowScale(nil) end
 
--- Window opacity (Settings > Window, modern style only): only the backgrounds
--- (UI.MarkBG), text and pictures stay solid. 70-100 %, saved account-wide in
--- OneForAllDB.window.alpha; not set yet = 95 % (user 15.10.). The classic
--- style is always solid (no slider there).
+-- Window opacity (Settings > Window): only the backgrounds (UI.MarkBG), text and pictures stay solid.
+-- 70-100 %, saved account-wide in OneForAllDB.window.alpha; not set yet = 95 % (user 15.10.).
 local MIN_ALPHA, DEFAULT_ALPHA = 0.7, 0.95
-local function modern() return FLT.FrameStyleIsModern and FLT.FrameStyleIsModern() end
 function UI.GetWindowAlpha()
-  if not modern() then return 1 end
   return math.max(MIN_ALPHA, math.min(1, tonumber(windowDB().alpha) or DEFAULT_ALPHA))
 end
 function UI.ApplyWindowAlpha()

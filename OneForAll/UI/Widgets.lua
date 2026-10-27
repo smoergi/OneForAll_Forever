@@ -10,70 +10,10 @@ UI.DISPLAY_NAME = FLT.DISPLAY_NAME or "OneForAll"
 UI.ASSET_ROOT = FLT.ASSET_ROOT or ("Interface\\AddOns\\" .. ADDON .. "\\Assets\\")
 local ASSET_ROOT = UI.ASSET_ROOT
 
--- Skins ----------------------------------------------------------------------
--- "gold" (default) or "silver". The silver skin is applied while the UI is
--- built: gold/bronze colours become silver grey (FLT.SkinC), gold frame art is
--- desaturated (FLT.SetTex) and banner/dungeon pictures are dimmed a little.
--- Item quality, level and status colours are left alone. Needs a /reload.
-local function skinIsSilver()
-  return type(OneForAllDB) == "table" and OneForAllDB.skin == "silver"
-end
-FLT.SkinIsSilver = skinIsSilver
-function FLT.GetSkin() return skinIsSilver() and "silver" or "gold" end
-function FLT.SetSkin(name)
-  if type(OneForAllDB) ~= "table" then return end
-  OneForAllDB.skin = (name == "silver") and "silver" or nil
-end
-
--- Frame style: "classic" (ornate gold frames, bevelled buttons; default) or
--- "modern" (plain lines with rounded corners). Independent of the colour, so
--- there are four skins: Gold / Dark Silver x Classic / Modern. Needs a /reload.
--- The switch sits in three places: OrnateFrame, Plate and FLT.SetTex (dividers).
-local function styleIsModern()
-  return type(OneForAllDB) == "table" and OneForAllDB.frameStyle == "modern"
-end
-FLT.FrameStyleIsModern = styleIsModern
-function FLT.GetFrameStyle() return styleIsModern() and "modern" or "classic" end
-function FLT.SetFrameStyle(name)
-  if type(OneForAllDB) ~= "table" then return end
-  OneForAllDB.frameStyle = (name == "modern") and "modern" or nil
-end
--- skin keys = colour .. "_modern" for the modern style
-UI.SKINS = {
-  { key = "gold", label = "Gold Classic" }, { key = "silver", label = "Dark Silver Classic" },
-  { key = "gold_modern", label = "Gold Modern" }, { key = "silver_modern", label = "Dark Silver Modern" },
-}
-function FLT.GetSkinKey() return FLT.GetSkin() .. (styleIsModern() and "_modern" or "") end
-function UI.SkinLabel(key)
-  for _, sk in ipairs(UI.SKINS) do if sk.key == key then return sk.label end end
-  return key
-end
-
-local SILVER_TINT = { 0.94, 0.97, 1.02 }
-local SILVER_GAIN = 1.00 -- brightness of silver compared with the gold it replaces (5.6.1: was 0.90)
-local SILVER_ART = 0.90  -- brightness of desaturated gold frame art (5.6.1: was 0.78)
-function FLT.SkinC(r, g, b, ...)
-  if type(r) ~= "number" or type(g) ~= "number" or type(b) ~= "number" or not skinIsSilver() then return r, g, b, ... end
-  local mx, mn = math.max(r, g, b), math.min(r, g, b)
-  if mx <= 0.001 or r < mx - 0.0001 then return r, g, b, ... end -- warm colours have red on top
-  local d = mx - mn
-  if d / mx < 0.15 then return r, g, b, ... end
-  local h = ((g - b) / d) * 60
-  -- gold, amber and bronze only (not yellow, orange, red)
-  if h < 22 or h > 56 or g / r < 0.6 then return r, g, b, ... end
-  local L = math.min(1, (0.299 * r + 0.587 * g + 0.114 * b) * SILVER_GAIN)
-  return math.min(1, L * SILVER_TINT[1]), math.min(1, L * SILVER_TINT[2]), math.min(1, L * SILVER_TINT[3]), ...
-end
-
--- frame art drawn in gold that is turned silver by desaturating it
-local GOLD_ART = {
-  ornate_frame=true, window_frame=true, btn_normal=true, btn_active=true, btn_glow=true, rr_ring=true,
-  chevron=true, sort_arrows=true, divider_ornate=true, gem_rim=true, thumb_wide_frame=true,
-  talent_frame=true, talent_glow=true, frame_ring=true, frame_boss2=true, frame_badge=true, ring_gold=true,
-  talent_button_border=true, icon_map=true, icon_back=true, icon_close=true, grip_resize=true, grip_height=true,
-  minimap_icon=true, leather=true,
-  modern_frame=true, btn_m_normal=true, btn_m_active=true, divider_plain=true,
-}
+-- Skin: one look only since 5.7.3 (user 27.10.): Gold Modern - plain lines with rounded corners, gold accents.
+-- (The Gold / Dark Silver x Classic / Modern skins are gone; old saved choices are ignored and cleared in Core.lua.)
+-- The helpers below stay as thin wrappers, so every tab keeps calling them the same way.
+function FLT.SkinC(...) return ... end
 -- modern style: these textures are drawn in place of the ornate ones
 local MODERN_SWAP = { divider_ornate = "divider_plain" }
 -- Pixel snapping: switching it off (beta3/4) made thin gold lines darker and lighter
@@ -97,64 +37,22 @@ function UI.NewMark(parent, tip)
   return f
 end
 function FLT.SetTex(tex, path, ...)
-  if type(path) == "string" and styleIsModern() then
+  if type(path) == "string" then
     local swap = MODERN_SWAP[path:match("[Aa]ssets\\(.+)$") or ""]
     if swap then path = ASSET_ROOT .. swap end
   end
   tex:SetTexture(path, ...)
   noSnap(tex)
-  if type(path) ~= "string" or not tex.SetVertexColor or not skinIsSilver() then return end
-  local name = path:match("[Aa]ssets\\(.+)$")
-  if not name then return end
-  if GOLD_ART[name] or name:match("^emblem_") then
-    if tex.SetDesaturated then tex:SetDesaturated(true) end
-    tex._ofaSilver = true
-    tex:SetVertexColor(SILVER_ART * SILVER_TINT[1], SILVER_ART * SILVER_TINT[2], SILVER_ART * SILVER_TINT[3])
-  elseif name:match("_banner$") or name:match("^Dungeons\\") then
-    tex:SetVertexColor(0.90, 0.90, 0.93)
-  end
 end
--- Blizzard template parts (scroll bars, check boxes, input boxes) are drawn
--- in gold too; in the silver skin all their textures are desaturated.
-function FLT.SkinBlizz(f)
-  if not f or not skinIsSilver() then return f end
-  local function walk(o)
-    if o.GetRegions then
-      for _, r in ipairs({ o:GetRegions() }) do
-        if r.SetDesaturated and r.GetObjectType and r:GetObjectType() == "Texture" then r:SetDesaturated(true) end
-      end
-    end
-    if o.GetChildren then for _, c in ipairs({ o:GetChildren() }) do walk(c) end end
-  end
-  walk(f)
-  return f
-end
--- a texture that got a gold asset some other way (e.g. SetNormalTexture)
-function FLT.SkinArtTex(tex)
-  if tex and tex.SetDesaturated and skinIsSilver() then
-    tex:SetDesaturated(true); tex._ofaSilver = true
-    tex:SetVertexColor(SILVER_ART * SILVER_TINT[1], SILVER_ART * SILVER_TINT[2], SILVER_ART * SILVER_TINT[3])
-  end
-end
--- inline colour code ("|cffRRGGBB") in the current skin
-function FLT.SkinHex(hex)
-  if not skinIsSilver() then return "|cff" .. hex end
-  local r, g, b = tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255
-  r, g, b = FLT.SkinC(r, g, b)
-  return string.format("|cff%02x%02x%02x", math.floor(r * 255 + 0.5), math.floor(g * 255 + 0.5), math.floor(b * 255 + 0.5))
-end
--- keeps silver art grey when code toggles desaturation (disabled looks)
+function FLT.SkinBlizz(f) return f end
+function FLT.SkinArtTex() end
+-- inline colour code ("|cffRRGGBB")
+function FLT.SkinHex(hex) return "|cff" .. hex end
+-- grey look for disabled icons
 function FLT.Desat(tex, on)
-  if tex and tex.SetDesaturated then tex:SetDesaturated((on or tex._ofaSilver) and true or false) end
+  if tex and tex.SetDesaturated then tex:SetDesaturated(on and true or false) end
 end
-function FLT.NewFS(owner, ...)
-  local fs = owner:CreateFontString(...)
-  if skinIsSilver() and fs.GetTextColor then
-    local r, g, b, a = fs:GetTextColor()
-    if r then fs:SetTextColor(FLT.SkinC(r, g, b, a)) end
-  end
-  return fs
-end
+function FLT.NewFS(owner, ...) return owner:CreateFontString(...) end
 
 local LAYOUT = {
   BOOK_CONTENT_WIDTH = 958,
@@ -240,10 +138,9 @@ function UI.UnmarkBG(obj)
   end
   return obj
 end
--- only the modern style can be see-through (the classic leather/ornate look cannot)
 function UI.SetBackgroundAlpha(a)
   a = math.max(0.05, math.min(1, tonumber(a) or 1))
-  if not styleIsModern() or a > 0.985 then a = 1 end
+  if a > 0.985 then a = 1 end
   if math.abs(a - bgAlpha) < 0.001 then return end
   bgAlpha = a
   for t in pairs(BG) do applyBG(t) end
@@ -323,11 +220,10 @@ end
 -- Art-based building blocks ---------------------------------------------------
 -- RoundRect: a rounded rectangle from a 9-sliced white texture (corner radius =
 -- c px), tinted with SetVertexColor. Card: border + fill (1 px border).
--- OrnateFrame: the gold panel frame from Assets\ornate_frame (corners c px).
+-- OrnateFrame: the thin rounded line around panels (Assets\modern_frame).
 local unpack = unpack or table.unpack
 local RR_TEX = ASSET_ROOT .. "rr_fill"
-local ORNATE_TEX = ASSET_ROOT .. "ornate_frame"
-local WINDOW_TEX = ASSET_ROOT .. "window_frame"
+local WINDOW_TEX = ASSET_ROOT .. "window_frame" -- only a marker: the main window gets the larger radius
 local MODERN_TEX = ASSET_ROOT .. "modern_frame"
 
 local function sliceTex(owner, layer, sub, tex, l, r, t, b)
@@ -374,7 +270,7 @@ local function Card(owner, anchor, c, border, fill, layer, sub)
   -- modern: the border is only a ring, so a see-through fill does not show a
   -- filled border plate behind it (grey cards in 5.6.1-beta3)
   local r_, g_, b_, a_ = unpack(border)
-  card.border = RoundRect(owner, anchor, layer, sub, c, 0, r_, g_, b_, a_, styleIsModern() and RING_TEX or nil)
+  card.border = RoundRect(owner, anchor, layer, sub, c, 0, r_, g_, b_, a_, RING_TEX)
   card.fill = RoundRect(owner, anchor, layer, sub + 1, math.max(1, c - 1), 1, unpack(fill))
   UI.MarkBG(card.fill)
   function card:SetBorder(r, g, b, a) self.border:SetColor(r, g, b, a) end
@@ -382,38 +278,22 @@ local function Card(owner, anchor, c, border, fill, layer, sub)
   return card
 end
 
+-- plain rounded line on the anchor's edge; the window gets a slightly larger radius. Plain 9-slice of one
+-- outline (no middle piece); returns the pieces, so callers can tint them.
+-- The line lies inside the anchor (scroll frames clip anything outside).
 local function OrnateFrame(owner, anchor, c, outset, layer, sub, tex)
-  anchor = anchor or owner; outset = outset or 0; layer = layer or "OVERLAY"; sub = sub or 0
-  tex = tex or ORNATE_TEX
-  if styleIsModern() then
-    -- plain rounded line on the anchor's edge (the ornate art needs room outside);
-    -- the window gets a slightly larger radius. Plain 9-slice of one outline (no
-    -- middle piece); same return value, so callers can tint the pieces as before.
-    -- outset 0: the line lies inside the anchor (scroll frames clip anything outside,
-    -- which hid the sides of the dungeon list boxes in 5.6.1-beta1)
-    if tex == WINDOW_TEX then c = 14 else c = 8 end
-    outset = 0
-    local A, B = 0.25, 0.75
-    local function piece(l, r, t, b) return sliceTex(owner, layer, sub, MODERN_TEX, l, r, t, b) end
-    local tl = piece(0, A, 0, A); tl:SetSize(c, c); tl:SetPoint("TOPLEFT", anchor, "TOPLEFT", -outset, outset)
-    local tr = piece(B, 1, 0, A); tr:SetSize(c, c); tr:SetPoint("TOPRIGHT", anchor, "TOPRIGHT", outset, outset)
-    local bl = piece(0, A, B, 1); bl:SetSize(c, c); bl:SetPoint("BOTTOMLEFT", anchor, "BOTTOMLEFT", -outset, -outset)
-    local br = piece(B, 1, B, 1); br:SetSize(c, c); br:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", outset, -outset)
-    local top = piece(A, B, 0, A); top:SetPoint("TOPLEFT", tl, "TOPRIGHT"); top:SetPoint("BOTTOMRIGHT", tr, "BOTTOMLEFT")
-    local bot = piece(A, B, B, 1); bot:SetPoint("TOPLEFT", bl, "TOPRIGHT"); bot:SetPoint("BOTTOMRIGHT", br, "BOTTOMLEFT")
-    local lef = piece(0, A, A, B); lef:SetPoint("TOPLEFT", tl, "BOTTOMLEFT"); lef:SetPoint("BOTTOMRIGHT", bl, "TOPRIGHT")
-    local rig = piece(B, 1, A, B); rig:SetPoint("TOPLEFT", tr, "BOTTOMLEFT"); rig:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
-    return { tl, tr, bl, br, top, bot, lef, rig }
-  end
-  local function piece(l, r, t, b) return sliceTex(owner, layer, sub, tex, l, r, t, b) end
-  local tl = piece(0, 0.25, 0, 0.5);    tl:SetSize(c, c); tl:SetPoint("TOPLEFT", anchor, "TOPLEFT", -outset, outset)
-  local tr = piece(0.25, 0.5, 0, 0.5);  tr:SetSize(c, c); tr:SetPoint("TOPRIGHT", anchor, "TOPRIGHT", outset, outset)
-  local bl = piece(0, 0.25, 0.5, 1);    bl:SetSize(c, c); bl:SetPoint("BOTTOMLEFT", anchor, "BOTTOMLEFT", -outset, -outset)
-  local br = piece(0.25, 0.5, 0.5, 1);  br:SetSize(c, c); br:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", outset, -outset)
-  local top = piece(0.5, 0.75, 0, 0.5); top:SetPoint("TOPLEFT", tl, "TOPRIGHT"); top:SetPoint("BOTTOMRIGHT", tr, "BOTTOMLEFT")
-  local bot = piece(0.5, 0.75, 0.5, 1); bot:SetPoint("TOPLEFT", bl, "TOPRIGHT"); bot:SetPoint("BOTTOMRIGHT", br, "BOTTOMLEFT")
-  local lef = piece(0.75, 1, 0, 0.5);   lef:SetPoint("TOPLEFT", tl, "BOTTOMLEFT"); lef:SetPoint("BOTTOMRIGHT", bl, "TOPRIGHT")
-  local rig = piece(0.75, 1, 0.5, 1);   rig:SetPoint("TOPLEFT", tr, "BOTTOMLEFT"); rig:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
+  anchor = anchor or owner; layer = layer or "OVERLAY"; sub = sub or 0
+  if tex == WINDOW_TEX then c = 14 else c = 8 end
+  local A, B = 0.25, 0.75
+  local function piece(l, r, t, b) return sliceTex(owner, layer, sub, MODERN_TEX, l, r, t, b) end
+  local tl = piece(0, A, 0, A); tl:SetSize(c, c); tl:SetPoint("TOPLEFT", anchor, "TOPLEFT", 0, 0)
+  local tr = piece(B, 1, 0, A); tr:SetSize(c, c); tr:SetPoint("TOPRIGHT", anchor, "TOPRIGHT", 0, 0)
+  local bl = piece(0, A, B, 1); bl:SetSize(c, c); bl:SetPoint("BOTTOMLEFT", anchor, "BOTTOMLEFT", 0, 0)
+  local br = piece(B, 1, B, 1); br:SetSize(c, c); br:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", 0, 0)
+  local top = piece(A, B, 0, A); top:SetPoint("TOPLEFT", tl, "TOPRIGHT"); top:SetPoint("BOTTOMRIGHT", tr, "BOTTOMLEFT")
+  local bot = piece(A, B, B, 1); bot:SetPoint("TOPLEFT", bl, "TOPRIGHT"); bot:SetPoint("BOTTOMRIGHT", br, "BOTTOMLEFT")
+  local lef = piece(0, A, A, B); lef:SetPoint("TOPLEFT", tl, "BOTTOMLEFT"); lef:SetPoint("BOTTOMRIGHT", bl, "TOPRIGHT")
+  local rig = piece(B, 1, A, B); rig:SetPoint("TOPLEFT", tr, "BOTTOMLEFT"); rig:SetPoint("BOTTOMRIGHT", br, "TOPRIGHT")
   return { tl, tr, bl, br, top, bot, lef, rig }
 end
 
@@ -438,20 +318,13 @@ local function Nine(owner, anchor, tex, c, out, layer, sub)
   return o
 end
 
--- Plate: the button/tab skin. Bronze bevel normally, glowing gold bevel with
--- a warm gradient when active, a soft gold glow on hover.
-local BTN_NORMAL_TEX, BTN_ACTIVE_TEX = ASSET_ROOT .. "btn_normal", ASSET_ROOT .. "btn_active"
+-- Plate: the button/tab skin - a flat plate with a thin rim and rounded corners, a soft gold glow when active.
 local BTN_GLOW_TEX = ASSET_ROOT .. "btn_glow"
 local BTN_M_NORMAL_TEX, BTN_M_ACTIVE_TEX = ASSET_ROOT .. "btn_m_normal", ASSET_ROOT .. "btn_m_active"
 local function Plate(b, h)
-  local c = math.min(11, math.floor(h * 0.42))
-  local glowC = c
-  local normalTex, activeTex = BTN_NORMAL_TEX, BTN_ACTIVE_TEX
-  if styleIsModern() then
-    -- modern: flat plate with a thin rim and rounded corners
-    c = math.min(9, math.floor(h * 0.40))
-    normalTex, activeTex = BTN_M_NORMAL_TEX, BTN_M_ACTIVE_TEX
-  end
+  local glowC = math.min(11, math.floor(h * 0.42))
+  local c = math.min(9, math.floor(h * 0.40))
+  local normalTex, activeTex = BTN_M_NORMAL_TEX, BTN_M_ACTIVE_TEX
   local glow = Nine(b, b, BTN_GLOW_TEX, glowC, math.floor(10 * glowC / 16 + 0.5), "BACKGROUND", -1); glow:SetShown(false)
   local normal = Nine(b, b, normalTex, c, 0, "BACKGROUND", 0)
   local active = Nine(b, b, activeTex, c, 0, "BACKGROUND", 1); active:SetShown(false)
@@ -657,18 +530,10 @@ function UI.HoverEdge(b)
   return ring
 end
 
--- Dark panel with leather grain and a bronze ornate frame.
+-- Dark panel with a thin rounded line.
 function UI.FramedPanel(f, inset)
-  inset = inset or 2
-  if styleIsModern() then
-    -- modern: flat background with the same rounded corners as the line
-    UI.MarkBG(RoundRect(f, f, "BACKGROUND", 0, 7, 1, 0.045, 0.045, 0.055, 0.96))
-    for _, t in ipairs(OrnateFrame(f, f, 12, 1, "OVERLAY", 3)) do t:SetVertexColor(FLT.SkinC(0.62, 0.52, 0.40, 0.9)) end
-    return
-  end
-  local bg = makeTexture(f, "BACKGROUND", 0.040, 0.040, 0.050, 0.95); bg:SetPoint("TOPLEFT", inset, -inset); bg:SetPoint("BOTTOMRIGHT", -inset, inset)
-  local lea = f:CreateTexture(nil, "BACKGROUND", nil, 1); lea:SetPoint("TOPLEFT", inset, -inset); lea:SetPoint("BOTTOMRIGHT", -inset, inset)
-  FLT.SetTex(lea, ASSET_ROOT .. "leather"); lea:SetVertexColor(FLT.SkinC(0.55, 0.50, 0.46)); lea:SetAlpha(0.55); UI.MarkBG(lea)
+  -- flat background with the same rounded corners as the line
+  UI.MarkBG(RoundRect(f, f, "BACKGROUND", 0, 7, 1, 0.045, 0.045, 0.055, 0.96))
   for _, t in ipairs(OrnateFrame(f, f, 12, 1, "OVERLAY", 3)) do t:SetVertexColor(FLT.SkinC(0.62, 0.52, 0.40, 0.9)) end
 end
 
@@ -755,7 +620,6 @@ function UI.Slider(parent, w, minV, maxV, step, onChange)
   fill:SetPoint("TOPLEFT", 1, -1); fill:SetPoint("BOTTOMLEFT", 1, 1); fill:SetWidth(1)
   local thumb = s:CreateTexture(nil, "OVERLAY"); thumb:SetSize(24, 24)
   thumb:SetTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
-  if skinIsSilver() and thumb.SetDesaturated then thumb:SetDesaturated(true) end
   s:SetThumbTexture(thumb)
   local TW = 24 -- thumb width: the thumb's centre moves from TW/2 to width - TW/2
   local function update(v)
@@ -850,6 +714,7 @@ end
 -- the last caught errors (OneForAllDB.errors, see FLT.SafeCall) to paste along.
 UI.ISSUES_URL = "https://github.com/smoergi/OneForAll_Forever/issues"
 UI.CURSEFORGE_URL = "https://www.curseforge.com/wow/addons/oneforall-forever"
+UI.DISCORD_URL = "https://discord.gg/bQhjSpdA3S" -- the invite does not expire (user 24.10.)
 local bugFrame
 -- read-only box: typing puts the text back, a click selects it all
 local function copyBox(parent, w, h, multi)
@@ -876,7 +741,7 @@ end
 function UI.ShowBugReport()
   if not bugFrame then
     local f = CreateFrame("Frame", "OneForAllBugReport", UIParent)
-    f:SetSize(440, 330); f:SetPoint("CENTER", 0, 80); f:SetFrameStrata("FULLSCREEN_DIALOG"); f:EnableMouse(true)
+    f:SetSize(440, 358); f:SetPoint("CENTER", 0, 80); f:SetFrameStrata("FULLSCREEN_DIALOG"); f:EnableMouse(true)
     f:SetMovable(true); f:SetClampedToScreen(true); f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
     UI.FramedPanel(f)
@@ -894,8 +759,10 @@ function UI.ShowBugReport()
     f.gh = copyBox(f, 300, 20); f.gh:SetPoint("TOPLEFT", 112, -76)
     label("CurseForge", -108)
     f.cf = copyBox(f, 300, 20); f.cf:SetPoint("TOPLEFT", 112, -104)
-    label("Please add", -138)
-    f.err = copyBox(f, 384, 116, true); f.err.holder:SetPoint("TOPLEFT", 28, -156)
+    label("Discord", -136)
+    f.dc = copyBox(f, 300, 20); f.dc:SetPoint("TOPLEFT", 112, -132)
+    label("Please add", -166)
+    f.err = copyBox(f, 384, 116, true); f.err.holder:SetPoint("TOPLEFT", 28, -184)
     local ok = GoldButton(f, "Close", 110, 26, nil, 13); ok:SetPoint("BOTTOM", 0, 16)
     ok:SetScript("OnClick", function() f:Hide() end)
     if UISpecialFrames then table.insert(UISpecialFrames, "OneForAllBugReport") end
@@ -916,26 +783,37 @@ function UI.ShowBugReport()
   else
     lines[#lines + 1] = "No errors caught."
   end
-  f.gh:SetValue(UI.ISSUES_URL); f.cf:SetValue(UI.CURSEFORGE_URL)
+  f.gh:SetValue(UI.ISSUES_URL); f.cf:SetValue(UI.CURSEFORGE_URL); f.dc:SetValue(UI.DISCORD_URL)
   f.err:SetValue(table.concat(lines, "\n"))
   f:Show()
   f.gh:SetFocus(); f.gh:HighlightText()
 end
 
--- Asks before switching the skin; the Reload button runs /reload securely.
--- key: "gold", "silver", "gold_modern" or "silver_modern" (UI.SKINS)
-function UI.AskSkin(key)
-  key = tostring(key or "gold")
-  local color = key:match("^silver") and "silver" or "gold"
-  local style = key:find("_modern", 1, true) and "modern" or "classic"
-  key = color .. (style == "modern" and "_modern" or "")
-  if FLT.GetSkinKey() == key then return end
-  if InCombatLockdown and InCombatLockdown() then
-    if FLT.Msg then FLT.Msg("The skin can be changed after combat.") end
-    return
+-- Discord (5.7.3, title bar button): the invite link to copy, built on first use
+local discordFrame
+function UI.ShowDiscord()
+  if not discordFrame then
+    local f = CreateFrame("Frame", "OneForAllDiscord", UIParent)
+    f:SetSize(400, 170); f:SetPoint("CENTER", 0, 80); f:SetFrameStrata("FULLSCREEN_DIALOG"); f:EnableMouse(true)
+    f:SetMovable(true); f:SetClampedToScreen(true); f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    UI.FramedPanel(f)
+    for _, t in ipairs(OrnateFrame(f, f, 16, 3, "OVERLAY", 4)) do t:SetVertexColor(FLT.SkinC(1, 1, 1, 1)) end
+    local close = UI.CloseButton(f); close:SetPoint("TOPRIGHT", -12, -12)
+    local title = FLT.NewFS(f, nil, "OVERLAY", "GameFontNormalLarge"); title:SetPoint("TOP", 0, -20)
+    title:SetText("OneForAll on Discord"); title:SetTextColor(FLT.SkinC(1, 0.82, 0.20))
+    local text = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); text:SetPoint("TOP", 0, -46); text:SetWidth(350)
+    text:SetJustifyH("CENTER")
+    text:SetText("News, questions and ideas. Copy the link (Ctrl+C) and open it in your browser.")
+    f.link = copyBox(f, 300, 20); f.link:SetPoint("TOP", 0, -84)
+    local ok = GoldButton(f, "Close", 110, 26, nil, 13); ok:SetPoint("BOTTOM", 0, 16)
+    ok:SetScript("OnClick", function() f:Hide() end)
+    if UISpecialFrames then table.insert(UISpecialFrames, "OneForAllDiscord") end
+    discordFrame = f
   end
-  UI.Confirm("Switch to the " .. UI.SkinLabel(key) .. " skin?\nYour interface will reload.",
-    function() FLT.SetSkin(color); FLT.SetFrameStyle(style) end, "Reload", "/reload")
+  discordFrame.link:SetValue(UI.DISCORD_URL)
+  discordFrame:Show()
+  discordFrame.link:SetFocus(); discordFrame.link:HighlightText()
 end
 
 -- Shared drop-down list (one at a time); a click outside closes it.

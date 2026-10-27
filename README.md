@@ -2,16 +2,16 @@
 
 All-in-one companion addon for **WoW Forever**. No other addons required.
 
-- **Gear Planner** – click a slot of your character to see upgrades from dungeons, quests, reputation and crafting that your class can use, with the gain in % for your talent spec (also in item tooltips), a wishlist, quest chains and the boss that drops an item; enchants, armor kits and scopes that fit each item and who can make them
+- **Gear Planner** – click a slot of your character to see upgrades from dungeons, quests, reputation and crafting that your class can use, with the gain in % for your talent spec (also in item tooltips), a wishlist, quest chains and the boss that drops an item, a source filter and your own stat weights; enchants, armor kits and scopes that fit each item and who can make them
 - **Armory** – item sets for your class (raid, dungeon, PvP, crafted, world; buttons for the main tiers) with the pieces you own, set bonuses and where they drop; reputation rewards by standing
 - **Dungeons & Raids** – dungeon maps with boss portraits (M inside a dungeon), bosses, loot with drop chances, quests with quest chains and map pins, dungeon keys and raid attunements
 - **Library Books** – which books you have, still need, and where to find them
-- **Professions** – Merchant's Favor recipes, who in your guild (or on your other characters) knows a recipe, the nearest trainer of every profession
-- **Talent planner** – plan your talents with two saved presets per class; class trainer window with the spells you can learn next (also from a button in the spellbook)
+- **Professions** – a Crafting List that checks your bags, bank and other characters for the materials, Merchant's Favor recipes, who in your guild (or on your other characters) knows a recipe, the nearest trainer of every profession
+- **Talent planner** – plan your talents with two saved presets per class, import builds from talentsforever.com / wowforevertalents.com and export your own; trainer window (also a tab in the spellbook) with the spells you can learn next, weapon skills and your class quests with progress
 - **Hunter pets** – where to tame which family, which abilities a pet can learn
-- **Map Landmarks** – dungeon and raid entrances, flight masters, zeppelins and ships on the world map; click an entrance to open that dungeon
-- **Quality of Life** – optional helpers in groups with a search (auto repair, sell junk, quest XP on the experience bar, item compare with Shift, minimap button collector, brighter class colors, low spell ranks on your action bars, popups and alerts and more)
-- **Skins** – Gold or Dark Silver, each in a Classic (ornate) or Modern (plain, rounded) look; the Modern skins can be made see-through
+- **Map Landmarks** – dungeon and raid entrances, flight masters, zeppelins, ships, the Deeprun Tram and Library Books on the world map; click an entrance to open that dungeon
+- **Quality of Life** – optional helpers in groups with a search (auto repair, sell junk with your own junk list, hide the chat, quest XP on the experience bar, item compare with Shift, minimap button collector, square minimap, sparkle on herbs and ore, brighter class colors, low spell ranks on your action bars, popups and alerts and more); a welcome setup switches them on page by page
+- **Look** – one gold modern style that can be made see-through, and a logo in five colors
 
 ## Download
 

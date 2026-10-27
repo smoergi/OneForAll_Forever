@@ -13,13 +13,15 @@ FLT.QoL = QoL
 local DEFAULTS = {
   lootFeedQuality = 1, lootFeedMoney = true,
   inviteMode = "friendsguild", keywordMode = "friendsguild", keyword = "inv", duelMode = "friendsguild",
-  durabilityPct = 20, mmDir = "auto",
+  durabilityPct = 20, mmDir = "auto", logoColor = "teal", -- logo color: turquoise by default (user 27.10.)
   lowRank = true, -- on by default (user 15.10.)
   mapLandmarks = true, lmDungeons = true, lmFlight = true, lmTransport = true, -- Map Landmarks: on with all parts (user 16.10.)
   gearValue = true, -- Gear Planner Value in item tooltips: on (user 16.10.)
   spellbookTrainer = true, -- trainer button in the spellbook: on (user 22.10.)
   classBright = true, -- brighter class colors: on (user 22.10.)
   mapFog = true, -- Remove Fog: on (user 22.10.)
+  mapBooks = true, -- Library Books on the world map: on (user 23.10.)
+  chatHide = true, chatAutoHide = 0, -- hide chat button: on, "Hide chat after": Never (user 27.10., 6.0.0)
 }
 
 local function db()
@@ -54,6 +56,10 @@ function QoL.Set(key, value)
 end
 local function on(key, fn) listeners[key] = fn end
 QoL.On = on
+QoL.LOGO_COLORS = { { key = "red", label = "Red" }, { key = "blue", label = "Blue" }, { key = "green", label = "Green" },
+  { key = "teal", label = "Turquoise" }, { key = "violet", label = "Violet" } }
+QoL.CHAT_HIDE_OPTIONS = { { key = 0, label = "Never" }, { key = 10, label = "10 seconds" }, { key = 20, label = "20 seconds" },
+  { key = 30, label = "30 seconds" }, { key = 60, label = "1 minute" } }
 QoL.MM_DIR_OPTIONS = { { key = "auto", label = "Automatic" }, { key = "top", label = "Top" }, { key = "bottom", label = "Bottom" },
   { key = "left", label = "Left" }, { key = "right", label = "Right" } }
 
@@ -189,6 +195,79 @@ local function autoRepair()
   end
 end
 
+-- own junk list (5.7.3, GitHub #22, user 27.10.): item IDs per character (OneForAllCharDB.junkList), sold by
+-- "Sell junk" like grey items. Alt+right-click an item in the bags puts it on the list or takes it off.
+local function junkList()
+  if type(OneForAllCharDB) ~= "table" then return {} end
+  OneForAllCharDB.junkList = OneForAllCharDB.junkList or {}
+  return OneForAllCharDB.junkList
+end
+function QoL.IsJunk(id) return id and junkList()[id] and true or false end
+function QoL.GetJunkItems()
+  local out = {}
+  for id in pairs(junkList()) do if tonumber(id) then out[#out + 1] = tonumber(id) end end
+  table.sort(out)
+  return out
+end
+-- the junk coin on bag items (user 27.10.: like the game's coin on grey items). Baganator: a junk plugin (its coin,
+-- grey-out and Vendor button), registered at login so Baganator always finds it (its settings dialog resets a junk
+-- source it cannot find, user 27.10.: no coin on a new character); it answers like Baganator's own "Poor quality"
+-- plus our list. Baganator > Junk detection picks it;
+-- the game's bags: our own coin on the item buttons, painted when a bag frame updates.
+local markBags -- forward
+local bgnPlugin
+local function bgnJunk(_, _, itemID, itemLink)
+  if not itemID then return false end
+  if QoL.Get("sellJunk") and junkList()[itemID] then return true end
+  local _, _, q, _, _, _, _, _, _, _, price = ((C_Item and C_Item.GetItemInfo) or GetItemInfo)(itemLink or itemID)
+  return q == 0 and (price or 0) > 0 -- like Baganator's own: grey items with a sell price
+end
+-- Baganator uses one junk source at a time, and other addons register their own (RestedXP takes it over when a guide
+-- is picked, user 27.10.). Every source registered after OneForAll also marks the items of our list: the callback of
+-- each new plugin is wrapped (Baganator's own "Poor quality" is not a plugin; ours answers for grey items itself).
+do
+  local api = type(Baganator) == "table" and type(Baganator.API) == "table" and Baganator.API
+  local orig = api and api.RegisterJunkPlugin
+  if type(orig) == "function" then
+    api.RegisterJunkPlugin = function(label, id, callback)
+      if id ~= "oneforall_junk" and id ~= "none" and type(callback) == "function" then
+        local cb = callback
+        callback = function(bagID, slotID, itemID, itemLink)
+          if itemID and QoL.Get("sellJunk") and junkList()[itemID] then return true end
+          return cb(bagID, slotID, itemID, itemLink)
+        end
+      end
+      return orig(label, id, callback)
+    end
+  end
+end
+local function junkChanged()
+  local api = type(Baganator) == "table" and type(Baganator.API) == "table" and Baganator.API
+  if api and api.RegisterJunkPlugin and not bgnPlugin then
+    bgnPlugin = pcall(api.RegisterJunkPlugin, "OneForAll junk list", "oneforall_junk", bgnJunk)
+  end
+  if bgnPlugin and api and api.RequestItemButtonsRefresh then pcall(api.RequestItemButtonsRefresh) end
+  if markBags then markBags() end
+end
+QoL.JunkChanged = junkChanged
+function QoL.RemoveJunk(id) junkList()[id] = nil; junkChanged() end
+function QoL.ClearJunk() if type(OneForAllCharDB) == "table" then OneForAllCharDB.junkList = {} end; junkChanged() end
+function QoL.ToggleJunk(link)
+  local id = type(link) == "string" and tonumber(link:match("item:(%d+)"))
+  if not id then return end
+  local l = junkList()
+  -- grey items are always junk (sold and marked anyway): no list entry, no misleading message (user 27.10.)
+  local q = select(3, ((C_Item and C_Item.GetItemInfo) or GetItemInfo)(link))
+  if q == 0 then
+    l[id] = nil
+    msg(link .. " is a grey item - Sell junk always sells grey items, the junk list is for other items.")
+    return junkChanged()
+  end
+  if l[id] then l[id] = nil; msg(link .. " is no longer on your junk list.")
+  else l[id] = true; msg(link .. " is on your junk list now - Sell junk sells it at merchants.") end
+  junkChanged()
+end
+
 local sellTicker
 local function sellJunk()
   if not QoL.Get("sellJunk") or paused() then return end
@@ -197,7 +276,8 @@ local function sellJunk()
   for bag = 0, NUM_BAGS do
     for slot = 1, numSlots(bag) do
       local link, count, quality, noValue, locked = itemInfo(bag, slot)
-      if link and quality == 0 and not noValue and not locked then
+      local id = link and tonumber(link:match("item:(%d+)"))
+      if link and (quality == 0 or junkList()[id]) and not noValue and not locked then
         local price = sellPrice(link)
         if price > 0 then list[#list + 1] = { bag, slot }; total = total + price * (count or 1) end
       end
@@ -561,6 +641,10 @@ local MOVABLE = {
   "DressUpFrame", "ItemTextFrame", "TabardFrame", "GuildRegistrarFrame", "PetitionFrame", "LootFrame",
   "ClassTrainerFrame", "TradeSkillFrame", "CraftFrame", "PlayerTalentFrame", "TalentFrame", "InspectFrame",
   "AuctionFrame", "AuctionHouseFrame", "MacroFrame", "KeyBindingFrame", "GuildFrame", "CommunitiesFrame",
+  "ContainerFrameCombinedBags", -- the "Combined Backpack" (user 27.10.)
+  -- the newer (Mainline) windows of the Forever client (user 27.10.: map, professions, spellbook did not move)
+  "WorldMapFrame", "ProfessionsFrame", "ProfessionsBookFrame", "PlayerSpellsFrame", "ClassTalentFrame", "CollectionsJournal",
+  "EncounterJournal", "AchievementFrame", "PVEFrame", "QuestLogPopupDetailFrame", "ItemSocketingFrame", "GuildBankFrame",
 }
 local function positions()
   local d = db(); if not d then return {} end
@@ -579,18 +663,30 @@ local function makeMovable(name)
   f.ofaMovable = true
   f:SetMovable(true); f:SetClampedToScreen(true)
   if f.EnableMouse then f:EnableMouse(true) end
-  f:HookScript("OnMouseDown", function(self, button)
+  local function down(_, button)
     if button ~= "LeftButton" or not QoL.Get("moveWindows") then return end
-    if inCombat() and self:IsProtected() then return end
-    self.ofaMoving = true; self:StartMoving()
-  end)
-  f:HookScript("OnMouseUp", function(self)
-    if not self.ofaMoving then return end
-    self.ofaMoving = nil; self:StopMovingOrSizing()
-    if self.SetUserPlaced then pcall(self.SetUserPlaced, self, false) end
-    local left, top = self:GetLeft(), self:GetTop()
+    if inCombat() and f:IsProtected() then return end
+    f.ofaMoving = true; f:StartMoving()
+  end
+  local function up()
+    if not f.ofaMoving then return end
+    f.ofaMoving = nil; f:StopMovingOrSizing()
+    if f.SetUserPlaced then pcall(f.SetUserPlaced, f, false) end
+    local left, top = f:GetLeft(), f:GetTop()
     if left and top then positions()[name] = { math.floor(left + 0.5), math.floor(top + 0.5) } end
-  end)
+  end
+  -- newer windows: the title bar (TitleContainer, on the map inside BorderFrame) lies on top and takes the mouse.
+  -- Only the title bar, never BorderFrame itself: it spans the whole map and would swallow every click and tooltip
+  -- (user 27.10., beta45-58)
+  local border = type(f.BorderFrame) == "table" and f.BorderFrame or nil
+  local handles = { f, f.TitleContainer or false, border and border.TitleContainer or false, false }
+  for i = 1, 4 do
+    local h = handles[i]
+    if type(h) == "table" and h.HookScript then
+      if h ~= f and h.EnableMouse then h:EnableMouse(true) end
+      h:HookScript("OnMouseDown", down); h:HookScript("OnMouseUp", up)
+    end
+  end
   f:HookScript("OnShow", function(self)
     if C_Timer and C_Timer.After then C_Timer.After(0, function() applyPos(self, name) end) else applyPos(self, name) end
   end)
@@ -598,6 +694,25 @@ end
 local function setupMovable()
   if not QoL.Get("moveWindows") then return end
   for _, name in ipairs(MOVABLE) do makeMovable(name) end
+  -- the game lines up its windows (UIParent panels) again whenever one opens: our places again after that
+  if type(UpdateUIPanelPositions) == "function" and not QoL._panelHook then
+    QoL._panelHook = true
+    hooksecurefunc("UpdateUIPanelPositions", function()
+      if not QoL.Get("moveWindows") then return end
+      for name in pairs(positions()) do
+        local f = _G[name]
+        if type(f) == "table" and f.ofaMovable and not f.ofaMoving and f:IsShown() then applyPos(f, name) end
+      end
+    end)
+  end
+  -- the game puts the combined bag back at the right edge every time bags open or change: our place again after it
+  if type(UpdateContainerFrameAnchors) == "function" and type(ContainerFrameCombinedBags) == "table" and not QoL._bagHook then
+    QoL._bagHook = true
+    hooksecurefunc("UpdateContainerFrameAnchors", function()
+      local f = ContainerFrameCombinedBags
+      if f.ofaMovable and not f.ofaMoving and f:IsShown() then applyPos(f, "ContainerFrameCombinedBags") end
+    end)
+  end
 end
 function QoL.ResetWindowPositions()
   local d = db(); if d then d.windowPos = {} end
@@ -817,6 +932,8 @@ local function addItemLines(tt, link)
     if drops then tt:AddLine("Drops from: " .. nameList(drops, 2), 0.95, 0.80, 0.45, true) end
   end
   if QoL.Get("gearValue") and FLT.GearValue then FLT.GearValue.TooltipLine(tt, id) end
+  if QoL.Get("sellJunk") and junkList()[id] then tt:AddLine("On your junk list (Alt+right-click to take it off)", 0.62, 0.62, 0.62) end
+  if FLT.CraftList then FLT.CraftList.TooltipLine(tt, id) end -- only while something is planned
   if QoL.Get("recipeTip") then
     local r = recipeByItem(id)
     if r then
@@ -1521,6 +1638,7 @@ local function onEventSafe(_, event, ...)
   -- chat texts can be "secret" in combat on newer clients: nothing to read then
   if (event:find("^CHAT_MSG") or event == "UI_ERROR_MESSAGE") and FLT.IsSecret(...) then return end
   if event == "PLAYER_LOGIN" then
+    junkChanged()
     migrate()
     setupClassColors(); setupTooltips(); setupMovable(); setupCopyButtons()
     if QoL.Get("cameraZoom") then applyCamera(true) end
@@ -1585,6 +1703,76 @@ on("classBright", refreshClassColors)
 on("mapFog", function() if FLT.RefreshMapFog then FLT.RefreshMapFog() end end)
 on("durability", function() warnedDurability = false; checkDurability() end)
 
+-- Alt+right-click on an item in the bags: on / off the junk list (only while "Sell junk" is on). Bag buttons
+-- (and bag addons) pass modified clicks to HandleModifiedItemClick; a right-click with Alt does not use the item.
+if type(HandleModifiedItemClick) == "function" then
+  hooksecurefunc("HandleModifiedItemClick", function(link)
+    if not QoL.Get("sellJunk") or not (IsAltKeyDown and IsAltKeyDown()) then return end
+    if not (GetMouseButtonClicked and GetMouseButtonClicked() == "RightButton") then return end
+    local id = type(link) == "string" and tonumber(link:match("item:(%d+)"))
+    local count = id and ((C_Item and C_Item.GetItemCount and C_Item.GetItemCount(id)) or (GetItemCount and GetItemCount(id))) or 0
+    if (count or 0) > 0 then QoL.ToggleJunk(link) end -- items in your bags only
+  end)
+end
+
+-- the game's bags: a coin in the corner of items on the junk list
+do
+  local getID = (C_Container and C_Container.GetContainerItemID) or GetContainerItemID
+  local coins = {} -- [button] = texture
+  local function coin(b)
+    local t = coins[b]
+    if not t then
+      t = b:CreateTexture(nil, "OVERLAY", nil, 2); t:SetSize(14, 14); t:SetPoint("TOPLEFT", 2, -2)
+      if not (t.SetAtlas and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("bags-junkcoin") and t:SetAtlas("bags-junkcoin") ~= false)
+      then t:SetTexture("Interface\\MoneyFrame\\UI-GoldIcon") end
+      coins[b] = t
+    end
+    return t
+  end
+  local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+  local function isJunk(id, list)
+    if list[id] then return true end
+    local _, _, q, _, _, _, _, _, _, _, price = getInfo(id)
+    return q == 0 and (price or 0) > 0
+  end
+  local function paintButton(b, bag, on, list)
+    local id = on and bag and getID(bag, b:GetID())
+    if id and isJunk(id, list) then coin(b):Show() elseif coins[b] then coins[b]:Hide() end
+  end
+  -- the coin on grey items and items of the list, while "Sell junk" is on (the game's own coin only shows at a merchant)
+  local function paint(frame)
+    if type(frame) ~= "table" or not getID then return end
+    local on = QoL.Get("sellJunk") and true or false
+    if not on and not next(coins) then return end
+    local list = junkList()
+    if frame.EnumerateValidItems then -- newer bag frames (also the Combined Backpack)
+      for _, b in frame:EnumerateValidItems() do
+        paintButton(b, b.GetBagID and b:GetBagID() or (b:GetParent() and b:GetParent():GetID()), on, list)
+      end
+      return
+    end
+    local name = frame.GetName and frame:GetName()
+    if not name then return end
+    for i = 1, frame.size or 0 do
+      local b = _G[name .. "Item" .. i]
+      if type(b) == "table" then paintButton(b, frame:GetID(), on, list) end
+    end
+  end
+  markBags = function()
+    for i = 1, tonumber(NUM_CONTAINER_FRAMES) or 13 do
+      local f = _G["ContainerFrame" .. i]
+      if type(f) == "table" and f.IsShown and f:IsShown() then paint(f) end
+    end
+    if type(ContainerFrameCombinedBags) == "table" and ContainerFrameCombinedBags:IsShown() then paint(ContainerFrameCombinedBags) end
+  end
+  if type(ContainerFrame_Update) == "function" then hooksecurefunc("ContainerFrame_Update", paint) end
+  -- newer clients: every bag frame (and the Combined Backpack) redraws its items in UpdateItems
+  local function hookFrame(f) if type(f) == "table" and type(f.UpdateItems) == "function" then hooksecurefunc(f, "UpdateItems", paint) end end
+  hookFrame(ContainerFrameCombinedBags)
+  for i = 1, tonumber(NUM_CONTAINER_FRAMES) or 13 do hookFrame(_G["ContainerFrame" .. i]) end
+end
+on("sellJunk", junkChanged)
+
 -- test hooks
-QoL._allowed, QoL._addItemLines, QoL._ev = allowed, addItemLines, ev
+QoL._allowed, QoL._addItemLines, QoL._ev, QoL._sellJunk = allowed, addItemLines, ev, sellJunk
 QoL._helperFrame = helperFrame

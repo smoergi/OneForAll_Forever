@@ -52,6 +52,14 @@ local function buildWeights()
   autoTree = tree
   -- chosen in the Gear Planner (per character, user 18.10.); nil = the active spec
   local pick = type(OneForAllCharDB) == "table" and OneForAllCharDB.gearSpec
+  -- own weights (5.7.3, Discord sparkledooks, user 27.10.): OneForAllCharDB.gearCustom, edited in the planner
+  local custom = pick == "custom" and type(OneForAllCharDB.gearCustom) == "table" and OneForAllCharDB.gearCustom
+  if custom then
+    local w = {}; for k, v in pairs(custom) do if tonumber(v) then w[k] = tonumber(v) end end
+    W, specName = w, "Custom"
+    wipe(values); wipe(worn)
+    return
+  end
   if pick and data.specs[pick] then tree = pick end
   local spec = tree and data.specs[tree]
   local level = UnitLevel("player") or 1
@@ -67,6 +75,33 @@ local function buildWeights()
   wipe(values); wipe(worn)
 end
 function GV.SpecName() if not W then buildWeights() end return specName end
+-- the weights of a spec (nil = the active one) at the player's level, as the Value would use them
+local function specWeights(i)
+  local db = type(OneForAllCharDB) == "table" and OneForAllCharDB
+  if not db then return {} end
+  local keep = db.gearSpec
+  db.gearSpec = i; W = nil; buildWeights()
+  local out = {}; for k, v in pairs(W or {}) do if v ~= 0 then out[k] = math.floor(v * 100 + 0.5) / 100 end end
+  db.gearSpec = keep; W = nil
+  return out
+end
+-- own weights: created from the active spec the first time
+function GV.CustomWeights()
+  if type(OneForAllCharDB) ~= "table" then return {} end
+  if type(OneForAllCharDB.gearCustom) ~= "table" then OneForAllCharDB.gearCustom = specWeights(nil) end
+  return OneForAllCharDB.gearCustom
+end
+function GV.SetCustomWeight(k, v)
+  local c = GV.CustomWeights()
+  v = tonumber(v); c[k] = (v and v ~= 0) and v or nil
+  if OneForAllCharDB.gearSpec == "custom" then GV.SetSpec("custom") end
+end
+-- start again from a spec's weights (nil = the active spec)
+function GV.ResetCustom(i)
+  if type(OneForAllCharDB) ~= "table" then return end
+  OneForAllCharDB.gearCustom = specWeights(i)
+  if OneForAllCharDB.gearSpec == "custom" then GV.SetSpec("custom") end
+end
 -- the planner's spec drop-down: the class's three specs, the one in use (nil = active spec) and the active one
 function GV.Specs()
   if not W then buildWeights() end

@@ -6,6 +6,7 @@ local makeTexture, makeButton = UI.makeTexture, UI.makeButton
 -- new NEWS_ID (change it for the next release with news). /ofa news reopens it.
 -- 5.6.3 (user 16.10.): only the Gear Planner. 5.7.0 (user 22.10.): Quality of Life, enchants, set buttons.
 
+local NEWS_AUTO = false -- set true (and a new NEWS_ID) for the next release with news
 local NEWS_ID = "5.7.0" -- 5.7.0 (agreed with the user 22.10.): three short entries, no pictures
 
 -- images (optional): pictures in a row under the lines, each { tex, shown width, shown height, texcoord right,
@@ -114,7 +115,9 @@ end
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("PLAYER_LOGIN")
 ev:SetScript("OnEvent", function()
+  if not NEWS_AUTO then return end -- 6.0.0: no news popup, a clean start; only the welcome setup (user 27.10.)
   if type(OneForAllDB) ~= "table" then return end
+  if FLT.WelcomeDue and FLT.WelcomeDue() then return end -- the welcome setup first; the news come with the next login
   local seen = OneForAllDB.newsSeen
   if type(seen) == "string" and (seen == NEWS_ID or seen:sub(1, #NEWS_ID + 1) == NEWS_ID .. ".") then return end
   if C_Timer and C_Timer.After then C_Timer.After(6, FLT.ShowNews) else FLT.ShowNews() end

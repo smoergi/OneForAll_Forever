@@ -89,6 +89,7 @@ local WEAPONS = { -- weapon subclass IDs
   PRIEST = {4, 10, 15, 19}, SHAMAN = {0, 1, 4, 5, 10, 13, 15}, MAGE = {7, 10, 15, 19}, WARLOCK = {7, 10, 15, 19},
   DRUID = {4, 5, 10, 13, 15},
 }
+FLT.CLASS_WEAPONS = WEAPONS -- also for the weapon trainers in UI/TrainerSpells.lua
 local canWield = {}
 for cls, list in pairs(WEAPONS) do canWield[cls] = {}; for _, s in ipairs(list) do canWield[cls][s] = true end end
 
@@ -144,7 +145,25 @@ function FLT.QuestInfo(qid)
   local c = questCache[qid]
   if c ~= nil then return c or nil end
   local raw = FLT.QUEST_REWARDS and FLT.QUEST_REWARDS.quests[qid]
-  if not raw then questCache[qid] = false; return nil end
+  if not raw then
+    -- class quests (Data/ClassQuests.lua, 5.7.3): "name|requiredLevel|race mask|one|all|giver|map|x|y"
+    raw = FLT.CLASS_QUESTS and FLT.CLASS_QUESTS.quests[qid]
+    if not raw then questCache[qid] = false; return nil end
+    local t = split(raw, "|", {})
+    c = { id = qid, name = t[1], lvl = tonumber(t[2]), req = tonumber(t[2]), side = "", cls = 0, races = tonumber(t[3]) or 0,
+      one = idList(t[4] or ""), all = idList(t[5] or ""), giver = t[6] ~= "" and t[6] or nil }
+    local map = tonumber(t[7])
+    if map then c.loc = { mapID = map, x = tonumber(t[8]), y = tonumber(t[9]) } end
+    -- several givers: the one in your home zones (Veteran Uzzek: Sorek in Orgrimmar for orcs)
+    if t[10] and t[10] ~= "" and not FLT.IsHomeQuest(c) then
+      for name, m, x, y in t[10]:gmatch("([^;~]+);(%d+);([%d.]+);([%d.]+)") do
+        local alt = { mapID = tonumber(m), x = tonumber(x), y = tonumber(y) }
+        if FLT.IsHomeQuest({ loc = alt }) then c.giver, c.loc = name, alt; break end
+      end
+    end
+    questCache[qid] = c
+    return c
+  end
   local t = split(raw, "|", {})
   c = { id = qid, name = t[1], lvl = tonumber(t[2]), req = tonumber(t[3]), side = t[4], cls = tonumber(t[5]) or 0,
     one = idList(t[6] or ""), all = idList(t[7] or ""), giver = t[8] ~= "" and t[8] or nil }
@@ -167,9 +186,36 @@ function FLT.QuestStart(qid)
   return q.loc
 end
 -- the chain up to a quest, first step first; a step = list of quest IDs (more than one = any of them)
-function FLT.QuestChain(qid)
+-- race variants of class quests (same quest in several cities): only those of your race, when there are any
+local raceBit
+function FLT.QuestForMyRace(q)
+  if not (q and q.races and q.races > 0) then return true end
+  if raceBit == nil then
+    local id = UnitRace and select(3, UnitRace("player"))
+    raceBit = id and 2 ^ (id - 1) or false
+  end
+  return not raceBit or math.floor(q.races / raceBit) % 2 == 1
+end
+-- the home zones (start zone + capital, uiMapIDs) per race: of several variants of a step the one that starts there
+-- comes first (class quests: Voidwalker in Durotar for orcs, Tirisfal for the undead)
+FLT.HOME_MAPS = { [1] = { [1429] = 1, [1453] = 1 }, [2] = { [1411] = 1, [1454] = 1 }, [3] = { [1426] = 1, [1455] = 1 },
+  [4] = { [1438] = 1, [1457] = 1 }, [5] = { [1420] = 1, [1458] = 1 }, [6] = { [1412] = 1, [1456] = 1 },
+  [7] = { [1426] = 1, [1455] = 1 }, [8] = { [1411] = 1, [1454] = 1 } }
+function FLT.IsHomeQuest(q, home)
+  if home == nil then local id = UnitRace and select(3, UnitRace("player")); home = id and FLT.HOME_MAPS[id] end
+  return home and q and q.loc and home[q.loc.mapID] and true or false
+end
+function FLT.QuestChain(qid, home) -- home: FLT.HOME_MAPS entry (default: your race)
   local steps, seen = {}, {}
   local function walk(ids, depth)
+    if #ids > 1 then
+      local mine = {}
+      for _, id in ipairs(ids) do if FLT.QuestForMyRace(FLT.QuestInfo(id)) then mine[#mine + 1] = id end end
+      if #mine > 0 then ids = mine end
+      for i = 2, #ids do
+        if FLT.IsHomeQuest(FLT.QuestInfo(ids[i]), home) then ids = { ids[i], unpack(ids) }; table.remove(ids, i + 1); break end
+      end
+    end
     if seen[ids[1]] or depth > 30 then return end
     for _, id in ipairs(ids) do seen[id] = true end
     local q = FLT.QuestInfo(ids[1])
@@ -411,20 +457,29 @@ function UI.CreateGearPlanner(parent)
   local shl = UI.makeTexture(specBtn, "HIGHLIGHT", 1, 0.82, 0.3, 0.10); shl:SetAllPoints()
   specBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine("Spec for the Value", 1, 0.82, 0)
-    GameTooltip:AddLine("The stat weights of this spec are used for the upgrades here, in tooltips, bags and loot rolls. \"Active spec\" follows your talents.", 1, 1, 1, true)
+    GameTooltip:AddLine("The stat weights of this spec are used for the upgrades here, in tooltips, bags and loot rolls. \"Active spec\" follows your talents. \"Edit custom weights...\" sets your own weights.", 1, 1, 1, true)
     GameTooltip:Show()
   end)
   specBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
   local refreshSlots -- forward
+  local function afterWeights() refreshSlots(); f.paintSlots(); refreshList() end
   specBtn:SetScript("OnClick", function(self)
     local GV = FLT.GearValue; if not GV then return end
     local specs, pick, auto = GV.Specs()
     local opts = { { key = 0, label = "Active spec" .. (auto and specs[auto] and ("  |cffb0b0b0(" .. specs[auto].name .. ")|r") or "") } }
     for i, sp in ipairs(specs) do opts[#opts + 1] = { key = i, label = sp.name } end
+    -- own weights (5.7.3, Discord sparkledooks, user 27.10.)
+    opts[#opts + 1] = { key = "custom", label = "Custom weights" }
+    opts[#opts + 1] = { key = "edit", label = "|cffd9a63aEdit custom weights...|r" }
     UI.OpenDropDown(self, opts, pick or 0, function(k)
+      if k == "edit" then
+        GV.SetSpec("custom"); afterWeights()
+        if UI.ShowWeightEditor then UI.ShowWeightEditor(afterWeights) end
+        return
+      end
       GV.SetSpec(k ~= 0 and k or nil)
-      refreshSlots(); f.paintSlots(); refreshList()
-    end, 200)
+      afterWeights()
+    end, 220)
   end)
   -- DressUpModel: right-click an item in the list to try it on (user 16.10.); the model is only (re)loaded
   -- when the planner opens, the gear changes or "Reset" is clicked - reloading it on every list redraw
@@ -455,11 +510,6 @@ function UI.CreateGearPlanner(parent)
   local function stopDrag(self) self:SetScript("OnUpdate", nil) end
   model:SetScript("OnMouseUp", stopDrag); model:SetScript("OnHide", stopDrag)
   local reset = UI.GoldButton(left, "Reset", 60, 20, nil, 11); reset:SetPoint("BOTTOMRIGHT", -10, 10) -- in the frame's corner (user 16.10.)
-  -- yellow "!" for the enchant fields (5.7.0, user 22.10.; listed in TODO "Neu-Markierungen")
-  do
-    local m = UI.NewMark(left, "New in OneForAll 5.7.0: the small field next to an item shows its enchant. Click it for what you can put on the item."); m:SetPoint("BOTTOMLEFT", 12, 12)
-    local t = newText(left, "GameFontDisableSmall"); t:SetPoint("LEFT", m, "RIGHT", 2, 0); t:SetText("Enchant fields")
-  end
   reset:SetScript("OnClick", loadModel)
   reset:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine("Reset"); GameTooltip:AddLine("Shows your own gear again. Right-click an item in the list to try it on, scroll on the character to zoom, drag it to turn it.", 1, 1, 1, true); GameTooltip:Show() end)
   reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -604,6 +654,39 @@ function UI.CreateGearPlanner(parent)
     GameTooltip:Show()
   end)
   warn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+  -- source filter (5.7.3, user 23.10.): all / BoE (to look for in the auction house) / quest / dungeon / raid.
+  -- prefs.gearSource nil = all. BoE comes from the client's item data (bind type 2), so an item counts once it is loaded.
+  local SOURCES = { { key = "all", label = "All sources" }, { key = "boe", label = "Bind on Equip only" },
+    { key = "quest", label = "Quest rewards only" }, { key = "dungeon", label = "Dungeon drops only" }, { key = "raid", label = "Raid drops only" } }
+  local SOURCE_SHORT = { boe = "BoE", quest = "Quests", dungeon = "Dungeons", raid = "Raids" }
+  local srcBtn = CreateFrame("Button", nil, right); srcBtn:SetSize(22, 22); srcBtn:SetPoint("LEFT", warn, "RIGHT", 6, 0)
+  srcBtn.tex = srcBtn:CreateTexture(nil, "ARTWORK"); srcBtn.tex:SetAllPoints(); FLT.SetTex(srcBtn.tex, UI.ASSET_ROOT .. "icon_filter")
+  local shl2 = UI.makeTexture(srcBtn, "HIGHLIGHT", 1, 0.82, 0.3, 0.12); shl2:SetAllPoints()
+  local function paintSource() srcBtn.tex:SetAlpha(prefs.gearSource and 1 or 0.5) end
+  srcBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine("Source filter", 1, 0.82, 0)
+    local cur = SOURCES[1].label
+    for _, o in ipairs(SOURCES) do if o.key == prefs.gearSource then cur = o.label end end
+    GameTooltip:AddLine(cur, 1, 1, 1)
+    GameTooltip:AddLine("Bind on Equip only: items you can buy in the auction house.", 0.8, 0.8, 0.8, true)
+    GameTooltip:Show()
+  end)
+  srcBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  srcBtn:SetScript("OnClick", function(self)
+    UI.OpenDropDown(self, SOURCES, prefs.gearSource or "all", function(k)
+      prefs.gearSource = k ~= "all" and k or nil; paintSource(); refreshList()
+    end, 180)
+  end)
+  paintSource()
+  local function sourceOK(e)
+    local src = prefs.gearSource
+    if not src then return true end
+    if src == "quest" then return e.qid ~= nil end
+    if src == "dungeon" then return e.d ~= nil and not e.qid and not e.d.raid end
+    if src == "raid" then return e.d ~= nil and not e.qid and e.d.raid and true or false end
+    return select(14, GetItemInfo(e.id)) == 2 -- boe
+  end
 
   local box = FLT.SkinBlizz(CreateFrame("EditBox", nil, right, "InputBoxTemplate"))
   -- search and the level row end flush with the list below (right edge -32, user 16.10.)
@@ -891,6 +974,7 @@ function UI.CreateGearPlanner(parent)
   local list = {} -- reused
   refreshList = function()
     if not f:IsShown() then return end
+    srcBtn:SetShown(not (enchMode and search == ""))
     if enchMode and search == "" then refreshEnchants(); return end
     for _, r in ipairs(erows) do r:Hide() end
     local idx, ids = FLT.GearIndex()
@@ -907,7 +991,7 @@ function UI.CreateGearPlanner(parent)
     if search ~= "" then
       title:SetText("Search: all slots")
       for _, e in ipairs(idx) do
-        if (e.name or ""):lower():find(search, 1, true) then list[#list + 1] = e; if #list >= 100 then break end end
+        if (e.name or ""):lower():find(search, 1, true) and sourceOK(e) then list[#list + 1] = e; if #list >= 100 then break end end
       end
       table.sort(list, function(a, b) return (a.name or "") < (b.name or "") end)
     elseif tab == "wish" then
@@ -918,14 +1002,14 @@ function UI.CreateGearPlanner(parent)
           local _, _, _, loc, icon, cid, sub = GetItemInfoInstant(id)
           if loc and LOC_SLOTS[loc] then e = { id = id, loc = loc, icon = icon, cid = cid, sub = sub }; ids[id] = e end
         end
-        if e and fits(e) then list[#list + 1] = e end
+        if e and fits(e) and sourceOK(e) then list[#list + 1] = e end
       end
       for _, e in ipairs(list) do reqLevel(e) end
       table.sort(list, function(a, b) return (a.req or a.lvl or 0) > (b.req or b.lvl or 0) end)
     else
       title:SetText("Suggested: " .. slotName)
       for _, e in ipairs(idx) do
-        if fits(e) and offhandOK(e) and usable(e, cls, plevel) and (e.lvl or 0) <= maxLevel then
+        if fits(e) and offhandOK(e) and usable(e, cls, plevel) and (e.lvl or 0) <= maxLevel and sourceOK(e) then
           local lv = reqLevel(e)
           if lv <= maxLevel and lv >= minLevel then list[#list + 1] = e end
         end
@@ -955,6 +1039,8 @@ function UI.CreateGearPlanner(parent)
       end)
       for i = #list, 61, -1 do list[i] = nil end
     end
+    local short = prefs.gearSource and SOURCE_SHORT[prefs.gearSource]
+    if short then title:SetText(title:GetText() .. "  |cffb0b0b0" .. short .. "|r") end
     for _, r in ipairs(rows) do r:Hide() end
     local y = -2
     for i, e in ipairs(list) do
@@ -995,7 +1081,7 @@ function UI.CreateGearPlanner(parent)
     end
     child:SetHeight(math.max(1, -y))
     if #list == 0 then
-      empty:SetText(search ~= "" and "No item found." or (tab == "wish" and "Your wishlist has no item for this slot yet.\nClick the star on an item to add it." or (FLT.GearValue and "No upgrade for this slot in your level range yet." or "No item from our data fits this slot and level yet.")))
+      empty:SetText(short and "Nothing here with the source filter \"" .. short .. "\".\nThe filter button is next to the Wishlist tab." or search ~= "" and "No item found." or (tab == "wish" and "Your wishlist has no item for this slot yet.\nClick the star on an item to add it." or (FLT.GearValue and "No upgrade for this slot in your level range yet." or "No item from our data fits this slot and level yet.")))
       empty:Show()
     else empty:Hide() end
   end
@@ -1008,4 +1094,71 @@ function UI.CreateGearPlanner(parent)
   end
   f:SetScript("OnShow", function() loadModel(); refreshSlots(); refreshList() end)
   return f
+end
+
+-- Custom weights editor (5.7.3, user 27.10.): one number per stat for this character, used when "Custom weights"
+-- is picked. Starts with the active spec's weights; "Copy from" puts a spec's weights in. Built when first opened.
+local WEIGHT_STATS = {
+  { "str", "Strength" }, { "agi", "Agility" }, { "sta", "Stamina" }, { "int", "Intellect" }, { "spi", "Spirit" },
+  { "ap", "Attack Power" }, { "rap", "Ranged Attack Power" }, { "fap", "Feral Attack Power" }, { "dps", "Weapon DPS" },
+  { "wskill", "Weapon Skill (per 1 %)" }, { "hit", "Hit (per 1 %)" }, { "crit", "Crit (per 1 %)" },
+  { "sp", "Spell Power" }, { "heal", "Healing" }, { "mp5", "Mana per 5 sec." }, { "armor", "Armor" },
+  { "def", "Defense" }, { "dodge", "Dodge (per 1 %)" }, { "parry", "Parry (per 1 %)" }, { "block", "Block (per 1 %)" },
+  { "bv", "Block Value" }, { "fire", "Fire Spell Damage" }, { "frost", "Frost Spell Damage" },
+  { "shadow", "Shadow Spell Damage" }, { "arcane", "Arcane Spell Damage" }, { "nature", "Nature Spell Damage" },
+  { "holy", "Holy Spell Damage" },
+}
+local editor
+function UI.ShowWeightEditor(onChange)
+  local GV = FLT.GearValue; if not GV then return end
+  if not editor then
+    local f = CreateFrame("Frame", "OneForAllWeightEditor", UIParent)
+    f:SetSize(560, 470); f:SetPoint("CENTER", 0, 30); f:SetFrameStrata("FULLSCREEN_DIALOG")
+    f:EnableMouse(true); f:SetMovable(true); f:RegisterForDrag("LeftButton"); f:SetClampedToScreen(true)
+    f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    if UISpecialFrames then table.insert(UISpecialFrames, "OneForAllWeightEditor") end
+    UI.FramedPanel(f)
+    local close = UI.CloseButton(f); close:SetPoint("TOPRIGHT", -12, -12)
+    local t = FLT.NewFS(f, nil, "OVERLAY", "GameFontNormalLarge"); t:SetPoint("TOPLEFT", 18, -16); t:SetText("Custom weights")
+    t:SetTextColor(1, 0.82, 0.20)
+    local d = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); d:SetPoint("TOPLEFT", 18, -38); d:SetWidth(520); d:SetJustifyH("LEFT")
+    d:SetText("Value per point of each stat for this character (hit, crit, dodge ... per 1 %). 0 or empty = the stat does not count. Used while \"Custom weights\" is picked.")
+    f.boxes = {}
+    for i, st in ipairs(WEIGHT_STATS) do
+      local col, rowN = (i - 1) % 2, math.floor((i - 1) / 2)
+      local x, y = 18 + col * 270, -66 - rowN * 25
+      local l = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); l:SetPoint("TOPLEFT", x, y - 4); l:SetText(st[2])
+      local eb = FLT.SkinBlizz(CreateFrame("EditBox", nil, f, "InputBoxTemplate"))
+      eb:SetSize(60, 20); eb:SetPoint("TOPLEFT", x + 190, y); eb:SetAutoFocus(false); eb:SetMaxLetters(7)
+      local function save(self)
+        local v = tonumber(((self:GetText() or ""):gsub(",", ".")))
+        GV.SetCustomWeight(st[1], v); self:SetText(v and v ~= 0 and tostring(v) or "")
+        if f.onChange then f.onChange() end
+      end
+      eb:SetScript("OnEnterPressed", function(self) save(self); self:ClearFocus() end)
+      eb:SetScript("OnEditFocusLost", save)
+      eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+      f.boxes[st[1]] = eb
+    end
+    f.fill = function()
+      local c = GV.CustomWeights()
+      for k, eb in pairs(f.boxes) do local v = c[k]; eb:SetText(v and tostring(v) or "") end
+    end
+    local copy = UI.GoldButton(f, "Copy from a spec", 170, 24, nil, 12); copy:SetPoint("BOTTOMLEFT", 16, 14)
+    copy:SetScript("OnClick", function(self)
+      local specs = GV.Specs()
+      local opts = { { key = 0, label = "Active spec" } }
+      for i, sp in ipairs(specs) do opts[#opts + 1] = { key = i, label = sp.name } end
+      UI.OpenDropDown(self, opts, nil, function(k)
+        GV.ResetCustom(k ~= 0 and k or nil); f.fill()
+        if f.onChange then f.onChange() end
+      end, 170)
+    end)
+    local done = UI.GoldButton(f, "Done", 110, 24, nil, 12); done:SetPoint("BOTTOMRIGHT", -16, 14)
+    done:SetScript("OnClick", function() f:Hide() end)
+    editor = f
+  end
+  editor.onChange = onChange
+  editor.fill()
+  editor:Show()
 end

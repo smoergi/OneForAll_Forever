@@ -12,6 +12,8 @@ Commands
 /oneforall bank          Explain bank scanning
 /oneforall profdata      Show embedded profession-data status
 /oneforall portraits     Show which source each boss portrait came from
+/oneforall craft         Open/close the Crafting List
+/oneforall setup         Open the welcome setup again
 /oneforall where         Print the current map and coordinates (to report wrong map pins)
 /oneforall reset         Reset manual Library Book marks
 /oneforall tabs reset    Show the default tabs again for this character
@@ -66,6 +68,72 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 
 Changelog (newest first)
 ========================
+
+6.0.0 - Ready for the launch of WoW Forever
+==========================================
+A fresh start: a welcome setup for everyone, a new logo, one look and many new
+helpers. The yellow "!" marks are gone; new things start clean from here.
+
+Welcome & look
+- A welcome setup, shown once to everyone: a few pages to switch on Quality of
+  Life helpers right away (or skip it). "Recommended settings" switches on what
+  OneForAll suggests. /ofa setup or Settings > Window opens it again.
+- New logo: the minimap button is a round gold "1", the minimap button
+  collector a gold card. Quality of Life > Minimap > "Logo color" picks
+  turquoise (default), red, blue, green or violet.
+- One look for everyone: the skins are gone, OneForAll always uses the gold
+  modern style (an old skin choice is simply ignored).
+- New Discord button in the title bar (and in the bug report window). The
+  window height grip sits on the bottom edge of the window.
+
+Talent Trees
+- Import builds from talentsforever.com and wowforevertalents.com links, or
+  from an OneForAll build string; Export shows your build as a short text.
+- The game's own tree pictures behind the talents, more room between the
+  talents, and talents without a point turn grey when all 51 are spent.
+
+Trainer window (spellbook tab)
+- Opens from a tab in the spellbook, like the spellbook's own tabs.
+- Weapon skills: what a class can learn and the weapon masters of your faction.
+- Class quests: the important quests of your class (pets, totems, forms,
+  stances, class items) with your progress, a Chain button and Map pins, for
+  the quest givers of your home city.
+
+Professions
+- Crafting List: plan what to craft with "+ List"; its own window shows the
+  materials against your bags, bank and your other characters, breaks down
+  what you can craft yourself and lists what you still need. "Craft" buttons,
+  tooltips ("Crafting List: N more needed"), /ofa craft.
+- Recipes in framed boxes, a "Craft" button for recipes you can craft.
+- Nearest trainers knows the trainers on Zephras Isle.
+
+Gear Planner
+- Your own stat weights ("Edit custom weights..." in the spec list).
+- A source filter: Bind on Equip, quest rewards, dungeon or raid drops.
+
+Quality of Life
+- Own junk list: Alt+right-click an item in your bags; "Sell junk" sells it,
+  and it gets a junk coin in the game's bags and in Baganator (also when
+  another addon such as RestedXP is Baganator's junk source).
+- Hide chat: a button at the chat (on), a key (Key Bindings > OneForAll) and
+  "Hide chat after" a quiet time (Never by default).
+- Sparkle on herbs & ore (off by default; adapted from Lueur by Armytille, MIT).
+- Minimap: square minimap, move the minimap (Shift-drag), hide the OneForAll
+  button; the collector also takes MapUtils / D4Lib buttons.
+- Move Blizzard windows also moves the newer windows of WoW Forever (world map,
+  professions, spellbook, Combined Backpack ...), by their title bar.
+- The tooltip of an option shows next to its name.
+
+World Map
+- Map Landmarks: Library Books on the map, the Deeprun Tram, the new boats of
+  WoW Forever and the airships from Valanaar, with new icons.
+
+Dungeons & Raids
+- Plain list headers for quests and keys / attunements, like the boss list.
+
+Fixes
+- No more "blocked action" errors in combat from the profession window or the
+  craft buttons; many smaller fixes.
 
 5.7.2 - Item compare fixes
 ------------------------------------------------------------

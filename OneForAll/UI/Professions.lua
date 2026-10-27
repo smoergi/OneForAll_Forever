@@ -755,6 +755,17 @@ local function createProfessionPanel(parent)
     end)
     subButtons[spec[1]]=b
   end
+  -- the Crafting List window (5.7.3, UI/CraftList.lua): stays open when OneForAll closes
+  do
+    local b=UI.GoldButton(subnav,"Crafting List",130,26,nil,13); b:SetPoint("TOPLEFT",subX+18,-2)
+    b:SetScript("OnClick",function() if FLT.CraftList then FLT.CraftList.Toggle() end end)
+    b:SetScript("OnEnter",function(self)
+      GameTooltip:SetOwner(self,"ANCHOR_TOP"); GameTooltip:AddLine("Crafting List",1,0.82,0)
+      GameTooltip:AddLine("Plan what to craft: the materials you have in your bags, bank and on your other characters, and what is still missing. Add recipes with \"+ List\". Also /ofa craft.",1,1,1,true)
+      GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave",function() GameTooltip:Hide() end)
+  end
 
   -- Merchant's Favor page (own entry in the left menu) -----------------------
   local favorPage=CreateFrame("Frame",nil,body); favorPage:SetAllPoints(); favorPage:Hide()

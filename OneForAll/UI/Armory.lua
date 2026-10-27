@@ -340,8 +340,6 @@ local function createArmoryPanel(parent)
     b:SetScript("OnClick", function() tabPick[current] = i; paintTabs(); if refreshSets then refreshSets() end end)
     tabButtons[i] = b
   end
-  -- yellow "!" for the new set buttons (5.7.0, user 22.10.; listed in TODO "Neu-Markierungen")
-  do local m = UI.NewMark(tabBar, "New in OneForAll 5.7.0: buttons for the main sets and \"Other Sets\" for the rest."); m:SetPoint("LEFT", otherB, "RIGHT", 8, 0) end
   otherB:SetScript("OnClick", function(self)
     local opts, longest = {}, 0
     for _, sub in ipairs(otherSubs(current)) do

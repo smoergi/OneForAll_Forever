@@ -186,11 +186,11 @@ local function roundMask(owner, tex)
 end
 
 -- Returns a holder frame with .portrait (texture to fill), .badge/.level.
--- plain: in the modern style a simple gold circle instead of the ornate ring
+-- plain: a simple gold circle instead of the ornate ring
 -- (boss lists and map pins; the big portrait of the selected boss keeps the ring)
 function UI.CreateBossFrame(parent, size, withBadge, plain)
   local f = CreateFrame("Frame", nil, parent); f:SetSize(size, size)
-  if plain and FLT.FrameStyleIsModern and FLT.FrameStyleIsModern() then
+  if plain then
     local bg = f:CreateTexture(nil, "BACKGROUND")
     bg:SetPoint("TOPLEFT", 1, -1); bg:SetPoint("BOTTOMRIGHT", -1, 1)
     bg:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask"); bg:SetVertexColor(0.05, 0.05, 0.06, 1)
