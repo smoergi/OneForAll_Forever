@@ -286,7 +286,7 @@ local function newRow()
   b.c3 = FLT.NewFS(b, nil, "OVERLAY", "GameFontHighlight"); b.c3:SetWidth(58); b.c3:SetJustifyH("RIGHT"); b.c3:SetPoint("RIGHT", -4, 0)
   b.c1 = b.c2 -- anchor for the name and the small Craft button
   -- "craft it myself" for materials a recipe makes (user 24.10.: a tick instead of a Craft / Buy button)
-  b.mode = FLT.SkinBlizz(CreateFrame("CheckButton", nil, b, "UICheckButtonTemplate")); b.mode:SetSize(22, 22)
+  b.mode = CreateFrame("CheckButton", nil, b, "UICheckButtonTemplate") -- header test: stays a checkbox here (user 31.10.); b.mode:SetSize(22, 22)
   b.minus = UI.GoldButton(b, "-", 20, 20, nil, 12); b.plus = UI.GoldButton(b, "+", 20, 20, nil, 12)
   b.del = UI.GoldButton(b, "", 20, 20, UI.ASSET_ROOT .. "icon_close", 10)
   if b.del.icon then b.del.icon:ClearAllPoints(); b.del.icon:SetSize(9, 9); b.del.icon:SetPoint("CENTER") end
@@ -456,6 +456,7 @@ local function create()
   -- one secure Craft button, laid over the small "Craft" of the row under the mouse (secure buttons cannot be
   -- moved in combat, rows are reused, so there is only this one; it opens the profession window, then crafts)
   local ov = CreateFrame("Button", "OneForAllCraftListCraft", frame, "SecureActionButtonTemplate"); ov:Hide()
+  UI.CombatDetach(ov) -- not inside the Crafting List window in combat, so the window can still be closed
   local ohl = ov:CreateTexture(nil, "HIGHLIGHT"); ohl:SetAllPoints(); ohl:SetColorTexture(FLT.SkinC(1, 0.82, 0.3, 0.15))
   secureCraft(ov, function() if ov.t then return ov.t.prof, ov.t.r, ov.t.n end end, function(t) if ov.fake then ov.fake:SetLabel(t) end end)
   ov:SetScript("OnEnter", function(self)
@@ -642,6 +643,8 @@ function CL.RecipeBar(parent)
     GameTooltip:Show()
   end)
   cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  -- in combat the button leaves the OneForAll window (else the window could not be closed in combat, user 30.10.)
+  UI.CombatDetach(cb, function() if cur then cb:SetShown(CL.ICanCraft(cur.prof, cur.r)); cb.label:SetText("Craft") end end)
   -- height actually used: the "N on the list" line only when something is on the list (no empty line, user 24.10.)
   function bar:UsedHeight() return (onList:GetText() or "") ~= "" and 68 or 52 end
   -- the bar holds the secure Craft button, so in combat it may not be shown / hidden (ADDON_ACTION_BLOCKED,

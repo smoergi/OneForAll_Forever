@@ -216,9 +216,7 @@ local function createArmoryPanel(parent)
   local band = UI.TitleBand(panel, { emblem = UI.ASSET_ROOT .. "emblem_armory", art = UI.ASSET_ROOT .. "armory_banner",
     title = "Armory", subtitle = "Item sets and reputation rewards in WoW Forever, and which pieces you already own.", fadeRight = 60 })
 
-  local nav = CreateFrame("Frame", nil, panel)
-  nav:SetPoint("TOPLEFT", 8, -74); nav:SetSize(164, 481) -- fixed like the gear planner's character panel (user 22.10.)
-  UI.FramedPanel(nav)
+  local nav, navTop = UI.SideNav(panel, -74, "emblem_armory", "Armory") -- ht8: the same side list in every tab
   local body = CreateFrame("Frame", nil, panel)
   body:SetPoint("TOPLEFT", 182, -74); body:SetPoint("BOTTOMRIGHT", -8, 4)
 
@@ -358,10 +356,9 @@ local function createArmoryPanel(parent)
   views.sets = setView
   local LIST_W, ROW_W = 262, 258
   local left = CreateFrame("Frame", nil, setView); left:SetPoint("TOPLEFT"); left:SetPoint("BOTTOMLEFT"); left:SetWidth(300)
-  UI.FramedPanel(left)
+  UI.Column(left, 4)
   local lsf = scrollList(left, LIST_W)
   local right = CreateFrame("Frame", nil, setView); right:SetPoint("TOPLEFT", 308, 0); right:SetPoint("BOTTOMRIGHT")
-  UI.FramedPanel(right)
   local dsf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, right, "UIPanelScrollFrameTemplate"))
   dsf:SetPoint("TOPLEFT", 14, -12); dsf:SetPoint("BOTTOMRIGHT", -28, 10)
   local DW = 452
@@ -575,10 +572,9 @@ local function createArmoryPanel(parent)
   local repView = CreateFrame("Frame", nil, body); repView:SetAllPoints(); repView:Hide()
   views.rep = repView
   local rleft = CreateFrame("Frame", nil, repView); rleft:SetPoint("TOPLEFT"); rleft:SetPoint("BOTTOMLEFT"); rleft:SetWidth(300)
-  UI.FramedPanel(rleft)
+  UI.Column(rleft, 4)
   local rsf = scrollList(rleft, LIST_W)
   local rright = CreateFrame("Frame", nil, repView); rright:SetPoint("TOPLEFT", 308, 0); rright:SetPoint("BOTTOMRIGHT")
-  UI.FramedPanel(rright)
   local isf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, rright, "UIPanelScrollFrameTemplate"))
   isf:SetPoint("TOPLEFT", 14, -12); isf:SetPoint("BOTTOMRIGHT", -28, 10)
   local rdetail = CreateFrame("Frame", nil, isf); rdetail:SetSize(DW, 1); isf:SetScrollChild(rdetail)
@@ -826,25 +822,22 @@ local function createArmoryPanel(parent)
     end
     if key == "gear" or key == "rep" then tabBar:Hide() end
   end
-  local navY = -12
+  local navY = navTop
   local function navButton(key, label, icon)
-    local b = UI.NavButton(nav, label, 144, 27, icon); b:SetPoint("TOPLEFT", 10, navY); navY = navY - 32
+    local b; b, navY = UI.NavEntry(nav, navY, label, icon)
     b:SetScript("OnClick", function() show(key) end)
     navButtons[key] = b
     return b
   end
-  local function divider()
-    local sep = nav:CreateTexture(nil, "ARTWORK"); FLT.SetTex(sep, UI.ASSET_ROOT .. "divider_ornate"); sep:SetHeight(12)
-    sep:SetPoint("TOPLEFT", 6, navY + 6); sep:SetPoint("TOPRIGHT", -6, navY + 6); navY = navY - 8
-  end
-  navButton("gear", "Gear Planner", "Interface\\Icons\\INV_Misc_Note_05"); navY = navY - 2
+  local function divider() navY = UI.NavSeparator(nav, navY) end
+  navButton("gear", "Gear Planner", "Interface\\Icons\\INV_Misc_Note_05")
   divider()
   for _, g in ipairs(GROUPS) do navButton(g.key, g.label, g.icon) end
   divider()
   navButton("rep", "Reputation", "Interface\\Icons\\INV_Misc_Note_02")
   divider()
   for _, l in ipairs({ { "Mounts", "Interface\\Icons\\Ability_Mount_RidingHorse" }, { "Legendaries", "Interface\\Icons\\INV_Staff_Medivh" } }) do
-    local b = UI.NavButton(nav, l[1], 144, 27, l[2]); b:SetPoint("TOPLEFT", 10, navY); navY = navY - 32
+    local b; b, navY = UI.NavEntry(nav, navY, l[1], l[2])
     b._label:SetTextColor(0.5, 0.5, 0.5); if b.icon then FLT.Desat(b.icon, true); b.icon:SetAlpha(0.5) end
     b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(l[1], 1, 0.82, 0); GameTooltip:AddLine("Coming in a later version.", 1, 1, 1); GameTooltip:Show() end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)

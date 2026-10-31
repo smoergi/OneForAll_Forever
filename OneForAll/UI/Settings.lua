@@ -20,7 +20,7 @@ local function createSettingsPanel(parent)
   local panel = CreateFrame("Frame", nil, parent)
   UI.PlacePanel(panel, parent)
   UI.TitleBand(panel, { emblem = UI.ASSET_ROOT .. "emblem_settings", art = UI.ASSET_ROOT .. "settings_banner",
-    title = "Settings", subtitle = "Options apply to your whole account unless marked \"this character\".", fadeRight = 200 })
+    title = "Settings", subtitle = "Options are saved in the profile this character uses (see Profiles).", fadeRight = 200 })
   -- scrollable page below the title band (at the normal window height not everything fits)
   local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate"))
   sf:SetPoint("TOPLEFT", 0, -74); sf:SetPoint("BOTTOMRIGHT", -8, 4)
@@ -98,8 +98,8 @@ local function createSettingsPanel(parent)
 
   -- LEFT COLUMN ----------------------------------------------------------------
   -- Tabs (per character), two per row in tab-bar order. The arrows move a
-  -- tab left / right in the tab bar; Settings stays in front.
-  local tabs = section(1, "Shown tabs  |cff9d9d9d(this character)|r", "Interface\\Icons\\INV_Misc_Book_09")
+  -- tab left / right in the tab bar; Settings stays at the right edge.
+  local tabs = section(1, "Shown tabs", "Interface\\Icons\\INV_Misc_Book_09")
   local cells = {}
   local function sortable() return UI.SortableTabs and UI.SortableTabs() or {} end
   local function refreshCells()
@@ -243,6 +243,51 @@ local function createSettingsPanel(parent)
     function() return UI.GetWindowAlpha and UI.GetWindowAlpha() end,
     function(a) if UI.SetWindowAlpha then UI.SetWindowAlpha(a) end end)
   win:finish()
+
+  -- Profiles (6.0.1, user 31.10.): Settings + Quality of Life options + shown tabs, chosen per character (UI/Profiles.lua)
+  local PR = FLT.Profiles
+  if PR then
+    local pro = section(2, "Profiles", "Interface\\Icons\\INV_Misc_Note_01")
+    local l = FLT.NewFS(pro.box, nil, "OVERLAY", "GameFontHighlight"); l:SetPoint("TOPLEFT", 14, pro.y - 6); l:SetText("This character uses")
+    local pick = UI.GoldButton(pro.box, "", 200, 24, nil, 12); pick:SetPoint("TOPLEFT", 190, pro.y - 2)
+    local function refresh() pick:SetLabel(PR.Active() .. "  |cff9d9d9dv|r") end
+    pick:SetScript("OnClick", function(btn)
+      local opts = {}
+      for _, name in ipairs(PR.Names()) do opts[#opts + 1] = { key = name, label = name } end
+      UI.OpenDropDown(btn, opts, PR.Active(), PR.Switch)
+    end)
+    pro.rowMax = math.min(pro.rowMax, pro.y - 34); pro:nextRow()
+    local function btn(label, x, fn, tip)
+      local b = pro:button(label, 108, fn, x)
+      b:SetScript("OnEnter", function(s) GameTooltip:SetOwner(s, "ANCHOR_RIGHT"); GameTooltip:AddLine(tip, 1, 1, 1, true); GameTooltip:Show() end)
+      b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    end
+    btn("New", 0, PR.New, "A new profile with the default options.")
+    btn("Copy", 116, PR.Copy, "A new profile with the options of the current one.")
+    btn("Rename", 232, PR.Rename, "Renames the current profile (not Default).")
+    btn("Delete", 348, PR.Delete, "Deletes the current profile (not Default). Its characters go back to Default.")
+    pro:nextRow()
+    btn("Export", 0, PR.Export, "The current profile as text to copy.")
+    btn("Import", 116, PR.Import, "Paste a profile text; it is saved as a new profile.")
+    btn("Send", 232, PR.SendDialog, "Sends the current profile to a player. They are asked first.")
+    -- receiving shared profiles: off by default, so nobody can spam you with them (user 31.10.)
+    local rcv = FLT.SkinBlizz(CreateFrame("CheckButton", nil, pro.box, "UICheckButtonTemplate"))
+    rcv:SetSize(24, 24); rcv:SetPoint("TOPLEFT", 360, pro.y)
+    local rl = FLT.NewFS(pro.box, nil, "OVERLAY", "GameFontHighlight"); rl:SetPoint("LEFT", rcv, "RIGHT", 4, 0); rl:SetText("Receive")
+    rcv:SetScript("OnClick", function(b) PR.SetReceive(b:GetChecked()) end)
+    rcv:SetScript("OnEnter", function(b)
+      GameTooltip:SetOwner(b, "ANCHOR_RIGHT"); GameTooltip:AddLine("Receive shared profiles", 1, 0.82, 0)
+      GameTooltip:AddLine("Other players may send you their profile. You are always asked before it is saved. When off, they get a note that you turned it off.", 1, 1, 1, true)
+      GameTooltip:Show()
+    end)
+    rcv:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    refreshers[#refreshers + 1] = function() rcv:SetChecked(PR.ReceiveEnabled()) end
+    pro:nextRow()
+    pro:text("A profile holds the Settings and Quality of Life options and the shown tabs. Window size and position, lists and collected data are not part of it. Switching reloads the interface.")
+    refreshers[#refreshers + 1] = refresh
+    PR.onChange = refresh
+    pro:finish()
+  end
 
   local bottom = math.min(colY[1], colY[2])
   local footer = FLT.NewFS(page, nil, "OVERLAY", "GameFontDisableSmall")

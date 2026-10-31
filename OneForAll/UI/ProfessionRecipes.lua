@@ -404,6 +404,25 @@ local function difficulty(r, skill)
   return "orange"
 end
 
+-- chance of a skill-up for yellow and green recipes (Classic: (grey - skill) / (grey - yellow)); nil for orange,
+-- grey, red or without data (6.0.1, Discord noel.puldon: the colour stays, the number is added)
+local function skillUpChance(r, d, skill)
+  if (d ~= "yellow" and d ~= "green") or not skill or not r.y or not r.gr or r.gr <= r.y then return nil end
+  local p = math.floor((r.gr - skill) / (r.gr - r.y) * 100 + 0.5)
+  return math.max(1, math.min(100, p))
+end
+
+-- how many you can make with the reagents in your bags (6.0.1-beta2, user 30.10.: "(2)" like the game's window)
+local function canMake(r)
+  if not r.r or #r.r == 0 or not GetItemCount then return 0 end
+  local n
+  for _, rg in ipairs(r.r) do
+    local k = math.floor((GetItemCount(rg[1]) or 0) / math.max(1, rg[2] or 1))
+    if not n or k < n then n = k end
+  end
+  return n or 0
+end
+
 local function itemIcon(id)
   local icon = (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(id)) or (GetItemIcon and GetItemIcon(id))
   return icon or "Interface\\Icons\\INV_Misc_QuestionMark"
@@ -497,13 +516,12 @@ function UI.CreateRecipeBrowser(parent)
 
   -- list (left) and detail (right)
   local left = CreateFrame("Frame", nil, f); left:SetPoint("TOPLEFT", 0, -82); left:SetPoint("BOTTOMLEFT", 0, 0); left:SetWidth(336)
-  UI.FramedPanel(left)
+  UI.Column(left, 4) -- ht3: no frame, a line to the right
   local lsf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, left, "UIPanelScrollFrameTemplate")); lsf:SetPoint("TOPLEFT", 8, -8); lsf:SetPoint("BOTTOMRIGHT", -26, 8)
   local lchild = CreateFrame("Frame", nil, lsf); lchild:SetSize(296, 1); lsf:SetScrollChild(lchild)
   UI.AutoHideScrollBar(lsf)
 
   local right = CreateFrame("Frame", nil, f); right:SetPoint("TOPLEFT", left, "TOPRIGHT", 8, 0); right:SetPoint("BOTTOMRIGHT", 0, 0)
-  UI.FramedPanel(right)
   local rsf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, right, "UIPanelScrollFrameTemplate")); rsf:SetPoint("TOPLEFT", 14, -12); rsf:SetPoint("BOTTOMRIGHT", -28, 10)
   local rchild = CreateFrame("Frame", nil, rsf); rchild:SetSize(420, 1); rsf:SetScrollChild(rchild)
   -- Crafting List / Craft buttons stacked right of Skill / Use / Learned from (5.7.3, user 24.10.; UI/CraftList.lua).
@@ -642,6 +660,11 @@ function UI.CreateRecipeBrowser(parent)
     local function c(col, v) local k = DIFF[col]; return string.format("|cff%02x%02x%02x%s|r", math.floor(k[1] * 255), math.floor(k[2] * 255), math.floor(k[3] * 255), tostring(v)) end
     y = section("Details", y, function(b, y1) box, by = b, y1
     line("Skill", (r.req and ("learn at " .. r.req .. "   ") or "") .. c("yellow", r.y) .. "  " .. c("green", r.g) .. "  " .. c("gray", r.gr))
+    do -- chance of a skill-up at your skill (yellow / green only)
+      local d = difficulty(r, p.skill)
+      local pct = skillUpChance(r, d, p.skill)
+      if pct then line("Skill-up", c(d, pct .. "% chance") .. "  |cff9d9d9d(at skill " .. p.skill .. ")|r") end
+    end
     if r.lv then
       local pl = UnitLevel and UnitLevel("player") or 0
       line("Use", (pl < r.lv and "|cffff6060" or "") .. "Requires level " .. r.lv .. (pl < r.lv and "|r" or ""))
@@ -845,8 +868,10 @@ function UI.CreateRecipeBrowser(parent)
       FLT.SetTex(b.icon, recipeIcon(r))
       local qc = r.i and QCOL[r.q or 1]
       if qc then b.qbar:SetColorTexture(FLT.SkinC(qc[1], qc[2], qc[3], (r.q or 1) <= 1 and 0.45 or 0.95)); b.qbar:Show() else b.qbar:Hide() end
-      b.name:SetText(r.n)
       local d = difficulty(r, skill)
+      local pct = skillUpChance(r, d, skill)
+      local n = knownT[r.s] and canMake(r) or 0
+      b.name:SetText(r.n .. (n > 0 and (" (" .. n .. ")") or "") .. (pct and ("  " .. pct .. "%") or ""))
       local col = d and DIFF[d] or {0.92, 0.90, 0.84}
       b.name:SetTextColor(FLT.SkinC(col[1], col[2], col[3]))
       b.lvl:SetText(r.req and tostring(r.req) or ("|cff9d9d9d" .. (r.y or "?") .. "|r"))
@@ -865,6 +890,10 @@ function UI.CreateRecipeBrowser(parent)
     for i = used + 1, #rows do rows[i]:Hide() end
   end
   lsf:HookScript("OnVerticalScroll", function() f:DrawRows() end)
+  -- the "(n)" you can make follows your bags, but only while the list is open (6.0.1-beta2)
+  f:SetScript("OnShow", function(self) self:RegisterEvent("BAG_UPDATE_DELAYED") end)
+  f:SetScript("OnHide", function(self) self:UnregisterEvent("BAG_UPDATE_DELAYED") end)
+  f:SetScript("OnEvent", function(self) if self:IsVisible() then self:DrawRows() end end)
   lsf:HookScript("OnSizeChanged", function() f:DrawRows() end)
 
   function f:Refresh(keepScroll)

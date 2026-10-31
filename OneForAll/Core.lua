@@ -229,6 +229,8 @@ f:SetScript("OnEvent", function(_, event, arg1)
     OneForAllDB.recipeItemIDs = nil -- obsolete merchant cache (pre-4.1.2)
     OneForAllDB.talentPlans = OneForAllDB.talentPlans or {}
     FLT.bankItems = char.bankItems
+    -- 6.0.1: the character's profile (UI/Profiles.lua) into the live settings, before the first-start defaults
+    if FLT.Profiles then FLT.Profiles.Load() end
     -- 5.6.2: first start (no Quality of Life settings yet): these options start switched on
     -- (chosen by the user 16.10.); existing installs keep what they have
     if OneForAllDB.qol == nil then
@@ -296,6 +298,8 @@ SlashCmdList.ONEFORALL = function(cmd)
     msg("Tab selection reset to the defaults for this character.")
   elseif cmd == "share test" then
     if FLT.QuestShareTest then FLT:QuestShareTest() end
+  elseif cmd == "chathistory" then
+    if FLT.QoL and FLT.QoL.ChatHistoryInfo then FLT.QoL.ChatHistoryInfo() end
   elseif cmd == "share" then
     if FLT.OpenQuestShare then FLT:OpenQuestShare() end
   elseif cmd == "share on" or cmd == "share off" then

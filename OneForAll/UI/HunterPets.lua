@@ -51,7 +51,7 @@ local function makeRound(parentFrame, tex, path)
 end
 
 local GOLD = {1, 0.82, 0.20}
-local LIST_W, ROW_W = 350, 338
+local LIST_W, ROW_W = 302, 298 -- ht7: the list is narrower (the modes are a side list now)
 
 -- Known pet abilities ---------------------------------------------------------
 -- Hunters keep every pet ability rank they have learned; it is listed in the
@@ -398,16 +398,28 @@ local function createPetsPanel(parent)
   UI.TitleBand(panel, { emblem = UI.ASSET_ROOT .. "emblem_pets", art = UI.ASSET_ROOT .. "pets_banner",
     title = "Hunter Pets", subtitle = "Pet families, abilities with every rank and where to learn them, and notable rare tames.", fadeRight = 120 })
 
+  -- ht7 (user 30.10.): the three modes as a side list like the other tabs (emblem and name on top)
   local modeButtons = {}
-  local modes = { {key="families", label="Families"}, {key="abilities", label="Abilities"}, {key="rares", label="Rare Tames"} }
-  local x = 8
+  local modes = { {key="families", label="Families", icon="Interface\\Icons\\Ability_Hunter_BeastTaming"},
+    {key="abilities", label="Abilities", icon="Interface\\Icons\\Ability_Hunter_BeastTraining"},
+    {key="rares", label="Rare Tames", icon="Interface\\Icons\\INV_Misc_Head_Tiger_01"} }
+  local nav, navY = UI.SideNav(panel, -74, "emblem_pets", "Hunter Pets") -- ht8: the same side list in every tab
   for _, m in ipairs(modes) do
-    local b = UI.GoldButton(panel, m.label, 124, 26, nil, 13); b:SetPoint("TOPLEFT", x, -74); x = x + 132
+    local b; b, navY = UI.NavEntry(nav, navY, m.label, m.icon)
     modeButtons[m.key] = b
   end
 
   local body = CreateFrame("Frame", nil, panel)
-  body:SetPoint("TOPLEFT", 8, -108); body:SetPoint("BOTTOMRIGHT", -8, 4)
+  body:SetPoint("TOPLEFT", 182, -74); body:SetPoint("BOTTOMRIGHT", -8, 4)
+  -- head like Quality of Life (user 31.10.): icon, mode name, one line, a search over all three modes
+  local runSearch -- below
+  local head = UI.PageHeader(body, { placeholder = "Search families, abilities, beasts...", onSearch = function(t) if runSearch then runSearch(t) end end })
+  local MODE_HEAD = {
+    families = { "Interface\\Icons\\Ability_Hunter_BeastTaming", "Families", "Diet, role and abilities of every pet family, and where to tame one." },
+    abilities = { "Interface\\Icons\\Ability_Hunter_BeastTraining", "Abilities", "Every rank of the pet abilities and the beasts that teach them." },
+    rares = { "Interface\\Icons\\INV_Misc_Head_Tiger_01", "Rare Tames", "Notable rare beasts worth taming and where to find them." },
+  }
+  local function place(view) view:SetPoint("TOPLEFT", 0, -60); view:SetPoint("BOTTOMRIGHT") end -- below the head
 
   local function text(parentFrame, template, w)
     local f = FLT.NewFS(parentFrame, nil, "OVERLAY", template or "GameFontHighlight")
@@ -429,15 +441,14 @@ local function createPetsPanel(parent)
 
   -- Master/detail view: a list on the left, a scrollable detail pane right.
   local function masterDetail(listItems, buildDetail)
-    local view = CreateFrame("Frame", nil, body); view:SetAllPoints()
-    local left = CreateFrame("Frame", nil, view); left:SetPoint("TOPLEFT"); left:SetPoint("BOTTOMLEFT"); left:SetWidth(390)
-    UI.FramedPanel(left)
+    local view = CreateFrame("Frame", nil, body); place(view)
+    local left = CreateFrame("Frame", nil, view); left:SetPoint("TOPLEFT"); left:SetPoint("BOTTOMLEFT"); left:SetWidth(340)
+    UI.Column(left, 4) -- ht3: no frame, a line to the right
     local lsf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, left, "UIPanelScrollFrameTemplate")); lsf:SetPoint("TOPLEFT", 10, -10); lsf:SetPoint("BOTTOMRIGHT", -28, 8)
     local lchild = CreateFrame("Frame", nil, lsf); lchild:SetSize(LIST_W, 1); lsf:SetScrollChild(lchild)
     UI.AutoHideScrollBar(lsf)
 
-    local right = CreateFrame("Frame", nil, view); right:SetPoint("TOPLEFT", 398, 0); right:SetPoint("BOTTOMRIGHT")
-    UI.FramedPanel(right)
+    local right = CreateFrame("Frame", nil, view); right:SetPoint("TOPLEFT", 348, 0); right:SetPoint("BOTTOMRIGHT")
 
     local rows, panes = {}, {}
     local function select(i)
@@ -448,7 +459,7 @@ local function createPetsPanel(parent)
       for _, p in pairs(panes) do p:Hide() end
       if not panes[i] then
         local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, right, "UIPanelScrollFrameTemplate")); sf:SetPoint("TOPLEFT", 14, -12); sf:SetPoint("BOTTOMRIGHT", -28, 10)
-        local child = CreateFrame("Frame", nil, sf); child:SetSize(520, 1); sf:SetScrollChild(child)
+        local child = CreateFrame("Frame", nil, sf); child:SetSize(430, 1); sf:SetScrollChild(child)
         UI.AutoHideScrollBar(sf)
         local h = buildDetail(child, listItems[i])
         if h then child:SetHeight(math.max(1, h)) end
@@ -464,13 +475,17 @@ local function createPetsPanel(parent)
       local b = CreateFrame("Button", nil, lchild); b:SetSize(ROW_W, 34); b:SetPoint("TOPLEFT", 0, y); y = y - 37
       local card = UI.CardRow(b)
       local ic = b:CreateTexture(nil, "ARTWORK"); ic:SetSize(26, 26); ic:SetPoint("LEFT", 6, 0); FLT.SetTex(ic, item.icon)
-      local label = text(b, "GameFontHighlight", 200); label:SetPoint("LEFT", 40, 0); label:SetText(item.label)
+      local label = text(b, "GameFontHighlight", 160); label:SetPoint("LEFT", 40, 0); label:SetText(item.label)
       local sub = text(b, "GameFontDisableSmall", 110); sub:SetPoint("RIGHT", -8, 0); sub:SetJustifyH("RIGHT"); sub:SetText(item.sub or "")
       b:SetScript("OnClick", function() select(i) end)
       rows[i] = {card=card, label=label, sub=sub, button=b}
     end
     lchild:SetHeight(math.max(1, -y + 2))
     view.select = select
+    view.focus = function(i) -- from the search: select and scroll the row into view
+      select(i)
+      lsf:SetVerticalScroll(math.max(0, math.min(lsf:GetVerticalScrollRange() or 0, (i - 1) * 37 - 120)))
+    end
     view.rows, view.items = rows, listItems
     view.refreshCurrent = function() local p = view.selected and panes[view.selected]; if p and p.child.refresh then p.child.refresh() end end
     select(1)
@@ -485,7 +500,7 @@ local function createPetsPanel(parent)
     return y - 20
   end
   local function para(child, s, y, template, r, g, b)
-    local p = text(child, template or "GameFontHighlightSmall", 510); p:SetPoint("TOPLEFT", 0, y); p:SetText(s)
+    local p = text(child, template or "GameFontHighlightSmall", 420); p:SetPoint("TOPLEFT", 0, y); p:SetText(s)
     if r then p:SetTextColor(FLT.SkinC(r, g, b)) end
     return y - math.max(16, (p:GetStringHeight() or 14) + 4)
   end
@@ -570,7 +585,7 @@ local function createPetsPanel(parent)
       return b
     end
     local MOD_ICONS = { health = "Interface\\Icons\\Spell_Holy_Heal", armor = "Interface\\Icons\\INV_Shield_06", damage = "Interface\\Icons\\INV_Sword_04" }
-    local W = 532
+    local W = 430 -- ht7: was 532 (narrower detail pane)
 
     local view = masterDetail(items, function(child, item)
       local f = item.data
@@ -764,7 +779,7 @@ local function createPetsPanel(parent)
     end
     for _, it in ipairs(items) do it.sub = subText(it.data) end
 
-    local W = 532
+    local W = 430 -- ht7: was 532 (narrower detail pane)
     local PAW = UI.ASSET_ROOT .. "emblem_pets"
     local view = masterDetail(items, function(child, item)
       local a = item.data
@@ -923,19 +938,19 @@ local function createPetsPanel(parent)
 
   -- Rare tames ---------------------------------------------------------------
   local function buildRares()
-    local view = CreateFrame("Frame", nil, body); view:SetAllPoints()
-    UI.FramedPanel(view)
+    local view = CreateFrame("Frame", nil, body); place(view)
     local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, view, "UIPanelScrollFrameTemplate")); sf:SetPoint("TOPLEFT", 12, -10); sf:SetPoint("BOTTOMRIGHT", -30, 10)
-    local child = CreateFrame("Frame", nil, sf); child:SetSize(930, 1); sf:SetScrollChild(child)
+    local child = CreateFrame("Frame", nil, sf); child:SetSize(770, 1); sf:SetScrollChild(child)
     UI.AutoHideScrollBar(sf)
     local y = -2
+    local cards = {}
     for i, r in ipairs(FLT.PET_RARES or {}) do
-      local row = CreateFrame("Button", nil, child); row:SetSize(930, 44); row:SetPoint("TOPLEFT", 0, y); y = y - 47
-      UI.CardRow(row)
+      local row = CreateFrame("Button", nil, child); row:SetSize(770, 44); row:SetPoint("TOPLEFT", 0, y); y = y - 47
+      cards[i] = UI.CardRow(row)
       local ic = row:CreateTexture(nil, "ARTWORK"); ic:SetSize(28, 28); ic:SetPoint("LEFT", 8, 0); FLT.SetTex(ic, icon(FAMILY_ICON, r.family))
       local n = text(row, "GameFontNormal", 300); n:SetPoint("TOPLEFT", 44, -6)
       n:SetText(string.format("%s  |cffbbbbbb%s, level %s%s|r", r.name or "?", r.family or "?", r.level or "?", r.speed and (", speed " .. r.speed) or ""))
-      local w = text(row, "GameFontHighlightSmall", 600); w:SetPoint("TOPLEFT", 44, -25); w:SetText(r.why or ""); w:SetWordWrap(false)
+      local w = text(row, "GameFontHighlightSmall", 440); w:SetPoint("TOPLEFT", 44, -25); w:SetText(r.why or ""); w:SetWordWrap(false)
       local z = text(row, "GameFontHighlightSmall", 190); z:SetPoint("RIGHT", -96, 0); z:SetJustifyH("RIGHT"); z:SetText(r.zone or ""); z:SetWordWrap(false)
       -- full text in the tooltip (the description is cut to one line)
       row:SetScript("OnEnter", function(self)
@@ -952,11 +967,17 @@ local function createPetsPanel(parent)
       end
     end
     child:SetHeight(math.max(1, -y + 4))
+    view.focus = function(i) -- from the search: mark the row and scroll to it
+      for j, c in ipairs(cards) do c:SetSelected(j == i) end
+      sf:SetVerticalScroll(math.max(0, math.min(sf:GetVerticalScrollRange() or 0, (i - 1) * 47 - 120)))
+    end
     return view
   end
 
+  local searchIndex, searchView -- the search (below)
   local builders = { families=buildFamilies, abilities=buildAbilities, rares=buildRares }
   showMode = function(key, selectIndex)
+    if searchView and searchView:IsShown() then head.box:SetText(""); head.box:ClearFocus() end -- a mode button ends the search
     -- Abilities must exist before a family links to one.
     if key == "families" and not views.abilities then views.abilities = buildAbilities(); views.abilities:Hide() end
     for k, v in pairs(views) do if k ~= key then v:Hide() end end
@@ -964,7 +985,82 @@ local function createPetsPanel(parent)
     views[key]:Show()
     if selectIndex and views[key].select then views[key].select(selectIndex) end
     for k, b in pairs(modeButtons) do b:SetActive(k == key) end
+    head:Set(unpack(MODE_HEAD[key]))
     current = key
+  end
+
+  -- Search over all three modes (user 31.10.): one result list; a click opens the entry in its mode.
+  -- The index is built on the first search only.
+  local KIND = { families = "Family", abilities = "Ability", rares = "Rare tame" }
+  local function buildIndex()
+    searchIndex = {}
+    local function add(kind, key, label, ic, parts) searchIndex[#searchIndex + 1] = { kind = kind, key = key, label = label, icon = ic, find = table.concat(parts, " "):lower() } end
+    for i, f in ipairs(FLT.PET_FAMILIES or {}) do
+      local parts = { f.name or "", table.concat(f.diet or {}, " "), table.concat(f.abilities or {}, " ") }
+      for _, b in ipairs(f.tames or {}) do parts[#parts + 1] = (b.name or "") .. " " .. (b.zone or "") end
+      add("families", i, f.name, icon(FAMILY_ICON, f.name), parts)
+    end
+    for _, a in ipairs(FLT.PET_ABILITIES or {}) do
+      if a.source ~= "trainer" then
+        local parts = { a.name or "", a.effect or "" }
+        for _, rk in ipairs(a.ranks or {}) do
+          for _, b in ipairs(rk.learnFrom or {}) do parts[#parts + 1] = (b.name or "") .. " " .. (b.zone or "") end
+        end
+        add("abilities", a.name, a.name, icon(ABILITY_ICON, a.name), parts)
+      end
+    end
+    for i, r in ipairs(FLT.PET_RARES or {}) do
+      add("rares", i, r.name, icon(FAMILY_ICON, r.family), { r.name or "", r.family or "", r.zone or "", r.why or "" })
+    end
+  end
+  local function openHit(hit)
+    head.box:SetText(""); head.box:ClearFocus()
+    showMode(hit.kind)
+    local v = views[hit.kind]
+    local i = hit.kind == "abilities" and abilityIndex[hit.key] or hit.key
+    if v and v.focus and i then v.focus(i) end
+  end
+  runSearch = function(t)
+    if not current then return end
+    if t == "" then
+      if searchView then searchView:Hide() end
+      views[current]:Show(); head:Set(unpack(MODE_HEAD[current])); modeButtons[current]:SetActive(true)
+      return
+    end
+    if not searchIndex then buildIndex() end
+    if not searchView then
+      searchView = CreateFrame("Frame", nil, body); place(searchView)
+      local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, searchView, "UIPanelScrollFrameTemplate")); sf:SetPoint("TOPLEFT", 12, -10); sf:SetPoint("BOTTOMRIGHT", -30, 10)
+      local child = CreateFrame("Frame", nil, sf); child:SetSize(770, 1); sf:SetScrollChild(child)
+      UI.AutoHideScrollBar(sf)
+      searchView.child, searchView.sf, searchView.rows = child, sf, {}
+      searchView.none = text(child, "GameFontDisable"); searchView.none:SetPoint("TOPLEFT", 12, -12); searchView.none:SetText("Nothing found.")
+    end
+    for _, v in pairs(views) do v:Hide() end
+    for _, b in pairs(modeButtons) do b:SetActive(false) end
+    local rows, n, y = searchView.rows, 0, -2
+    for _, hit in ipairs(searchIndex) do
+      if hit.find:find(t, 1, true) then
+        n = n + 1
+        local r = rows[n]
+        if not r then
+          r = CreateFrame("Button", nil, searchView.child); r:SetSize(770, 34)
+          UI.CardRow(r)
+          r.ic = r:CreateTexture(nil, "ARTWORK"); r.ic:SetSize(26, 26); r.ic:SetPoint("LEFT", 6, 0)
+          r.label = text(r, "GameFontHighlight", 400); r.label:SetPoint("LEFT", 40, 0)
+          r.kind = text(r, "GameFontDisableSmall", 160); r.kind:SetPoint("RIGHT", -10, 0); r.kind:SetJustifyH("RIGHT")
+          r:SetScript("OnClick", function(self) openHit(self.hit) end)
+          rows[n] = r
+        end
+        r.hit = hit; FLT.SetTex(r.ic, hit.icon); r.label:SetText(hit.label or "?"); r.kind:SetText(KIND[hit.kind])
+        r:ClearAllPoints(); r:SetPoint("TOPLEFT", 0, y); r:Show(); y = y - 37
+      end
+    end
+    for i = n + 1, #rows do rows[i]:Hide() end
+    searchView.none:SetShown(n == 0)
+    searchView.child:SetHeight(math.max(1, -y + 4)); searchView.sf:SetVerticalScroll(0)
+    searchView:Show()
+    head:Set("Interface\\Icons\\INV_Misc_Spyglass_02", "Search", n == 1 and "1 match in families, abilities and rare tames." or (n .. " matches in families, abilities and rare tames."))
   end
   for k, b in pairs(modeButtons) do b:SetScript("OnClick", function() showMode(k) end) end
 

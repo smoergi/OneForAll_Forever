@@ -171,7 +171,7 @@ end
 -- Layout (user 22.10.): a fixed list of groups on the left like Armory and Professions, the options
 -- of one group on the right (one per row: switch, name, short description, controls on the right),
 -- a search over all options. Opens on Interface.
-local CHILD_W = 754          -- scroll child inside the right frame (body 798 - margins - scroll bar)
+local CHILD_W = 770          -- scroll child inside the right frame (body 814 - margins - scroll bar; ht6: +16)
 local ROW_W = CHILD_W - 8
 local function createQoLPanel(parent)
   local Q = FLT.QoL
@@ -180,22 +180,15 @@ local function createQoLPanel(parent)
   UI.TitleBand(panel, { emblem = UI.ASSET_ROOT .. "emblem_qol", art = UI.ASSET_ROOT .. "qol_banner",
     title = "Quality of Life", subtitle = "Small helpers for everyday play. Switch on what you like.", fadeRight = 200 })
 
-  local nav = CreateFrame("Frame", nil, panel)
-  nav:SetPoint("TOPLEFT", 8, -74); nav:SetSize(180, 481) -- fixed like the other tabs' side panels; a bit wider for "Popups & Alerts"
-  UI.FramedPanel(nav)
+  local nav, navTop = UI.SideNav(panel, -74, "emblem_qol", "Quality of Life") -- ht8: the same side list in every tab
   local body = CreateFrame("Frame", nil, panel)
-  body:SetPoint("TOPLEFT", 198, -74); body:SetPoint("BOTTOMRIGHT", -8, 4)
-  UI.FramedPanel(body)
+  body:SetPoint("TOPLEFT", 182, -74); body:SetPoint("BOTTOMRIGHT", -8, 4)
 
-  -- header of the right side: icon, group name, one line about it, search
-  local hIcon = body:CreateTexture(nil, "ARTWORK"); hIcon:SetSize(30, 30); hIcon:SetPoint("TOPLEFT", 16, -12)
-  hIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  if hIcon.AddMaskTexture and body.CreateMaskTexture then
-    local m = body:CreateMaskTexture(); FLT.SetTex(m, UI.ASSET_ROOT .. "talent_icon_mask2", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE"); m:SetAllPoints(hIcon); hIcon:AddMaskTexture(m)
-  end
-  local hTitle = FLT.NewFS(body, nil, "OVERLAY", "GameFontNormalLarge"); hTitle:SetPoint("TOPLEFT", 56, -12); hTitle:SetTextColor(FLT.SkinC(unpack(GOLD)))
-  local hSub = FLT.NewFS(body, nil, "OVERLAY", "GameFontHighlightSmall"); hSub:SetPoint("TOPLEFT", 56, -32); hSub:SetTextColor(FLT.SkinC(0.84, 0.81, 0.74))
-  local line = UI.makeTexture(body, "ARTWORK", 0.72, 0.50, 0.12, 0.45); line:SetPoint("TOPLEFT", 12, -54); line:SetPoint("TOPRIGHT", -12, -54); line:SetHeight(1)
+  -- header of the right side: icon, group name, one line about it, search (UI.PageHeader, shared with Dungeons / Hunter Pets)
+  local onSearch -- below
+  local head = UI.PageHeader(body, { placeholder = "Search all settings...", onSearch = function(t) if onSearch then onSearch(t) end end })
+  local hIcon, hTitle, hSub = head.icon, head.title, head.sub
+  -- ht7 (user 30.10.): no line under the group header any more
 
   local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, body, "UIPanelScrollFrameTemplate"))
   sf:SetPoint("TOPLEFT", 10, -60); sf:SetPoint("BOTTOMRIGHT", -28, 8)
@@ -243,7 +236,7 @@ local function createQoLPanel(parent)
     local r = CreateFrame("Button", nil, child); r:SetSize(ROW_W, 40); r:Hide()
     local hl = r:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(FLT.SkinC(0.90, 0.66, 0.22, 0.06))
     r.indent = indent or 0
-    r.label = FLT.NewFS(r, nil, "OVERLAY", "GameFontHighlight"); r.label:SetPoint("TOPLEFT", 42 + r.indent, -5); r.label:SetText(label)
+    r.label = FLT.NewFS(r, nil, "OVERLAY", "GameFontHighlight"); r.label:SetPoint("TOPLEFT", 60 + r.indent, -5); r.label:SetText(label) -- header test: room for the switch (was 42)
     r.desc = FLT.NewFS(r, nil, "OVERLAY", "GameFontDisableSmall"); r.desc:SetPoint("TOPLEFT", r.label, "BOTTOMLEFT", 0, -3)
     r.desc:SetJustifyH("LEFT"); r.desc:SetWordWrap(false); r.desc:SetText(desc or "")
     r.rightW = 0
@@ -274,7 +267,7 @@ local function createQoLPanel(parent)
   -- switch in front of the row; get/set default to Q.Get/Q.Set(key); clicking the row toggles it too
   local function switch(r, g, key, get, set, onChange)
     local cb = FLT.SkinBlizz(CreateFrame("CheckButton", nil, r, "UICheckButtonTemplate"))
-    cb:SetSize(24, 24); cb:SetPoint("LEFT", 12 + r.indent, 0)
+    cb:SetSize(24, 24); cb:SetPoint("LEFT", 8 + r.indent, 0)
     get = get or function() return Q.Get(key) and true or false end
     set = set or function(v) Q.Set(key, v) end
     cb:SetScript("OnClick", function(b) set(b:GetChecked() and true or false); if onChange then onChange() end; updateCounts() end)
@@ -322,34 +315,39 @@ local function createQoLPanel(parent)
 
   ---------------------------------------------------------------------------------------------------
   -- INTERFACE (first, the tab opens here; user 22.10.)
-  local c = category("iface", "Interface", "Interface\\Icons\\INV_Misc_Gear_01", "Camera, bags, chat and other helpers for the game's interface.")
+  local c = category("iface", "Interface", "Interface\\Icons\\INV_Misc_Gear_01", "Camera, bags, windows, the minimap and other helpers for the game's interface.")
   local g = group(c, "General")
   check(g, "Farther camera zoom", "Lets you zoom the camera out further.", nil, "cameraZoom")
   check(g, "Free bag slots on the backpack", "Shows the number of free slots on your backpack.", "Counts all normal bags (quivers, ammo and profession bags are not counted).", "bagSlots")
-  g = group(c, "Windows & chat")
+  check(g, "Hide error messages", "Hides the red messages in the middle of the screen.", "Messages like \"Out of range\" or \"Not enough rage\" are no longer shown. Still shown: inventory or bags full, quest log full, not enough money, carrying too many of an item.", "hideErrors")
+  g = group(c, "Windows")
   do
     local r = check(g, "Move Blizzard windows", "Drag windows like the character or quest log window anywhere.", "Drag windows such as the character, merchant or quest log window with the left mouse button. Positions are remembered.", "moveWindows")
     button(r, "Reset", 60, "Moved Blizzard windows go back to their default place.", function() Q.ResetWindowPositions() end)
   end
-  do -- chat font size: -, value, +
-    local r = row(g, "Chat font size", "The same font size for every chat window.", "Go below 10 to switch it off (then the game's own setting is kept).")
-    local function step(d)
-      local v = tonumber(Q.Get("chatFont"))
-      if not v then v = 14 else v = v + d end
-      if v < 10 then v = nil elseif v > 24 then v = 24 end
-      Q.Set("chatFont", v); r.show()
-    end
-    button(r, "+", 26, nil, function() step(1) end)
-    local val = FLT.NewFS(r, nil, "OVERLAY", "GameFontNormal"); val:SetWidth(46); val:SetJustifyH("CENTER"); val:SetHeight(20); place(r, val, 4)
-    button(r, "-", 26, nil, function() step(-1) end)
-    r.show = function() local v = tonumber(Q.Get("chatFont")); val:SetText(v and tostring(v) or "Off") end
-    refreshers[#refreshers + 1] = r.show
+  do
+    local r = check(g, "Resize Blizzard windows", "Drag a window with the right mouse button to change its size.", "Hold the right mouse button on a window like the character or quest log window and drag: right or down makes it larger, left or up smaller (50 - 150 %). The size shows at the cursor and is remembered.", "resizeWindows")
+    button(r, "Reset", 60, "Resized Blizzard windows go back to their normal size.", function() Q.ResetWindowSizes() end)
   end
-  check(g, "Copy chat button", "Adds a button to every chat window to copy its text.", "A small button at the top right of every chat window. It opens the chat text so you can select and copy it (Ctrl+C).", "copyChat")
-  check(g, "Hide chat button", "A button next to the chat hides and shows it.", "It sits above the chat menu button. Also as a key: Key Bindings > OneForAll > Hide / show chat. Pressing Enter to type brings the chat back.", "chatHide")
-  choice(g, "Hide chat after", "Hides the chat after that long without a new message.", "A new message or typing shows it again. Not while the mouse is on the chat.", "chatAutoHide", Q.CHAT_HIDE_OPTIONS)
   g = group(c, "Minimap")
-  choice(g, "Logo color", "The color of the OneForAll minimap button.", "Also the button of the minimap button collector.", "logoColor", Q.LOGO_COLORS)
+  do -- the logo colours as small logos to click (like the welcome setup; user 31.10.: no drop-down)
+    local r = row(g, "Logo color", "The color of the OneForAll minimap button.", "Also the button of the minimap button collector.")
+    local marks = {}
+    for i = #Q.LOGO_COLORS, 1, -1 do
+      local o = Q.LOGO_COLORS[i]
+      local b = CreateFrame("Button", nil, r); b:SetSize(26, 26); place(r, b, 8)
+      local t = b:CreateTexture(nil, "ARTWORK"); t:SetAllPoints(); t:SetTexture(UI.ASSET_ROOT .. "logo_round_" .. (o.key == "bronze" and "teal" or o.key))
+      if FLT.TintLogo then FLT.TintLogo(t, o.key) end
+      local sel = b:CreateTexture(nil, "OVERLAY"); sel:SetPoint("TOPLEFT", -4, 4); sel:SetPoint("BOTTOMRIGHT", 4, -4)
+      sel:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"); sel:SetBlendMode("ADD")
+      b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
+      b:SetScript("OnClick", function() Q.Set("logoColor", o.key); for k, m in pairs(marks) do m:SetShown(k == o.key) end end)
+      b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(o.label); GameTooltip:Show() end)
+      b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      marks[o.key] = sel
+    end
+    refreshers[#refreshers + 1] = function() local cur = Q.Get("logoColor") for k, m in pairs(marks) do m:SetShown(k == cur) end end
+  end
   -- "Collect minimap buttons" and "Hide the OneForAll button" exclude each other: the one that is on greys out
   -- the other (user 24.10.; the bar needs its button)
   local collectRow, hideRow
@@ -374,6 +372,31 @@ local function createQoLPanel(parent)
   end
   check(g, "Square minimap", "A square minimap with a thin black frame.", "The round border and the compass are hidden; minimap buttons of other addons follow the square edge. Does nothing with ElvUI or when another addon already makes the minimap square.", "mmSquare")
 
+  ---------------------------------------------------------------------------------------------------
+  -- CHAT (own entry in the list, user 31.10.)
+  c = category("chat", "Chat", "Interface\\Icons\\INV_Scroll_03", "The chat windows and the chat box.")
+  g = group(c, "Chat windows")
+  do -- chat font size: -, value, +
+    local r = row(g, "Chat font size", "The same font size for every chat window.", "Go below 10 to switch it off (then the game's own setting is kept).")
+    local function step(d)
+      local v = tonumber(Q.Get("chatFont"))
+      if not v then v = 14 else v = v + d end
+      if v < 10 then v = nil elseif v > 24 then v = 24 end
+      Q.Set("chatFont", v); r.show()
+    end
+    button(r, "+", 26, nil, function() step(1) end)
+    local val = FLT.NewFS(r, nil, "OVERLAY", "GameFontNormal"); val:SetWidth(46); val:SetJustifyH("CENTER"); val:SetHeight(20); place(r, val, 4)
+    button(r, "-", 26, nil, function() step(-1) end)
+    r.show = function() local v = tonumber(Q.Get("chatFont")); val:SetText(v and tostring(v) or "Off") end
+    refreshers[#refreshers + 1] = r.show
+  end
+  check(g, "Copy chat button", "Adds a button to every chat window to copy its text.", "A small button at the top right of every chat window. It opens the chat text so you can select and copy it (Ctrl+C).", "copyChat")
+  check(g, "Hide chat button", "A button next to the chat hides and shows it.", "It sits above the chat menu button. Also as a key: Key Bindings > OneForAll > Hide / show chat. Pressing Enter to type brings the chat back.", "chatHide")
+  choice(g, "Hide chat after", "Hides the chat after that long without a new message.", "A new message or typing shows it again. Not while the mouse is on the chat.", "chatAutoHide", Q.CHAT_HIDE_OPTIONS)
+  g = group(c, "Typing")
+  check(g, "Message history", "Arrow up / down in the chat box brings back your last 5 messages.", "Type, send, open the chat again and press arrow up: the message is there again, Enter sends it. While typing, the arrow keys no longer turn your character.", "chatHistory")
+
+  ---------------------------------------------------------------------------------------------------
   -- LOOT & VENDORS
   c = category("loot", "Loot & Vendors", "Interface\\Icons\\INV_Misc_Bag_10", "Looting, merchants, full bags and the loot feed.")
   g = group(c, "Looting")
@@ -447,8 +470,10 @@ local function createQoLPanel(parent)
   g = group(c, "Items")
   check(g, "Boss drops", "Shows which dungeon boss drops an item.", nil, "bossDrops")
   check(g, "Gear Value", "Upgrade or downgrade in % against what you wear.", "On gear you can use: how much better (green) or worse (red) it is than what you wear, weighted for your talent spec like Armory > Gear Planner. Also a green arrow on upgrades in your bags, the loot roll window and quest rewards, and a gold star for wishlist items (/ofa rolltest shows an example).", "gearValue")
+  check(g, "Arrow color by armor type", "Yellow arrow for upgrades in a lighter armor type.", "The green arrow stays for upgrades in the best armor type of your class. Upgrades in a lighter type get a yellow arrow: warriors and paladins wear plate from level 40 (mail before), hunters and shamans mail from 40 (leather before), rogues and druids leather. Cloaks, jewelry, shields and weapons are not affected. Needs \"Gear Value\".", "arrowTiers", 24)
+  check(g, "Short green stats", "Long \"Equip:\" lines as short stats, e.g. \"+1% Hit\".", "\"Equip: Improves your chance to hit by 1%.\" becomes \"+1% Hit\", spell damage and healing get a line each, and \"Enchanted:\" lines put the number first. Lines it does not know stay as they are. Hover the item again after switching.", "shortStats")
   check(g, "Recipes: who knows it", "Whether you, an alt or a guild member knows a recipe.", nil, "recipeTip")
-  check(g, "Compare items only with Shift", "Hold Shift to see your equipped item next to the tooltip.", "Item tooltips no longer show your equipped item next to them automatically.", nil, nil,
+  check(g, "Disable automatic compare tooltip", "Hold Shift to see your equipped item next to the tooltip.", "Item tooltips no longer show your equipped item next to them automatically.", nil, nil,
     function() return Q.GetCompareShift() end, function(v) Q.SetCompareShift(v) end)
   g = group(c, "Units")
   check(g, "Target of players", "Shows who a player or NPC under your mouse is targeting.", "\"You\" when it is you.", "unitTarget")
@@ -481,6 +506,7 @@ local function createQoLPanel(parent)
   check(g, "Flight masters", "Shows where they fly to.", nil, "lmFlight", 24)
   check(g, "Zeppelins, ships & tram", "Shows where they go.", nil, "lmTransport", 24)
   check(g, "Library Books", "A book icon where each Library Book you still need lies.", "Books in your bags or bank, turned in or marked by you are not shown. Click a book to see it in the Library Books tab.", "mapBooks", 24)
+  check(g, "Skyborne: Ley Lines & Convergences", "For Skyborne: where to charge your racial for an hour.", "High Order (Alliance) see the Ley Lines for Read Leyline (Attuned: 100% regeneration for 1 hour), Windshapers (Horde) the Elemental Convergences for Skysight (Charged: 30% movement speed for 1 hour). On by default for Skyborne; other races see the spots of their faction when they switch it on. Locations from the addon \"Skyborne Leyline & Convergence Marker\" by tr0tsky.", "lmSkyborne", 24)
   g = group(c, "Exploration")
   check(g, "Remove Fog", "Shows the parts of a zone you have not explored yet.", "The world map normally hides the areas you have not visited. With this the whole zone map is shown.", "mapFog")
   g = group(c, "Dungeons")
@@ -513,6 +539,7 @@ local function createQoLPanel(parent)
     b:SetScript("OnClick", function(self)
       if not LR then return end
       local opts = LR.GetKept()
+      for _, e in ipairs(opts) do e.remove = true end -- a click removes it: red cross
       if #opts == 0 then opts = { { key = "__none", label = "|cff9d9d9dNothing kept|r" } }
       else opts[#opts + 1] = { key = "__all", label = FLT.SkinHex("ffd35a") .. "Remove all|r" } end
       openDropDown(self, opts, nil, function(k)
@@ -527,6 +554,61 @@ local function createQoLPanel(parent)
     nil, nil, function(v) Q.Set("spellbookTrainer", v); local psf = rawget(_G, "PlayerSpellsFrame"); local b = type(psf) == "table" and psf.ofaTrainerButton; if b then b:SetShown(v) end end)
   -- POPUPS & ALERTS (moved from Settings, 5.6.8, user 22.10.)
   c = category("alerts", "Popups & Alerts", "Interface\\Icons\\INV_Misc_Bell_01", "Popups that come up on their own while you play.")
+  g = group(c, "Buff reminder")
+  check(g, "Buff reminder", "A small popup when one of your buffs runs out.", "Add your own buffs below (e.g. Demon Skin) with the time in seconds. When the buff has less time left, or has run out, a small popup says so; click its icon to cast the buff again. It goes away by itself once you renew the buff. Drag the popup to move it.", "buffReminder")
+  check(g, "Sleep in cities", "No buff reminder in the capitals.", "Stormwind, Ironforge, Darnassus, Orgrimmar, Thunder Bluff and Undercity. Buffs that ran out there are shown once you leave.", "buffSleepCities", 24)
+  do
+    local r = row(g, "Add a buff", "Spell name and seconds left when you want the reminder.", "The name as in your spellbook, e.g. \"Demon Skin\". Seconds: 5 - 3600.", 24)
+    local list -- the list button, below
+    local nameBox, secBox
+    local function add()
+      local n = Q.AddBuffReminder(nameBox:GetText(), secBox:GetText())
+      if n then nameBox:SetText(""); nameBox:ClearFocus(); secBox:ClearFocus(); if list then list.show() end end
+    end
+    button(r, "Add", 50, nil, add)
+    secBox = FLT.SkinBlizz(CreateFrame("EditBox", nil, r, "InputBoxTemplate"))
+    secBox:SetSize(40, 20); secBox:SetAutoFocus(false); secBox:SetMaxLetters(4); secBox:SetNumeric(true); secBox:SetText("30"); place(r, secBox, 10)
+    nameBox = FLT.SkinBlizz(CreateFrame("EditBox", nil, r, "InputBoxTemplate"))
+    nameBox:SetSize(150, 20); nameBox:SetAutoFocus(false); nameBox:SetMaxLetters(40); place(r, nameBox, 12)
+    for _, eb in ipairs({ nameBox, secBox }) do
+      eb:SetScript("OnEnterPressed", add)
+      eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    end
+    -- suggestions while typing (and the class's usual buffs on an empty box): click one to take it
+    local function suggest(self)
+      UI.CloseDropDown()
+      if not self:HasFocus() then return end
+      local opts = {}
+      for _, e in ipairs(Q.BuffSuggestions(self:GetText())) do
+        opts[#opts + 1] = { key = e.name, label = "|T" .. Q.BuffIcon(e.name) .. ":14:14|t " .. e.name .. (e.preset and "  |cff9d9d9d(class buff)|r" or "") }
+      end
+      if #opts > 0 then openDropDown(self, opts, nil, function(k) nameBox:SetText(k); secBox:SetFocus(); secBox:HighlightText() end, 260) end
+    end
+    nameBox:SetScript("OnTextChanged", function(self, user) if user then suggest(self) end end)
+    nameBox:SetScript("OnEditFocusGained", function(self) if self:GetText() == "" then suggest(self) end end)
+    r:SetScript("OnClick", function() nameBox:SetFocus() end)
+    -- the watched buffs: a click on one removes it
+    local lr = row(g, "Watched buffs", "Click a buff in the list to remove it.", nil, 24)
+    local b, arrow = dropButton(lr, 200)
+    local function show()
+      local n = #Q.GetBuffReminders()
+      b:SetLabel(n == 0 and "None yet" or (n == 1 and "1 buff" or (n .. " buffs")))
+    end
+    b:SetScript("OnClick", function(self)
+      local opts = {}
+      for _, e in ipairs(Q.GetBuffReminders()) do
+        opts[#opts + 1] = { key = e.name, label = "|T" .. Q.BuffIcon(e.name) .. ":14:14|t " .. e.name .. "  |cff9d9d9d" .. e.sec .. " s|r", remove = true }
+      end
+      if #opts == 0 then opts = { { key = "__none", label = "|cff9d9d9dNo buffs yet|r" } }
+      else opts[#opts + 1] = { key = "__all", label = FLT.SkinHex("ffd35a") .. "Remove all|r" } end
+      openDropDown(self, opts, nil, function(k)
+        if k == "__all" then Q.ClearBuffReminders() elseif k ~= "__none" then Q.RemoveBuffReminder(k) end
+        show()
+      end, 260)
+    end)
+    b.show = show; list = b
+    refreshers[#refreshers + 1] = show
+  end
   g = group(c, "Popups")
   check(g, "Durability warning", "Warns when your gear drops to 20% durability.", nil, "durability")
   check(g, "Nearby Library Book alerts", "Popup when you are close to a missing library book.", nil, nil, nil,
@@ -549,7 +631,7 @@ local function createQoLPanel(parent)
   end
   local searchBox
   for i, cat in ipairs(cats) do
-    local b = UI.NavButton(nav, cat.nav or cat.label, 164, 27, cat.icon); b:SetPoint("TOPLEFT", 8, -12 - (i - 1) * 32)
+    local b = UI.NavEntry(nav, navTop - (i - 1) * UI.NAV.step, cat.nav or cat.label, cat.icon)
     b.key = cat.key
     b.count = FLT.NewFS(b, nil, "OVERLAY", "GameFontDisableSmall"); b.count:SetPoint("RIGHT", -5, 0)
     do local font, _, flags = b.count:GetFont(); if font then b.count:SetFont(font, 10, flags) end end
@@ -567,22 +649,12 @@ local function createQoLPanel(parent)
   end
 
   -- search over all groups (name, description and tooltip text)
-  do
-    local box = FLT.SkinBlizz(CreateFrame("EditBox", nil, body, "InputBoxTemplate"))
-    box:SetSize(210, 20); box:SetPoint("TOPRIGHT", -46, -18); box:SetAutoFocus(false)
-    local ph = FLT.NewFS(box, nil, "OVERLAY", "GameFontDisableSmall"); ph:SetPoint("LEFT", 4, 0); ph:SetText("Search all settings...")
-    -- X next to the box, not inside (user 22.10.)
-    local clear = UI.GoldButton(body, "X", 20, 20, nil, 10); clear:SetPoint("LEFT", box, "RIGHT", 4, 0); clear:Hide()
-    clear:SetScript("OnClick", function() box:SetText(""); box:ClearFocus() end)
-    box:SetScript("OnTextChanged", function(self)
-      search = (self:GetText() or ""):lower(); ph:SetShown(search == ""); clear:SetShown(search ~= "")
-      for _, b in ipairs(navButtons) do b:SetActive(search == "" and b.key == current) end
-      layout()
-    end)
-    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    searchBox = box
+  onSearch = function(t)
+    search = t
+    for _, b in ipairs(navButtons) do b:SetActive(search == "" and b.key == current) end
+    layout()
   end
+  searchBox = head.box
 
   local function heading(t, y)
     t:ClearAllPoints(); t:SetPoint("TOPLEFT", 8, y); t:Show(); t.divider:Show()
@@ -590,7 +662,7 @@ local function createQoLPanel(parent)
   end
   local function put(r, y)
     if not r.fitted then -- the grey line ends before the controls on the right
-      r.desc:SetWidth(ROW_W - 42 - r.indent - r.rightW - 16); r.fitted = true
+      r.desc:SetWidth(ROW_W - 60 - r.indent - r.rightW - 16); r.fitted = true
     end
     r:ClearAllPoints(); r:SetPoint("TOPLEFT", 4, y); r:Show()
     return y - 42

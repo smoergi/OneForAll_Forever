@@ -50,7 +50,10 @@ end
 -- Window scaling: the layout is built for 1040x650 and scaled as a whole
 -- (SetScale), so every tab keeps its proportions. Scale and position are
 -- saved account-wide in OneForAllDB.window.
-local BASE_W, BASE_H = 1040, 650
+local BASE_W, BASE_H = 1040, 690
+-- Header test (user 30.10.): banner with logo and name across the top, the tabs under it, then the pages (no title band)
+local HDR = { bannerH = 76, tabTop = 84, tabH = 30, tabGap = 4, iconTabW = 40 }
+UI.HDR = HDR
 local MIN_SCALE, MAX_SCALE = 0.6, 1.4
 -- The height can additionally be stretched (bottom-edge grip) so lists show
 -- more rows; stored in OneForAllDB.window.height.
@@ -248,7 +251,7 @@ function UI.ResetTabs()
 end
 
 -- Tab order (per character, OneForAllCharDB.tabOrder = list of keys).
--- Settings always stays in front; the other tabs can be moved.
+-- Settings is fixed at the right window edge (6.0.1, user 30.10.); the other tabs can be moved.
 local FIXED_TABS = { settings = true }
 function UI.SortableTabs()
   local saved = type(OneForAllCharDB) == "table" and OneForAllCharDB.tabOrder
@@ -271,8 +274,8 @@ function UI.SortableTabs()
 end
 function UI.OrderedPanels()
   local out = {}
-  for _, spec in ipairs(UI.panels) do if FIXED_TABS[spec.key] then out[#out + 1] = spec end end
   for _, spec in ipairs(UI.SortableTabs()) do out[#out + 1] = spec end
+  for _, spec in ipairs(UI.panels) do if FIXED_TABS[spec.key] then out[#out + 1] = spec end end
   return out
 end
 function UI.MoveTab(key, dir)
@@ -307,14 +310,26 @@ end
 
 function UI.LayoutTabs()
   if not frame then return end
-  local x = 26 -- flush with the panels' frames below, left and right (18 -> 32 -> 26 with gap 7, user 25.10.)
+  -- header test: the tabs fill the bar under the banner; each = glyph + name + the same padding on both sides,
+  -- Settings (glyph only) fixed at the right edge (user 30.10.)
+  local x, right = UI.PANEL_INSET, UI.PANEL_INSET
+  local contentW, n = 0, 0
+  for _, spec in ipairs(UI.OrderedPanels()) do
+    local b = tabButtons[spec.key]
+    if b and not FIXED_TABS[spec.key] and UI.IsTabVisible(spec.key) then n = n + 1; contentW = contentW + b:ContentWidth() end
+  end
+  local avail = BASE_W - x - right - HDR.iconTabW - HDR.tabGap * n - contentW
+  local pad = math.max(8, math.floor(avail / math.max(1, 2 * n)))
   for _, spec in ipairs(UI.OrderedPanels()) do
     local b = tabButtons[spec.key]
     if b then
       b:ClearAllPoints()
-      if UI.IsTabVisible(spec.key) then
-        b:SetPoint("TOPLEFT", x, -35); b:Show()
-        x = x + (spec.tabWidth or 130) + 7
+      if FIXED_TABS[spec.key] then
+        b:SetPoint("TOPRIGHT", -right, -HDR.tabTop); b:SetWidth(HDR.iconTabW); b:Show()
+      elseif UI.IsTabVisible(spec.key) then
+        local w = b:ContentWidth() + 2 * pad
+        b:SetPoint("TOPLEFT", x, -HDR.tabTop); b:SetWidth(w); b:Show()
+        x = x + w + HDR.tabGap
       else
         b:Hide()
       end
@@ -324,21 +339,73 @@ function UI.LayoutTabs()
 end
 
 -- Tab button: same plate skin as the gold buttons; the active tab glows.
-local function makeTab(parent, text, w, h)
+-- header test: a small glyph in front of each tab name (Assets/tab_icons, 4x2 atlas, own art: tools/art/tab_icons.py)
+local TAB_GLYPH = { settings = 7, armory = 0, dungeons = 1, professions = 2, qol = 3, talents = 4, books = 5, pets = 6 }
+-- header test (ht2, user 30.10.: "die Haupt-Tabs so wie im Refined"): browser-style tabs that stand on one line.
+-- Every tab has an edge on the left, top and right and none at the bottom; inactive tabs end 1 above the line, the
+-- active one reaches over it: dark warm plate, a gold sheen from the top, a gold edge, a soft glow around it and the
+-- glow line along its bottom.
+local TAB_TEXT, TAB_TEXT_ON = { 0.84, 0.80, 0.72 }, { 1, 0.90, 0.62 }
+local TAB_ICON, TAB_ICON_ON = { 0.80, 0.62, 0.36 }, { 1, 0.80, 0.40 }
+local function openBottom(rr, anchor)
+  local p = rr.pieces -- tl, tr, bl, br, top, bot, left, right[, mid]
+  p[3]:Hide(); p[4]:Hide(); p[6]:Hide()
+  rr.pieces = { p[1], p[2], p[5], p[7], p[8], p[9] } -- SetShown / SetColor leave the bottom pieces hidden
+  p[7]:ClearAllPoints(); p[7]:SetPoint("TOPLEFT", p[1], "BOTTOMLEFT"); p[7]:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMLEFT", 8, 0)
+  p[8]:ClearAllPoints(); p[8]:SetPoint("TOPRIGHT", p[2], "BOTTOMRIGHT"); p[8]:SetPoint("BOTTOMLEFT", anchor, "BOTTOMRIGHT", -8, 0)
+  if p[9] then p[9]:ClearAllPoints(); p[9]:SetPoint("TOPLEFT", p[1], "BOTTOMRIGHT"); p[9]:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", -8, 0) end
+  return rr
+end
+local function makeTab(parent, text, w, h, key)
+  local RING = UI.ASSET_ROOT .. "window_ring" -- radius 4, line 1 at corner size 8
   local b = CreateFrame("Button", nil, parent)
   b:SetSize(w, h)
-  local plate = UI.Plate(b, h)
+  local inner = CreateFrame("Frame", nil, b); inner:SetPoint("TOPLEFT"); inner:SetPoint("BOTTOMRIGHT", 0, 1)
+  local plateOff = UI.MarkBG(openBottom(UI.RoundRect(b, inner, "BACKGROUND", 0, 8, 0, 0.085, 0.078, 0.066, 1), inner))
+  local edgeOff = openBottom(UI.RoundRect(b, inner, "BORDER", 0, 8, 0, 0.36, 0.28, 0.16, 1, RING), inner)
+  local plate = UI.MarkBG(openBottom(UI.RoundRect(b, b, "BACKGROUND", 0, 8, 0, 0.21, 0.15, 0.08, 1), b))
+  local sheen = b:CreateTexture(nil, "BACKGROUND", nil, 2); FLT.SetTex(sheen, UI.ASSET_ROOT .. "shade_lr")
+  sheen:SetTexCoord(0, 0, 1, 0, 0, 1, 1, 1) -- the left-to-right fade turned: strong at the top, none at the bottom
+  sheen:SetPoint("TOPLEFT", 1, -1); sheen:SetPoint("BOTTOMRIGHT", -1, 0); sheen:SetVertexColor(1, 0.78, 0.35); sheen:SetAlpha(0.30)
+  local edge = openBottom(UI.RoundRect(b, b, "BORDER", 1, 8, 0, 1, 0.80, 0.40, 1, RING), b)
+  local glow = UI.Nine(b, b, UI.ASSET_ROOT .. "btn_glow", 10, 6, "BACKGROUND", -1)
+  local function glowTop() for k, t in ipairs(glow.pieces) do if k == 3 or k == 4 or k == 6 or k == 9 then t:Hide() end end end
+  glowTop()
+  local point = UI.GlowLine(b)
+  local hov = openBottom(UI.RoundRect(b, inner, "HIGHLIGHT", 0, 8, 0, 0.07, 0.06, 0.04, 1), inner)
+  for _, t in ipairs(hov.pieces) do t:SetBlendMode("ADD") end
   local label = FLT.NewFS(b, nil, "OVERLAY", "GameFontNormal")
-  label:SetPoint("CENTER", 0, 0); label:SetText(text)
+  label:SetText(text)
   do local font, _, flags = label:GetFont(); if font then label:SetFont(font, 13, flags) end end
-  label:SetTextColor(FLT.SkinC(0.96, 0.85, 0.58))
-  b._label = label
-  function b:SetActive(on)
-    plate:SetActive(on)
-    if on then label:SetTextColor(FLT.SkinC(1, 0.93, 0.66)) else label:SetTextColor(FLT.SkinC(0.96, 0.85, 0.58)) end
+  local gi = key and TAB_GLYPH[key]
+  if gi then
+    local ic = b:CreateTexture(nil, "OVERLAY"); ic:SetSize(16, 16)
+    local x, y = (gi % 4) * 0.25, math.floor(gi / 4) * 0.5
+    FLT.SetTex(ic, UI.ASSET_ROOT .. "tab_icons"); ic:SetTexCoord(x, x + 0.25, y, y + 0.5)
+    b.glyph = ic
   end
-  b:SetScript("OnMouseDown", function() label:SetPoint("CENTER", 1, -1) end)
-  b:SetScript("OnMouseUp", function() label:SetPoint("CENTER", 0, 0) end)
+  local function place(dx, dy)
+    label:ClearAllPoints()
+    if b.glyph and text ~= "" then
+      local tw = 16 + 7 + (label:GetStringWidth() or 0)
+      b.glyph:ClearAllPoints(); b.glyph:SetPoint("LEFT", b, "CENTER", -tw / 2 + dx, dy + 1); label:SetPoint("LEFT", b.glyph, "RIGHT", 7, 0)
+    elseif b.glyph then b.glyph:ClearAllPoints(); b.glyph:SetPoint("CENTER", dx, dy + 1)
+    else label:SetPoint("CENTER", dx, dy + 1) end
+  end
+  place(0, 0)
+  b._label = label
+  function b:ContentWidth() return (b.glyph and 23 or 0) + math.ceil(label:GetStringWidth() or 60) end
+  function b:SetActive(on)
+    on = on and true or false
+    plateOff:SetShown(not on); edgeOff:SetShown(not on)
+    plate:SetShown(on); edge:SetShown(on); sheen:SetShown(on); glow:SetShown(on); point:SetShown(on)
+    glowTop()
+    label:SetTextColor(unpack(on and TAB_TEXT_ON or TAB_TEXT))
+    if b.glyph then b.glyph:SetVertexColor(unpack(on and TAB_ICON_ON or TAB_ICON)) end
+  end
+  b:SetActive(false)
+  b:SetScript("OnMouseDown", function() place(1, -1) end)
+  b:SetScript("OnMouseUp", function() place(0, 0) end)
   return b
 end
 
@@ -350,7 +417,7 @@ local function decorateWindow()
     if r.GetObjectType and r:GetObjectType() == "Texture" then r:SetAlpha(0) end
   end
   if type(frame.Inset) == "table" and type(frame.Inset.NineSlice) == "table" then frame.Inset.NineSlice:SetAlpha(0) end
-  UI.MarkBG(UI.RoundRect(frame, frame, "BACKGROUND", -8, 12, 1, 0.065, 0.058, 0.048, 0.97), "base")
+  UI.MarkBG(UI.RoundRect(frame, frame, "BACKGROUND", -8, 8, 1, 0.065, 0.058, 0.048, 0.97), "base")
   if type(frame.Inset) == "table" and type(frame.Inset.Bg) == "table" then UI.MarkBG(frame.Inset.Bg, "base") end
   if type(frame.NineSlice) == "table" then frame.NineSlice:SetAlpha(0) end
   for _, k in ipairs({ "TopLeftCorner", "TopRightCorner", "BotLeftCorner", "BotRightCorner", "TopBorder", "BottomBorder", "LeftBorder", "RightBorder" }) do
@@ -369,6 +436,7 @@ local function decorateWindow()
   local barLine = frame:CreateTexture(nil, "BORDER", nil, 3)
   barLine:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 6, 0); barLine:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", -6, 0); barLine:SetHeight(1)
   barLine:SetColorTexture(FLT.SkinC(0.72, 0.50, 0.12, 0.75))
+  bar:Hide(); barShine:Hide(); barLine:Hide() -- header test: the banner takes the title bar's place
   local deco = CreateFrame("Frame", nil, frame)
   deco:SetAllPoints()
   deco:SetFrameLevel(frame:GetFrameLevel() + 18)
@@ -391,6 +459,41 @@ local function decorateWindow()
     local endR = deco:CreateTexture(nil, "OVERLAY", nil, 0)
     endR:SetTexture(cap); endR:SetTexCoord(1, 0, 0, 1); endR:SetVertexColor(r, g, b, a)
     endR:SetPoint("TOPRIGHT", right, "TOPLEFT"); endR:SetPoint("BOTTOMLEFT", frame, "BOTTOM", gap, 0)
+    for _, t in ipairs({ right, endL, endR }) do t:Hide() end
+  end
+  for _, t in ipairs(edge) do t:Hide() end
+  -- Header test (user 30.10.): the outer frame like the Classic Refined test - a thin dark gold line with small
+  -- corners (Assets/window_ring: radius 4, line 1) and short, faint gold accents at the four corners (the corner arc,
+  -- two lines fading out along the edges, a soft shine inside: fade_lr, corner_glow, edge_fade, tools/art/edge_glow.py)
+  do
+    UI.WindowFrame(deco, frame) -- ht7: shared with the popups (UI/Widgets.lua)
+    -- the banner across the top (Assets/qol_banner: tavern, camp fire, landscape), solid dark behind the logo on the
+    -- left, fading into the window at the bottom, a quiet line under it
+    local art = frame:CreateTexture(nil, "BORDER", nil, 0)
+    -- ht8 (user 30.10.: the whole griffin): the picture at the banner's height on the right (its aspect 6.38), the dark
+    -- logo side fills the rest and fades into it
+    -- ht10 (user 30.10.): over the whole width again
+    art:SetPoint("TOPLEFT", 1, -1); art:SetPoint("TOPRIGHT", -1, -1); art:SetHeight(HDR.bannerH)
+    -- ht6 (user 30.10.): the user's banner picture to try (Assets/header_banner, tools/art/header_banner.py)
+    FLT.SetTex(art, UI.ASSET_ROOT .. "header_banner"); art:SetTexCoord(0, 1, 0, 1) -- ht7: the second picture
+    local dim = frame:CreateTexture(nil, "BORDER", nil, 1); dim:SetAllPoints(art); dim:SetColorTexture(0, 0, 0, 0.12)
+    local BG = { 0.065, 0.058, 0.048 }
+    local solid = frame:CreateTexture(nil, "BORDER", nil, 2); solid:SetColorTexture(BG[1], BG[2], BG[3], 1)
+    solid:SetPoint("TOPLEFT", art, "TOPLEFT"); solid:SetPoint("BOTTOMLEFT", art, "BOTTOMLEFT"); solid:SetWidth(150)
+    local fadeL = frame:CreateTexture(nil, "BORDER", nil, 2); FLT.SetTex(fadeL, UI.ASSET_ROOT .. "shade_lr"); fadeL:SetVertexColor(BG[1], BG[2], BG[3])
+    fadeL:SetPoint("TOPLEFT", solid, "TOPRIGHT"); fadeL:SetPoint("BOTTOMLEFT", solid, "BOTTOMRIGHT"); fadeL:SetWidth(170)
+    local fadeB = frame:CreateTexture(nil, "BORDER", nil, 3); FLT.SetTex(fadeB, UI.ASSET_ROOT .. "shade_lr"); fadeB:SetVertexColor(BG[1], BG[2], BG[3])
+    fadeB:SetTexCoord(1, 0, 0, 0, 1, 1, 0, 1)
+    fadeB:SetPoint("BOTTOMLEFT", art, "BOTTOMLEFT"); fadeB:SetPoint("BOTTOMRIGHT", art, "BOTTOMRIGHT"); fadeB:SetHeight(14)
+    local edgeLine = frame:CreateTexture(nil, "BORDER", nil, 4); edgeLine:SetColorTexture(FLT.SkinC(0.50, 0.38, 0.19, 0.75)); edgeLine:SetHeight(1)
+    edgeLine:SetPoint("TOPLEFT", art, "BOTTOMLEFT"); edgeLine:SetPoint("TOPRIGHT", art, "BOTTOMRIGHT")
+    -- ht7 (user 30.10.: "so duenn wie moeglich"): exactly one screen pixel high at any UI scale
+    local function onePixel()
+      local _, ph = GetPhysicalScreenSize and GetPhysicalScreenSize()
+      local sc = frame:GetEffectiveScale()
+      if ph and ph > 0 and sc and sc > 0 then edgeLine:SetHeight(768 / ph / sc) end
+    end
+    frame:HookScript("OnShow", onePixel); onePixel()
   end
   -- the gold top edge covers the template's title position: move the title down
   if type(frame.TitleText) == "table" and frame.TitleText.ClearAllPoints then
@@ -399,9 +502,9 @@ local function decorateWindow()
   -- own close button in the gold plate style, centred in the title bar left
   -- of the ornate corner (the template's red button is hidden)
   if type(frame.CloseButton) == "table" and frame.CloseButton.Hide then frame.CloseButton:Hide() end
-  local close = UI.GoldButton(frame, "", 24, 20, UI.ASSET_ROOT .. "icon_close", 11)
-  -- closer to the corner than the other three, with a small gap (user 24.10.)
-  close:SetPoint("CENTER", frame, "TOPRIGHT", -30, -15)
+  local close = UI.GoldButton(frame, "", 30, 26, UI.ASSET_ROOT .. "icon_close", 11)
+  -- header test: boxed buttons at the banner's top right
+  close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -12)
   close:SetFrameLevel(frame:GetFrameLevel() + 25)
   if close.icon then close.icon:ClearAllPoints(); close.icon:SetSize(14, 14); close.icon:SetPoint("CENTER", 0, 0) end
   close:SetScript("OnMouseDown", nil); close:SetScript("OnMouseUp", nil)
@@ -410,8 +513,8 @@ local function decorateWindow()
   close:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
   -- bug report button left of the close button (the skin button is gone since 5.7.3, user 27.10.)
-  local bugBtn = UI.GoldButton(frame, "", 24, 20, UI.ASSET_ROOT .. "icon_bug", 11)
-  bugBtn:SetPoint("CENTER", frame, "TOPRIGHT", -74, -15)
+  local bugBtn = UI.GoldButton(frame, "", 30, 26, UI.ASSET_ROOT .. "icon_bug", 11)
+  bugBtn:SetPoint("RIGHT", close, "LEFT", -6, 0)
   bugBtn:SetFrameLevel(frame:GetFrameLevel() + 25)
   if bugBtn.icon then
     bugBtn.icon:ClearAllPoints(); bugBtn.icon:SetSize(14, 14); bugBtn.icon:SetPoint("CENTER", 0, 0)
@@ -428,7 +531,7 @@ local function decorateWindow()
   bugBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
   -- Discord left of the bug button (5.7.3, user 24.10.): a speech bubble (own art), opens the invite link to copy
-  local dcBtn = UI.GoldButton(frame, "", 24, 20, UI.ASSET_ROOT .. "icon_chat", 11)
+  local dcBtn = UI.GoldButton(frame, "", 30, 26, UI.ASSET_ROOT .. "icon_chat", 11)
   dcBtn:SetPoint("RIGHT", bugBtn, "LEFT", -6, 0)
   dcBtn:SetFrameLevel(frame:GetFrameLevel() + 25)
   if dcBtn.icon then
@@ -478,8 +581,27 @@ local function createUI()
   applyHeight(db.height or BASE_H)
   frame.TitleText:SetText(UI.DISPLAY_NAME .. "  |cffb8b0a0- made by Smoergi|r")
   frame.TitleText:SetTextColor(FLT.SkinC(1, 0.82, 0))
+  -- header test: the logo with name and "FOREVER COMPANION" on the banner's dark left side; the credit small at the
+  -- bottom left (instead of the title line)
+  frame.TitleText:Hide()
+  do
+    local logo = frame:CreateTexture(nil, "ARTWORK"); logo:SetSize(48, 48); logo:SetPoint("TOPLEFT", 16, -14)
+    FLT.SetTex(logo, FLT.LogoTexture and FLT.LogoTexture("round") or (UI.ASSET_ROOT .. "minimap_icon"))
+    -- ht5 (user 30.10.): the logo in bronze-gold like Classic Refined (the same file, without colour, tinted)
+    logo:SetDesaturated(true); logo:SetVertexColor(1, 0.80, 0.45)
+    UI.brandLogo = logo
+    local name = FLT.NewFS(frame, nil, "OVERLAY", "GameFontNormalHuge"); name:SetPoint("TOPLEFT", 76, -18)
+    do local font, _, flags = name:GetFont(); if font then name:SetFont(font, 22, flags) end end
+    name:SetText(UI.DISPLAY_NAME); name:SetTextColor(FLT.SkinC(1, 0.93, 0.80))
+    local sub = FLT.NewFS(frame, nil, "OVERLAY", "GameFontNormalSmall"); sub:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 1, -4)
+    do local font, _, flags = sub:GetFont(); if font then sub:SetFont(font, 10, flags) end end
+    sub:SetText("FOREVER COMPANION"); sub:SetTextColor(FLT.SkinC(0.90, 0.68, 0.30))
+    local credit = FLT.NewFS(frame, nil, "OVERLAY", "GameFontDisableSmall"); credit:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 22, 4)
+    credit:SetText("made by Smoergi")
+  end
 
   if frame.Inset and frame.Inset.Bg then frame.Inset.Bg:SetVertexColor(FLT.SkinC(0.11, 0.085, 0.055, 0.98)) end
+  if frame.Inset and frame.Inset.Bg then frame.Inset.Bg:SetAlpha(0) end -- header test: the banner shows through
 
   -- Close with Escape.
   if UISpecialFrames then
@@ -494,9 +616,10 @@ local function createUI()
   -- panel's "order" value. Hidden tabs (Settings > Shown tabs) are skipped.
   for _, spec in ipairs(UI.panels) do
     local key = spec.key
-    local b = makeTab(frame, spec.icon and "" or spec.label, spec.tabWidth or 130, 27)
+    local b = makeTab(frame, spec.icon and "" or spec.label, spec.tabWidth or 130, HDR.tabH + 1, key) -- 1 over the line
     if spec.icon then
       local ic = b:CreateTexture(nil, "OVERLAY")
+      if b.glyph then ic:Hide() end -- header test: the tab's own glyph
       ic:SetSize(19, 19); ic:SetPoint("CENTER"); FLT.SetTex(ic, spec.icon)
       b:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(spec.label); GameTooltip:Show()
@@ -515,8 +638,9 @@ local function createUI()
   UI.LayoutTabs()
 
   local tabLine = makeTexture(frame, "ARTWORK", 0.72, 0.50, 0.12, 0.65)
-  tabLine:SetPoint("TOPLEFT", 12, -66)
-  tabLine:SetPoint("TOPRIGHT", -12, -66)
+  tabLine:SetColorTexture(0.50, 0.38, 0.19, 1) -- ht2: the tabs stand on this line, the active one covers it
+  tabLine:SetPoint("TOPLEFT", 12, -(HDR.tabTop + HDR.tabH))
+  tabLine:SetPoint("TOPRIGHT", -12, -(HDR.tabTop + HDR.tabH))
   tabLine:SetHeight(1)
 
   setPanelTab(defaultTab())

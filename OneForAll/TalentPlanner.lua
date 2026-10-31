@@ -16,12 +16,13 @@ local plannerState = {}
 
 -- Talent icon layout. Keep enough breathing room for the native Quickslot frame
 -- while still fitting four columns and seven rows in each OneForAll tree panel.
-local TALENT_BUTTON_SIZE = 36 -- 40 -> 36 with the taller trees (user 27.10.)
+local TALENT_BUTTON_SIZE = 40 -- 40 -> 36 with the taller trees (user 27.10.); ht9: 40 again, the trees fill the page
 local TALENT_ICON_INSET = 3
 local GRID_X_STEP = 66 -- more room between the talents, like the talent sites (user 27.10.)
-local GRID_X0 = math.floor((282 - (3 * GRID_X_STEP + TALENT_BUTTON_SIZE)) / 2) -- centers the 4-column grid in the 282px tree panel
-local GRID_Y0 = 46
-local GRID_Y_STEP = 56
+local TREE_W, TREE_STEP = 268, 274 -- ht6: 282 / 288 -> the side list is as wide as in the other tabs
+local GRID_X0 = math.floor((TREE_W - (3 * GRID_X_STEP + TALENT_BUTTON_SIZE)) / 2) -- centers the 4-column grid in the tree panel
+local GRID_Y0 = 52 -- ht9 (user 30.10.: empty space under the trees): taller trees, more room per row
+local GRID_Y_STEP = 64
 
 -- The game's own talent tree pictures (Interface\TalentFrame, also in the Forever client; not shipped with the
 -- addon, user 27.10.): four pieces 256+64 x 256+128, the picture is 300 x 331 of it. Shown "cover" style in
@@ -493,32 +494,10 @@ function FLT:CreateTalentPlannerPanel(parent)
 
   -- Class selector lives in a narrow left rail. This frees a full horizontal
   -- row and gives the talent trees more vertical room.
-  local rail=CreateFrame("Frame",nil,panel); rail:SetPoint("TOPLEFT",8,-74); rail:SetSize(122,481) -- fixed: a taller window leaves it at the top (user 22.10.)
-  UI.FramedPanel(rail)
-  -- top of the rail: spellbook -> what the class trainer teaches next
-  do
-    local sb=CreateFrame("Button",nil,rail); sb:SetSize(40,40); sb:SetPoint("TOPLEFT",12,-10)
-    local ic=sb:CreateTexture(nil,"ARTWORK"); ic:SetPoint("TOPLEFT",3,-3); ic:SetPoint("BOTTOMRIGHT",-3,3)
-    ic:SetTexture("Interface\\Icons\\INV_Misc_Book_09"); ic:SetTexCoord(0.08,0.92,0.08,0.92)
-    local fr=sb:CreateTexture(nil,"OVERLAY"); fr:SetAllPoints(); FLT.SetTex(fr,ASSET_ROOT.."talent_frame"); fr:SetVertexColor(FLT.SkinC(0.66,0.48,0.16,0.98))
-    local hl=sb:CreateTexture(nil,"HIGHLIGHT"); FLT.SetTex(hl,ASSET_ROOT.."talent_frame"); hl:SetAllPoints(); hl:SetVertexColor(FLT.SkinC(1,0.86,0.40,0.85)); hl:SetBlendMode("ADD")
-    sb:SetHighlightTexture(hl)
-    local l=UI.SmallCaps(rail,"Trainer",12,9,UI.HEAD_GOLD); l:SetPoint("LEFT",sb,"RIGHT",8,7)
-    local l2=FLT.NewFS(rail,nil,"OVERLAY","GameFontDisableSmall"); l2:SetPoint("TOPLEFT",l,"BOTTOMLEFT",0,-2); l2:SetText("Next spells")
-    sb:SetScript("OnClick",function() if FLT.ToggleTrainerSpells then FLT.ToggleTrainerSpells(selectedClass) end end)
-    sb:SetScript("OnEnter",function(self)
-      GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine("What can I learn next?",FLT.SkinC(1,0.82,0))
-      GameTooltip:AddLine("Spells and ranks a class trainer teaches. For your own class: everything you do not know yet, up to level 60.",1,1,1,true)
-      GameTooltip:Show()
-    end)
-    sb:SetScript("OnLeave",function() GameTooltip:Hide() end)
-    local d0=rail:CreateTexture(nil,"ARTWORK"); FLT.SetTex(d0, ASSET_ROOT.."divider_ornate"); d0:SetHeight(12)
-    d0:SetPoint("TOPLEFT",4,-54); d0:SetPoint("TOPRIGHT",-4,-54)
-  end
-  local chooser=UI.SmallCaps(rail,"Class",13,10,UI.HEAD_GOLD); chooser:SetPoint("TOPLEFT",12,-70)
-  local cy=-88
+  -- ht8 (user 30.10.): the same side list as every tab: emblem and name, the classes, then the preset actions
+  local rail,cy=UI.SideNav(panel,-74,"emblem_talents","Talent Trees")
   for _,c in ipairs(CLASSES) do
-    local b=UI.NavButton(rail,c.name,104,24,"Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"); b:SetPoint("TOPLEFT",9,cy); cy=cy-26; classButtons[c.id]=b
+    local b; b,cy=UI.NavEntry(rail,cy,c.name,"Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"); classButtons[c.id]=b
     -- class crest from the character-creation atlas (slightly cropped)
     local tc=type(CLASS_ICON_TCOORDS)=="table" and CLASS_ICON_TCOORDS[c.token]
     if tc and b.icon then
@@ -530,9 +509,8 @@ function FLT:CreateTalentPlannerPanel(parent)
   end
 
   local header=CreateFrame("Frame",nil,panel)
-  header:SetPoint("TOPLEFT",138,-74); header:SetSize(858,22) -- slimmer bars, more height for the trees (user 27.10.)
-  local hbg=tex(header,"BACKGROUND",0.075,0.062,0.040,0.96); hbg:SetPoint("TOPLEFT",2,-2); hbg:SetPoint("BOTTOMRIGHT",-2,2)
-  UI.OrnateFrame(header,header,8,1,"OVERLAY",1)
+  header:SetPoint("TOPLEFT",182,-74); header:SetSize(816,22) -- slimmer bars, more height for the trees (user 27.10.)
+  -- ht7 (user 30.10.: the boxes above and below the trees were too heavy): plain text, no box
   local headerStatOrder={"level","available","spent","remaining"}
   local function stat(label)
     local f=FLT.NewFS(header, nil,"OVERLAY","GameFontHighlightSmall")
@@ -560,27 +538,27 @@ function FLT:CreateTalentPlannerPanel(parent)
   -- Presets: 1 / 2, Save Preset, Reset (both with a confirmation)
   local activePreset={} -- classID -> 1|2 (starts at 1 every session)
   local function presetIndex() return activePreset[selectedClass] or 1 end
-  local div=rail:CreateTexture(nil,"ARTWORK"); FLT.SetTex(div, ASSET_ROOT.."divider_ornate"); div:SetHeight(12)
-  div:SetPoint("TOPLEFT",4,cy-2); div:SetPoint("TOPRIGHT",-4,cy-2)
-  local plabel=UI.SmallCaps(rail,"Preset",13,10,UI.HEAD_GOLD); plabel:SetPoint("TOPLEFT",12,cy-18)
+  cy=UI.NavSeparator(rail,cy)
+  -- the two presets as two buttons in one row (like a switch), the actions below as list entries
   local presetButtons={}
   for i=1,2 do
-    local b=UI.GoldButton(rail,tostring(i),49,24,nil,13); b:SetPoint("TOPLEFT",9+(i-1)*55,cy-34); presetButtons[i]=b
+    local b=UI.GoldButton(rail,"Preset "..i,75,24,nil,12); b:SetPoint("TOPLEFT",UI.NAV.entryX+(i-1)*81,cy-1); presetButtons[i]=b
     b:SetScript("OnClick",function()
       activePreset[selectedClass]=i
       copyInto(stateFor(selectedClass),presetsFor(selectedClass)[i])
       panel:RefreshTalentPlanner()
     end)
   end
-  local unsaved=FLT.NewFS(rail, nil,"OVERLAY","GameFontDisableSmall"); unsaved:SetPoint("TOPLEFT",12,cy-62); unsaved:SetWidth(100); unsaved:SetJustifyH("LEFT")
-  local save=UI.GoldButton(rail,"Save Preset",104,24,nil,12); save:SetPoint("TOPLEFT",9,cy-76)
+  cy=cy-UI.NAV.step
+  local unsaved=FLT.NewFS(rail, nil,"OVERLAY","GameFontDisableSmall"); unsaved:SetWidth(200); unsaved:SetJustifyH("LEFT")
+  local save; save,cy=UI.NavEntry(rail,cy,"Save preset","Interface\\Icons\\INV_Scroll_03")
   save:SetScript("OnClick",function()
     local i=presetIndex(); local class=classByID(selectedClass)
     UI.Confirm(string.format("Save the current talents as %sPreset %d|r for %s?\nThe saved preset is replaced.",FLT.SkinHex("ffd200"),i,class and class.name or ""),function()
       copyInto(presetsFor(selectedClass)[i],stateFor(selectedClass)); panel:RefreshTalentPlanner()
     end,"Save")
   end)
-  local reset=UI.GoldButton(rail,"Reset",104,24,nil,12); reset:SetPoint("TOPLEFT",9,cy-104)
+  local reset; reset,cy=UI.NavEntry(rail,cy,"Reset preset","Interface\\Icons\\INV_Misc_PocketWatch_01")
   reset:SetScript("OnClick",function()
     local i=presetIndex(); local class=classByID(selectedClass)
     UI.Confirm(string.format("Reset %sPreset %d|r for %s?\nAll talent points of this preset are removed.",FLT.SkinHex("ffd200"),i,class and class.name or ""),function()
@@ -589,8 +567,8 @@ function FLT:CreateTalentPlannerPanel(parent)
     end,"Reset")
   end)
   -- Import / Export (5.7.3, user 27.10.)
-  local imp=UI.GoldButton(rail,"Import",50,22,nil,11); imp:SetPoint("TOPLEFT",9,cy-132)
-  local exp=UI.GoldButton(rail,"Export",50,22,nil,11); exp:SetPoint("TOPLEFT",63,cy-132)
+  local imp; imp,cy=UI.NavEntry(rail,cy,"Import build","Interface\\Icons\\INV_Letter_15")
+  local exp; exp,cy=UI.NavEntry(rail,cy,"Export build","Interface\\Icons\\INV_Letter_09")
   for _,b in ipairs({imp,exp}) do
     b:SetScript("OnLeave",function() GameTooltip:Hide() end)
   end
@@ -649,21 +627,23 @@ function FLT:CreateTalentPlannerPanel(parent)
   local treeTop=-100
   for i=1,3 do
     local p=CreateFrame("Frame",nil,panel); treePanels[i]=p
-    p:SetPoint("TOPLEFT",138+(i-1)*288,treeTop); p:SetSize(282,427)
+    p:SetPoint("TOPLEFT",182+(i-1)*TREE_STEP,treeTop); p:SetSize(TREE_W,483)
     UI.FramedPanel(p)
-    treeArt(p,276,421,3)
+    treeArt(p,TREE_W-6,477,3)
     local title=FLT.NewFS(p, nil,"OVERLAY","GameFontNormalLarge"); title:SetPoint("TOP",0,-9); title:SetText("Tree "..i); title:SetTextColor(FLT.SkinC(1,0.82,0.20)); p.title=title
     local pts=FLT.NewFS(p, nil,"OVERLAY","GameFontNormalSmall"); pts:SetPoint("TOP",0,-31); pts:SetText("0 points"); pts:SetTextColor(FLT.SkinC(0.72,0.72,0.72)); p.points=pts
   end
 
   local footer=CreateFrame("Frame",nil,panel)
-  footer:SetPoint("TOPLEFT",138,-531); footer:SetSize(858,24) -- stays under the trees in a taller window (user 22.10.)
-  local fbg=tex(footer,"BACKGROUND",0.075,0.062,0.040,0.96); fbg:SetPoint("TOPLEFT",2,-2); fbg:SetPoint("BOTTOMRIGHT",-2,2)
-  UI.OrnateFrame(footer,footer,8,1,"OVERLAY",1)
+  footer:SetPoint("TOPLEFT",182,-587); footer:SetSize(816,24) -- stays under the trees in a taller window (user 22.10.)
+  -- ht7: no box; the preset controls live here now (they were a pile in the class list, user 30.10.): "Preset 1 2" and
+  -- small Save / Reset / Import / Export on the left, the click hint on the right; the points per tree stand in the trees
   statusText=FLT.NewFS(footer, nil,"OVERLAY","GameFontHighlightSmall")
-  statusText:SetPoint("CENTER",-25,0); statusText:SetWidth(560); statusText:SetJustifyH("CENTER")
-  local clickHint=FLT.NewFS(footer, nil,"OVERLAY","GameFontHighlightSmall")
-  clickHint:SetPoint("RIGHT",-12,0); clickHint:SetJustifyH("RIGHT"); clickHint:SetText("Left + / Right -")
+  statusText:SetPoint("CENTER",-25,0); statusText:SetWidth(560); statusText:SetJustifyH("CENTER"); statusText:SetAlpha(0)
+  local clickHint=FLT.NewFS(footer, nil,"OVERLAY","GameFontDisableSmall")
+  clickHint:SetPoint("RIGHT",-6,0); clickHint:SetJustifyH("RIGHT"); clickHint:SetText("Left click + / right click -")
+  -- ht8: the preset actions moved back into the side list; "Unsaved changes" stays here, under the trees
+  unsaved:SetParent(footer); unsaved:ClearAllPoints(); unsaved:SetPoint("LEFT", footer, "LEFT", 6, 0)
 
   local function ensureNodeButton(index)
     if nodeButtons[index] then return nodeButtons[index] end

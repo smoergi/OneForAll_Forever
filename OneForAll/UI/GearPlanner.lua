@@ -445,7 +445,7 @@ function UI.CreateGearPlanner(parent)
   -- fixed size (user 16.10.): a taller window must not stretch the character, the slots or the weapons;
   -- 481 = the Armory body at the base window height
   local left = CreateFrame("Frame", nil, f); left:SetPoint("TOPLEFT"); left:SetSize(350, 481)
-  UI.FramedPanel(left)
+  UI.Column(left, 4) -- ht3: no frame, a line to the right
   local refreshList -- forward
   -- name and level, then the spec the Value is for as a drop-down (default: the active spec, user 18.10.)
   local head = CreateFrame("Frame", nil, left); head:SetSize(330, 20); head:SetPoint("TOP", 0, -10)
@@ -484,6 +484,9 @@ function UI.CreateGearPlanner(parent)
   -- DressUpModel: right-click an item in the list to try it on (user 16.10.); the model is only (re)loaded
   -- when the planner opens, the gear changes or "Reset" is clicked - reloading it on every list redraw
   -- made it flicker (beta3)
+  -- the client's picture of your race behind the character, over the whole panel (6.0.1, user 30.10.); 3 px in, so its
+  -- square corners stay inside the panel's rounded line
+  local bgClip = UI.RaceBackdrop(left, 3, -3, -3, 3)
   local model = CreateFrame("DressUpModel", nil, left)
   model:SetPoint("TOPLEFT", 58, -40); model:SetPoint("BOTTOMRIGHT", -58, 60)
   -- mouse wheel zooms, dragging turns the character; the OnUpdate only runs while the button is held
@@ -535,8 +538,11 @@ function UI.CreateGearPlanner(parent)
     end)
     b:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip.ofaNoCompare = true -- your own gear: no comparison tooltip (UI/DungeonHelpers.lua, user 31.10.)
       if not GameTooltip:SetInventoryItem("player", self.slot) then GameTooltip:SetText(SLOT_NAME[self.slot] or "") end
       GameTooltip:Show()
+      if type(ShoppingTooltip1) == "table" then ShoppingTooltip1:Hide() end
+      if type(ShoppingTooltip2) == "table" then ShoppingTooltip2:Hide() end
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     slotButtons[#slotButtons + 1] = b
@@ -632,9 +638,16 @@ function UI.CreateGearPlanner(parent)
     mySide = UnitFactionGroup and SIDE[UnitFactionGroup("player")]
   end
 
+  -- everything else of the character panel stays above the picture
+  do
+    local lv = bgClip:GetFrameLevel() + 2
+    for _, c in ipairs({ left:GetChildren() }) do
+      if c ~= bgClip and (c:GetFrameLevel() or 0) < lv then c:SetFrameLevel(lv) end
+    end
+  end
+
   -- RIGHT: tabs, search, list ------------------------------------------------------
   local right = CreateFrame("Frame", nil, f); right:SetPoint("TOPLEFT", 358, 0); right:SetPoint("BOTTOMRIGHT")
-  UI.FramedPanel(right)
   local tabs = {}
   local function tabButton(key, label, x)
     local b = UI.GoldButton(right, label, 92, 26); b:SetPoint("TOPLEFT", x, -10)

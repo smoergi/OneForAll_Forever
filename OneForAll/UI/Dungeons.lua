@@ -200,7 +200,9 @@ local function createDungeonPanel(parent)
 
   local Card, OrnateFrame = UI.Card, UI.OrnateFrame
   -- everything ends exactly below the banner's right edge
-  local ROW_W=UI.CONTENT_W
+  -- ht8 (user 30.10.): the list sits right of a side list like every tab: 174 narrower, starting at 182
+  local FULL_W=UI.CONTENT_W
+  local ROW_W=UI.CONTENT_W-174
   local GOLD={1,0.82,0.20}
   local HEAD_GOLD={0.90,0.74,0.42}
 
@@ -213,7 +215,7 @@ local function createDungeonPanel(parent)
   -- Title band, split in two: Dungeons (left) | Raids (right). The open half is
   -- bright with a gold frame, the other one is dimmed.
   -- The banner art fades out to the left behind the emblem and the title.
-  local band=CreateFrame("Frame",nil,browse); band:SetPoint("TOPLEFT",8,-8); band:SetSize(ROW_W,58)
+  local band=CreateFrame("Frame",nil,browse); band:SetPoint("TOPLEFT",8,-8); band:SetSize(ROW_W,58); band:Hide() -- ht8: the side list switches
   local bandBg=makeTexture(band,"BACKGROUND",0.045,0.045,0.058,0.96); bandBg:SetPoint("TOPLEFT",2,-2); bandBg:SetPoint("BOTTOMRIGHT",-2,2)
   local bandHalves={}
   local function makeHalf(kind,x,w,art,emblemTex,emblemSize,title,sub)
@@ -261,15 +263,19 @@ local function createDungeonPanel(parent)
   local fitCheck={SetChecked=function() end,SetScript=function() end}
 
   -- Column positions inside a row (rows sit BOX_PAD px inside their box).
-  local SECTION_H, ROW_H, ROW_GAP, BOX_PAD = 34, 48, 3, 5
+  local SECTION_H, ROW_H, ROW_GAP, BOX_PAD = 32, 46, 0, 0
   local ROW_INNER = ROW_W - 2*BOX_PAD
-  local COL={ name=138, level=322, side=410, zone=498, key=676, quests=752, actions=866 }
-  local COL_W={ name=180, level=80, side=80, zone=170, key=70, quests=92, actions=110 }
+  -- ht8: narrower columns, the faction crest right next to the level
+  local COL={ name=112, level=300, side=366, zone=420, key=572, quests=628, actions=712 }
+  local COL_W={ name=180, level=66, side=50, zone=150, key=56, quests=76, actions=100 }
 
   -- Table header: small caps, separators, sort arrows (click to sort).
-  local header=CreateFrame("Frame",nil,browse); header:SetPoint("TOPLEFT",8,-74); header:SetSize(ROW_W,24)
-  local hbg=makeTexture(header,"BACKGROUND",0.075,0.062,0.040,0.96); hbg:SetPoint("TOPLEFT",2,-2); hbg:SetPoint("BOTTOMRIGHT",-2,2)
-  OrnateFrame(header, header, 10, 1, "OVERLAY", 1)
+  local function plainHead(h) -- ht8: the column names on the page with a fine line under them
+    local ln=h:CreateTexture(nil,"ARTWORK"); ln:SetColorTexture(0.50,0.38,0.19,0.6); ln:SetHeight(1)
+    ln:SetPoint("BOTTOMLEFT",2,0); ln:SetPoint("BOTTOMRIGHT",-2,0)
+  end
+  local header=CreateFrame("Frame",nil,browse); header:SetPoint("TOPLEFT",182,-60); header:SetSize(ROW_W,24)
+  plainHead(header)
   local sortButtons={}
   local SORT_TC={ none={0,0.25}, asc={0.25,0.5}, desc={0.5,0.75} }
   local function headerCol(text,x,w,justify,sortKey)
@@ -277,7 +283,7 @@ local function createDungeonPanel(parent)
     local b=CreateFrame("Button",nil,header); b:SetPoint("LEFT",x,0); b:SetSize(w,22)
     local label=smallCaps(b,text,12,9,HEAD_GOLD)
     if x>BOX_PAD+20 then
-      local sep=makeTexture(header,"ARTWORK",0.72,0.50,0.12,0.45); sep:SetPoint("LEFT",x-2,0); sep:SetSize(1,14)
+      local sep=makeTexture(header,"ARTWORK",0.72,0.50,0.12,0.25); sep:SetPoint("LEFT",x-2,0); sep:SetSize(1,12)
     end
     local arrowW=sortKey and 16 or 0
     if justify=="CENTER" then
@@ -317,11 +323,8 @@ local function createDungeonPanel(parent)
   headerCol("Actions",COL.actions,COL_W.actions,"CENTER")
   -- Raids view: own header (Size instead of Territory, Attunement instead of Key)
   local dungeonHeader=header
-  header=CreateFrame("Frame",nil,browse); header:SetPoint("TOPLEFT",8,-74); header:SetSize(ROW_W,24); header:Hide()
-  do
-    local rbg=makeTexture(header,"BACKGROUND",0.075,0.062,0.040,0.96); rbg:SetPoint("TOPLEFT",2,-2); rbg:SetPoint("BOTTOMRIGHT",-2,2)
-    OrnateFrame(header, header, 10, 1, "OVERLAY", 1)
-  end
+  header=CreateFrame("Frame",nil,browse); header:SetPoint("TOPLEFT",182,-60); header:SetSize(ROW_W,24); header:Hide()
+  plainHead(header)
   headerCol("Raid",14,COL.level-14,"LEFT","name")
   headerCol("Level",COL.level,COL_W.level,"CENTER","level")
   headerCol("Size",COL.side,COL_W.side,"CENTER","size")
@@ -332,8 +335,17 @@ local function createDungeonPanel(parent)
   local raidHeader=header
   header=dungeonHeader
 
+  -- head like Quality of Life (user 31.10.): icon, Dungeons / Raids, one line, search (name, short name, zone, bosses)
+  local searchText=""
+  local VIEW_HEAD={
+    dungeons={"Interface\\Icons\\INV_Misc_Bone_HumanSkull_01","Dungeons","Bosses, loot, quests and keys of every dungeon. Click one to open it."},
+    raids={"Interface\\Icons\\INV_Misc_Head_Dragon_01","Raids","Raids for 10, 20 and 40 players with bosses, loot and attunements."},
+  }
+  local pageHead=UI.PageHeader(browse,{x=182,y=0,right=54,placeholder="Search name, zone or boss...",
+    onSearch=function(t) searchText=t; if browse._relayout then browse._relayout(true) end end})
+
   local sf=FLT.SkinBlizz(CreateFrame("ScrollFrame",nil,browse,"UIPanelScrollFrameTemplate"))
-  sf:SetPoint("TOPLEFT",8,-104); sf:SetPoint("BOTTOMRIGHT",-8,4); UI.PlaceScrollBar(sf)
+  sf:SetPoint("TOPLEFT",182,-90); sf:SetPoint("BOTTOMRIGHT",-8,4); UI.PlaceScrollBar(sf)
   local child=CreateFrame("Frame",nil,sf); child:SetSize(ROW_W,1); sf:SetScrollChild(child)
 
   local selectedDungeon=nil
@@ -359,6 +371,13 @@ local function createDungeonPanel(parent)
   local sections={}
   local function createSection(bracket, bi)
     local holder=CreateFrame("Button",nil,child); holder:SetSize(ROW_W,SECTION_H)
+    local chevron,info
+    do -- ht8: a quiet head instead of the landscape band; the rows without a box
+      local title
+      chevron,title,info=UI.QuietHead(holder,bracket.label)
+      if bracket.color then title:SetTextColor(unpack(bracket.color)) end
+    end
+    if false then
     local base=makeTexture(holder,"BACKGROUND",0.05,0.05,0.065,0.98); base:SetPoint("TOPLEFT",2,-2); base:SetPoint("BOTTOMRIGHT",-2,2)
     local sil=holder:CreateTexture(nil,"BORDER"); sil:SetPoint("TOPLEFT",2,-2); sil:SetPoint("BOTTOMRIGHT",-2,2)
     local strip=(bi-1)%3
@@ -366,18 +385,17 @@ local function createDungeonPanel(parent)
     -- framed chevron box on the left
     local cbox=CreateFrame("Frame",nil,holder); cbox:SetSize(22,22); cbox:SetPoint("LEFT",12,0)
     Card(cbox,cbox,4,{0.80,0.60,0.24,0.95},{0.06,0.05,0.04,0.95},"BACKGROUND",0)
-    local chevron=cbox:CreateTexture(nil,"OVERLAY"); chevron:SetSize(15,15); chevron:SetPoint("CENTER",0,0)
+    chevron=cbox:CreateTexture(nil,"OVERLAY"); chevron:SetSize(15,15); chevron:SetPoint("CENTER",0,0)
     FLT.SetTex(chevron, ASSET_ROOT.."chevron")
     local title=FLT.NewFS(holder, nil,"OVERLAY","GameFontNormalLarge"); title:SetPoint("LEFT",46,0); title:SetText(bracket.label); title:SetTextColor(FLT.SkinC(unpack(GOLD)))
     if bracket.color then title:SetTextColor(unpack(bracket.color)) end
     do local font,_,flags=title:GetFont(); if font then title:SetFont(font,14,flags) end end
-    local info=FLT.NewFS(holder, nil,"OVERLAY","GameFontHighlightSmall"); info:SetPoint("RIGHT",-20,0); info:SetJustifyH("RIGHT"); info:SetTextColor(FLT.SkinC(0.85,0.82,0.74))
+    info=FLT.NewFS(holder, nil,"OVERLAY","GameFontHighlightSmall"); info:SetPoint("RIGHT",-20,0); info:SetJustifyH("RIGHT"); info:SetTextColor(FLT.SkinC(0.85,0.82,0.74))
     OrnateFrame(holder, holder, 13, 2, "OVERLAY", 1)
     local hhi=makeTexture(holder,"HIGHLIGHT",0.80,0.58,0.18,0.10); hhi:SetPoint("TOPLEFT",2,-2); hhi:SetPoint("BOTTOMRIGHT",-2,2)
+    end
 
     local rowsBox=CreateFrame("Frame",nil,child); rowsBox:SetWidth(ROW_W)
-    local bfill=makeTexture(rowsBox,"BACKGROUND",0.035,0.038,0.048,0.92); bfill:SetPoint("TOPLEFT",2,-2); bfill:SetPoint("BOTTOMRIGHT",-2,2)
-    OrnateFrame(rowsBox, rowsBox, 10, 1, "BORDER", 0)
 
     local section={bracket=bracket,header=holder,box=rowsBox,chevron=chevron,info=info,rows={}}
     holder:SetScript("OnClick",function()
@@ -430,16 +448,10 @@ local function createDungeonPanel(parent)
     local partial=d.dataStatus=="partial"
     local row=CreateFrame("Button",nil,child)
     row:SetSize(ROW_INNER,ROW_H)
-    local card=Card(row,row,4,ROW_BORDER,{0.060,0.062,0.074,0.97},"BACKGROUND",0)
-    local rowHi=row:CreateTexture(nil,"HIGHLIGHT"); rowHi:SetPoint("TOPLEFT",1,-1); rowHi:SetPoint("BOTTOMRIGHT",-1,1); rowHi:SetColorTexture(FLT.SkinC(0.90,0.66,0.22,0.09))
-    UI.HoverEdge(row)
-    -- faint column separators like the header
-    for _,x in ipairs({COL.actions}) do
-      local sep=makeTexture(row,"BORDER",0.72,0.50,0.12,0.16); sep:SetPoint("LEFT",x-2,0); sep:SetSize(1,ROW_H-16)
-    end
+    local card=UI.QuietRow(row) -- ht8: no frame, a fine line under the row
 
     -- thumbnail with rounded corners and a thin gold frame
-    local art=row:CreateTexture(nil,"ARTWORK"); art:SetSize(112,42); art:SetPoint("LEFT",4,0)
+    local art=row:CreateTexture(nil,"ARTWORK"); art:SetSize(96,36); art:SetPoint("LEFT",4,0)
     local artPath=dungeonArt(d.key)
     if artPath then FLT.SetTex(art, artPath); art:SetTexCoord(0,1,0.1,0.9)
     else art:SetColorTexture(FLT.SkinC(0.10,0.08,0.05,1)) end
@@ -448,8 +460,9 @@ local function createDungeonPanel(parent)
       FLT.SetTex(m, ASSET_ROOT.."thumb_wide_mask","CLAMPTOBLACKADDITIVE","CLAMPTOBLACKADDITIVE"); m:SetAllPoints(art)
       art:AddMaskTexture(m)
     end
-    local afr=row:CreateTexture(nil,"OVERLAY"); FLT.SetTex(afr, ASSET_ROOT.."thumb_wide_frame")
-    afr:SetPoint("TOPLEFT",art,"TOPLEFT",-1,1); afr:SetPoint("BOTTOMRIGHT",art,"BOTTOMRIGHT",1,-1)
+    -- ht9 (user 30.10.): the thinnest frame - a 1 px line round the picture
+    local afh=CreateFrame("Frame",nil,row); afh:SetPoint("TOPLEFT",art,"TOPLEFT",-1,1); afh:SetPoint("BOTTOMRIGHT",art,"BOTTOMRIGHT",1,-1)
+    UI.RoundRect(row,afh,"OVERLAY",0,8,0,0.62,0.48,0.26,0.9,ASSET_ROOT.."window_ring")
 
     local nm=FLT.NewFS(row, nil,"OVERLAY","GameFontNormal"); nm:SetPoint("LEFT",COL.name,0); nm:SetJustifyH("LEFT"); nm:SetText(d.short or d.name); nm:SetTextColor(FLT.SkinC(unpack(GOLD)))
     do local font,_,flags=nm:GetFont(); if font then nm:SetFont(font,14,flags) end end
@@ -577,6 +590,11 @@ local function createDungeonPanel(parent)
     end)
     local entry={dungeon=d,row=row,questText=qc,levelText=lv,keyIcon=keyIcon,keyText=keyText,order=di,openQuests=0,
       sortName=(d.short or d.name or ""):lower(),sortSide=sideName,sortZone=zoneText:lower()}
+    do -- search text: names, zone and bosses (built once)
+      local parts={d.name or "",d.short or "",zoneText}
+      for _,b in ipairs(d.bosses or {}) do parts[#parts+1]=b.name or "" end
+      entry.find=table.concat(parts," "):lower()
+    end
     browseRows[#browseRows+1]=entry
     local sec=sectionFor(d)
     if sec then sec.rows[#sec.rows+1]=entry end
@@ -609,9 +627,12 @@ local function createDungeonPanel(parent)
     end)
   end
 
-  local function relayout()
+  local function relayout(fromSearch)
     local cfg=dungeonSettings()
     local raids=cfg.view=="raids"
+    local searching=searchText~=""
+    if fromSearch then sf:SetVerticalScroll(0) end
+    pageHead:Set(unpack(VIEW_HEAD[raids and "raids" or "dungeons"]))
     local onlyFit=cfg.onlyFit and true or false
     fitCheck:SetChecked(onlyFit)
     for kind,half in pairs(bandHalves) do half:SetOpen((kind=="raids")==raids) end
@@ -637,26 +658,28 @@ local function createDungeonPanel(parent)
     for step=1,#brackets do
       local bi=highFirst and (#brackets-step+1) or step
       local sec=secs[bi]
-      if sec and not raids and cfg.hiddenBrackets and cfg.hiddenBrackets[sec.bracket.id] then
+      if sec and not raids and not searching and cfg.hiddenBrackets and cfg.hiddenBrackets[sec.bracket.id] then
         sec.header:Hide(); sec.box:Hide()
         for _,entry in ipairs(sec.rows) do entry.row:Hide() end
-        sec=nil
+        sec.y=nil; sec=nil
       end
       if sec then
         local visible={}
         for _,entry in ipairs(sec.rows) do
-          if raids or not onlyFit or fitsPlayer(entry.dungeon) then visible[#visible+1]=entry end
+          if searching then
+            if entry.find:find(searchText,1,true) then visible[#visible+1]=entry end -- search: every bracket, every level
+          elseif raids or not onlyFit or fitsPlayer(entry.dungeon) then visible[#visible+1]=entry end
         end
         sortEntries(visible,s,highFirst)
         for _,entry in ipairs(sec.rows) do entry.row:Hide() end
         if #visible==0 then
-          sec.header:Hide(); sec.box:Hide()
+          sec.header:Hide(); sec.box:Hide(); sec.y=nil
         else
           shownSections=shownSections+1
           if shownSections>1 then y=y-10 end
-          sec.header:ClearAllPoints(); sec.header:SetPoint("TOPLEFT",0,y); sec.header:Show()
+          sec.header:ClearAllPoints(); sec.header:SetPoint("TOPLEFT",0,y); sec.header:Show(); sec.y=y; sec.count=#visible
           y=y-SECTION_H-3
-          local collapsed=cfg.collapsed[sec.bracket.id]
+          local collapsed=cfg.collapsed[sec.bracket.id] and not searching
           if collapsed then sec.chevron:SetTexCoord(0.5,1,0,1) else sec.chevron:SetTexCoord(0,0.5,0,1) end
           if raids then sec.info:SetText(#visible..(#visible==1 and " raid" or " raids"))
           else sec.info:SetText(#visible..(#visible==1 and " dungeon" or " dungeons")) end
@@ -675,8 +698,10 @@ local function createDungeonPanel(parent)
         end
       end
     end
+    emptyText:SetText(searching and ("Nothing matches \""..searchText.."\".") or (raids and "No raids to show." or "No dungeons match your level. Untick \"Only dungeons for my level\" to see all."))
     emptyText:SetShown(shownSections==0)
     child:SetHeight(math.max(1,-y+10))
+    if browse._paintNav then browse._paintNav() end
   end
   browse._setView=function(kind)
     local cfg=dungeonSettings()
@@ -688,6 +713,43 @@ local function createDungeonPanel(parent)
     relayout()
   end
   browse._relayout=relayout
+
+  -- ht8 (user 30.10.): the side list like every tab - Dungeons / Raids, then the level brackets to jump to
+  do
+    local nav,ny=UI.SideNav(browse,-8,"emblem_raids","Dungeons & Raids") -- ht10: the raids emblem (user 30.10.)
+    local viewBtn={}
+    -- ht9 (user 30.10.): client icons like in the other lists
+    viewBtn.dungeons,ny=UI.NavEntry(nav,ny,"Dungeons","Interface\\Icons\\INV_Misc_Bone_HumanSkull_01")
+    viewBtn.raids,ny=UI.NavEntry(nav,ny,"Raids","Interface\\Icons\\INV_Misc_Head_Dragon_01")
+    for k,b in pairs(viewBtn) do b:SetScript("OnClick",function() browse._setView(k) end) end
+    ny=UI.NavSeparator(nav,ny)
+    local jump={}
+    for i=1,math.max(#BRACKETS,#RAID_BRACKETS) do
+      local b; b,ny=UI.NavEntry(nav,ny,"")
+      b.count=FLT.NewFS(b,nil,"OVERLAY","GameFontDisableSmall"); b.count:SetPoint("RIGHT",-5,0)
+      do local font,_,flags=b.count:GetFont(); if font then b.count:SetFont(font,10,flags) end end
+      b:SetScript("OnClick",function(self)
+        local sec=self.sec; if not (sec and sec.y) then return end
+        local range=sf:GetVerticalScrollRange() or 0
+        sf:SetVerticalScroll(math.max(0,math.min(range,-sec.y-4)))
+      end)
+      jump[i]=b
+    end
+    browse._paintNav=function()
+      local raids=dungeonSettings().view=="raids"
+      viewBtn.dungeons:SetActive(not raids); viewBtn.raids:SetActive(raids)
+      local brackets,secs=raids and RAID_BRACKETS or BRACKETS, raids and raidSections or sections
+      local n=0
+      for bi,br in ipairs(brackets) do
+        local sec=secs[bi]
+        if sec and sec.y then
+          n=n+1; local b=jump[n]
+          b._label:SetText(br.label); b.count:SetText(tostring(sec.count or "")); b.sec=sec; b:Show()
+        end
+      end
+      for i=n+1,#jump do jump[i]:Hide(); jump[i].sec=nil end
+    end
+  end
   UI.RefreshDungeonList=function() if browse:IsShown() then relayout() end end
 
   fitCheck:SetScript("OnClick",function(self)
@@ -720,9 +782,12 @@ local function createDungeonPanel(parent)
   if detailBanner then OrnateFrame(detailBanner, detailBanner, 18, 4, "OVERLAY", 2) end
   local back=UI.GoldButton(detail,"Dungeons",112,24,ASSET_ROOT.."icon_back",12); back:SetPoint("TOPLEFT",8,-74)
   back:SetScript("OnClick",function() detail:Hide(); browse:Show() end)
-  local dband=CreateFrame("Frame",nil,detail); dband:SetPoint("TOPLEFT",8,-8); dband:SetSize(ROW_W,58)
-  local dbandBg=makeTexture(dband,"BACKGROUND",0.045,0.045,0.058,0.96); dbandBg:SetPoint("TOPLEFT",2,-2); dbandBg:SetPoint("BOTTOMRIGHT",-2,2)
-  OrnateFrame(dband, dband, 15, 2, "OVERLAY", 1)
+  -- ht9 (user 30.10.): the band over the full width again (ht8 had made it as narrow as the list), a 1 px line
+  local dband=CreateFrame("Frame",nil,detail); dband:SetPoint("TOPLEFT",8,-8); dband:SetSize(FULL_W,58)
+  local dbandBg=makeTexture(dband,"BACKGROUND",0.045,0.045,0.058,0.96); dbandBg:SetPoint("TOPLEFT",1,-1); dbandBg:SetPoint("BOTTOMRIGHT",-1,1)
+  UI.RoundRect(dband,dband,"OVERLAY",1,8,0,0.55,0.43,0.24,0.95,ASSET_ROOT.."window_ring")
+  -- the buttons sit in the row under the band, right of "Dungeons" (they covered the line under the title)
+  local brow=CreateFrame("Frame",nil,detail); brow:SetPoint("TOPLEFT",8,-73); brow:SetSize(FULL_W,26)
   -- dungeon picture fills the left part of the band (no own frame) and
   -- fades out to the right; the band's ornate frame lies on top
   local detailArt=dband:CreateTexture(nil,"BORDER"); detailArt:SetPoint("TOPLEFT",2,-2); detailArt:SetPoint("BOTTOMLEFT",2,2); detailArt:SetWidth(300); detailArt:Hide()
@@ -731,10 +796,11 @@ local function createDungeonPanel(parent)
   do local font,_,flags=dtitle:GetFont(); if font then dtitle:SetFont(font,21,flags) end end
   local dcrest=dband:CreateTexture(nil,"ARTWORK"); dcrest:SetSize(16,16); dcrest:SetPoint("TOPLEFT",194,-35); FLT.SetTex(dcrest, ASSET_ROOT.."faction_crests")
   local dmeta=FLT.NewFS(dband, nil,"OVERLAY","GameFontHighlightSmall"); dmeta:SetPoint("LEFT",dcrest,"RIGHT",5,0); dmeta:SetTextColor(FLT.SkinC(0.78,0.75,0.68))
-  local bossesBtn=UI.GoldButton(dband,"Bosses & Loot",126,26,nil,13); bossesBtn:SetPoint("RIGHT",-144,0)
-  local questsBtn=UI.GoldButton(dband,"Quests",120,26,nil,13); questsBtn:SetPoint("RIGHT",-14,0)
-  local keyBtn=UI.GoldButton(dband,"Key",110,26,nil,13); keyBtn:SetPoint("RIGHT",-14,0); keyBtn:Hide()
-  local mapBtn=UI.GoldButton(dband,"Map",84,26,ASSET_ROOT.."icon_map",13); mapBtn:SetPoint("RIGHT",bossesBtn,"LEFT",-6,0); mapBtn:Hide()
+  local bossesBtn=UI.GoldButton(brow,"Bosses & Loot",126,26,nil,13); bossesBtn:SetPoint("RIGHT",-144,0)
+  local questsBtn=UI.GoldButton(brow,"Quests",120,26,nil,13); questsBtn:SetPoint("RIGHT",-14,0)
+  local keyBtn=UI.GoldButton(brow,"Key",110,26,nil,13); keyBtn:SetPoint("RIGHT",-14,0); keyBtn:Hide()
+  local mapBtn=UI.GoldButton(brow,"Map",84,26,ASSET_ROOT.."icon_map",13,true); -- a real button here (user 31.10.)
+  mapBtn:SetPoint("RIGHT",bossesBtn,"LEFT",-6,0); mapBtn:Hide()
 
   -- Rounded card background with an automatic border colour (lighter than
   -- the fill); keeps the SetColorTexture() calls of the list code working.
@@ -743,17 +809,21 @@ local function createDungeonPanel(parent)
   local ROW_EDGE={0.30,0.26,0.20,0.85}      -- subtle bronze-grey row border
   local ROW_EDGE_HOVER={0.52,0.40,0.22,0.95} -- warm bronze, clearly weaker than the gold selection
   local ROW_EDGE_ACTIVE={1.00,0.80,0.34,1}
+  -- ht11 (user 30.10.): rows like the lists elsewhere - no frame, a fine line under the row, a faint hover; the
+  -- selected row a dark warm plate with the short gold mark on the left (like the side lists)
   local function cardBg(owner,r,g,b,a,edge)
-    local card=Card(owner,owner,4,edge or ROW_EDGE,{r,g,b,a},"BACKGROUND",0)
-    local o={ edge=edge or ROW_EDGE, active=false, hover=false }
-    local function applyEdge()
-      card:SetBorder(unpack(o.active and ROW_EDGE_ACTIVE or (o.hover and ROW_EDGE_HOVER) or o.edge))
+    local line=owner:CreateTexture(nil,"BORDER"); line:SetColorTexture(0.40,0.32,0.20,0.35); line:SetHeight(1)
+    line:SetPoint("BOTTOMLEFT",4,0); line:SetPoint("BOTTOMRIGHT",-4,0)
+    local sel=UI.RoundRect(owner,owner,"BACKGROUND",1,6,0,0.21,0.15,0.08,0.95); sel:SetShown(false)
+    local mark=UI.GlowLine(owner,"LEFT",0.85,5); mark:Hide()
+    local hov=owner:CreateTexture(nil,"BACKGROUND",nil,2); hov:SetAllPoints(); hov:SetColorTexture(0.90,0.66,0.22,0.06); hov:Hide()
+    local o={ active=false, hover=false }
+    local function apply()
+      sel:SetShown(o.active); mark:SetShown(o.active); hov:SetShown(o.hover and not o.active)
     end
     -- the optional 5th value marks the active (selected) state
-    function o:SetColorTexture(r2,g2,b2,a2,active)
-      card:SetFill(r2,g2,b2,a2); o.active=active and true or false; applyEdge()
-    end
-    function o:Hover(on) o.hover=on and true or false; applyEdge() end
+    function o:SetColorTexture(r2,g2,b2,a2,active) o.active=active and true or false; apply() end
+    function o:Hover(on) o.hover=on and true or false; apply() end
     function o:SetAllPoints() end
     o:SetColorTexture(FLT.SkinC(r,g,b,a))
     -- Hover tint: wrap OnEnter/OnLeave so scripts set later keep the tint
@@ -771,7 +841,13 @@ local function createDungeonPanel(parent)
     return o
   end
   -- dark panel with the ornate frame (boss / quest lists and their details)
-  local function framedPanel(f)
+  local function framedPanel(f,lineX)
+    -- ht10 (user 30.10.): no boxes - the list and its details on the page, a fine line between them
+    if lineX then
+      local vl=f:CreateTexture(nil,"ARTWORK"); vl:SetColorTexture(0.50,0.38,0.19,0.55); vl:SetWidth(1)
+      vl:SetPoint("TOPLEFT",f,"TOPRIGHT",lineX,0); vl:SetPoint("BOTTOMLEFT",f,"BOTTOMRIGHT",lineX,0)
+    end
+    if true then return end
     local bg=makeTexture(f,"BACKGROUND",0.040,0.040,0.050,0.95); bg:SetPoint("TOPLEFT",2,-2); bg:SetPoint("BOTTOMRIGHT",-2,2)
     -- subtle leather structure instead of flat black
     local lea=f:CreateTexture(nil,"BACKGROUND",nil,1); lea:SetPoint("TOPLEFT",2,-2); lea:SetPoint("BOTTOMRIGHT",-2,2)
@@ -811,6 +887,7 @@ local function createDungeonPanel(parent)
   local function tidyScroll(sf,panel)
     local bar=sf.ScrollBar
     if type(bar)~="table" or not bar.ClearAllPoints then return end
+    if UI.SlimScrollBar then UI.SlimScrollBar(bar) end -- ht12: thin grey bar
     bar:ClearAllPoints()
     bar:SetPoint("TOPRIGHT",panel,"TOPRIGHT",-7,-66)
     bar:SetPoint("BOTTOMRIGHT",panel,"BOTTOMRIGHT",-7,24)
@@ -888,7 +965,7 @@ local function createDungeonPanel(parent)
     view=newView(viewKey)
 
     local left=dynFrame("Frame"); left:SetPoint("TOPLEFT",0,0); left:SetPoint("BOTTOMLEFT",0,0); left:SetWidth(390)
-    framedPanel(left)
+    framedPanel(left,7)
     listBand(left)
     local lh=dynText(left,"GameFontNormalLarge"); lh:SetPoint("TOPLEFT",16,-14); lh:SetText("Bosses  |  "..#(d.bosses or {})); lh:SetTextColor(FLT.SkinC(1,0.82,0.20))
 
@@ -1066,8 +1143,10 @@ local function createDungeonPanel(parent)
         local open=recipeSectionOpen[sk]==true -- collapsed by default
         ly=ly-8
         local hdr=dframe("Button",lchild); hdr:SetSize(510,30); hdr:SetPoint("TOPLEFT",0,ly); ly=ly-32
-        local hb=Card(hdr,hdr,4,{0.80,0.60,0.24,0.95},{0.16,0.11,0.045,0.95},"BACKGROUND",0)
-        local hhi=makeTexture(hdr,"HIGHLIGHT",0.42,0.30,0.10,0.20); hhi:SetAllPoints()
+        -- ht11: a quiet group head (dark plate, thin line) instead of the gold box
+        UI.MarkBG(UI.RoundRect(hdr,hdr,"BACKGROUND",0,7,1,0.075,0.068,0.058,0.96))
+        UI.RoundRect(hdr,hdr,"BORDER",0,8,0,0.42,0.33,0.20,0.9,ASSET_ROOT.."window_ring")
+        local hhi=makeTexture(hdr,"HIGHLIGHT",0.90,0.66,0.22,0.06); hhi:SetAllPoints()
         local hch=hdr:CreateTexture(nil,"OVERLAY"); hch:SetSize(14,14); hch:SetPoint("LEFT",10,0); FLT.SetTex(hch, ASSET_ROOT.."chevron")
         if open then hch:SetTexCoord(0,0.5,0,1) else hch:SetTexCoord(0.5,1,0,1) end
         local ht=FLT.NewFS(hdr, nil,"OVERLAY","GameFontNormal"); ht:SetPoint("LEFT",30,0)
@@ -1196,7 +1275,7 @@ local function createDungeonPanel(parent)
     local idx=questSelection[d.key] or 1; if idx>#quests then idx=1 end; if idx<1 then idx=1 end; questSelection[d.key]=idx
 
     local left=dynFrame("Frame"); left:SetPoint("TOPLEFT",0,0); left:SetPoint("BOTTOMLEFT",0,0); left:SetWidth(390)
-    framedPanel(left)
+    framedPanel(left,7)
     listBand(left)
     local lh=dynText(left,"GameFontNormalLarge"); lh:SetPoint("TOPLEFT",16,-14); lh:SetText("Quests  |  "..#quests); lh:SetTextColor(FLT.SkinC(1,0.82,0.20))
     local allianceBtn=UI.GoldButton(left,"Alliance",92,22,nil,12); allianceBtn:SetPoint("TOPRIGHT",-108,-10)
@@ -1527,7 +1606,7 @@ local function createDungeonPanel(parent)
     view=newView(viewKey)
 
     local left=dynFrame("Frame"); left:SetPoint("TOPLEFT",0,0); left:SetPoint("BOTTOMLEFT",0,0); left:SetWidth(390)
-    framedPanel(left)
+    framedPanel(left,7)
     listBand(left)
     local lh=dynText(left,"GameFontNormalLarge"); lh:SetPoint("TOPLEFT",16,-14); lh:SetText(d.raid and "Attunement" or "Key"); lh:SetTextColor(FLT.SkinC(1,0.82,0.20))
     if split then

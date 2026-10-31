@@ -22,19 +22,6 @@ local function on() return FLT.QoL and FLT.QoL.Get("gearValue") and FLT.GearValu
 
 local function itemID(link) return link and tonumber(link:match("item:(%d+)")) end
 
--- an upgrade the player can use (and, for the bags, wear at his level now)
-local function isUpgrade(id, nowOnly)
-  if not id or not on() then return false end
-  local _, _, _, loc, _, cid, sub = GetItemInfoInstant(id)
-  if not (loc and FLT.GEAR_LOC_SLOTS and FLT.GEAR_LOC_SLOTS[loc]) or not FLT.GearCanUse(loc, cid, sub) then return false end
-  if nowOnly then
-    local minLevel = select(5, GetItemInfo(id))
-    if minLevel and UnitLevel and minLevel > UnitLevel("player") then return false end
-  end
-  local kind = FLT.GearValue.Change(id)
-  return kind == "up" or kind == "new"
-end
-
 local function mark(parent, key, file, size, point, x, y, gold)
   local t = parent[key]
   if not t then
@@ -46,6 +33,43 @@ local function mark(parent, key, file, size, point, x, y, gold)
   return t
 end
 
+-- Arrow colour by armour type (6.0.1, Discord stole0583, option, off by default): an upgrade in a lighter armour type
+-- than the best one of the class gets a yellow arrow instead of the green one. Best type: plate for warriors and
+-- paladins from level 40 (mail before), mail for hunters and shamans from 40 (leather before), leather for rogues and
+-- druids; cloth wearers, cloaks, shields, jewellery and weapons are never "lighter".
+local BEST_ARMOR = { WARRIOR = { 3, 4 }, PALADIN = { 3, 4 }, HUNTER = { 2, 3 }, SHAMAN = { 2, 3 }, ROGUE = { 2, 2 }, DRUID = { 2, 2 } }
+local function lighterArmor(loc, cid, sub)
+  if cid ~= 4 or not sub or sub < 1 or sub > 4 or loc == "INVTYPE_CLOAK" then return false end
+  local cls = UnitClass and select(2, UnitClass("player"))
+  local best = cls and BEST_ARMOR[cls]
+  if not best then return false end
+  return sub < best[(UnitLevel and UnitLevel("player") or 1) >= 40 and 2 or 1]
+end
+
+-- an upgrade the player can use (and, for the bags, wear at his level now); 2nd value: true when it is a lighter
+-- armour type and the option for it is on (yellow arrow)
+local function isUpgrade(id, nowOnly)
+  if not id or not on() then return false end
+  local _, _, _, loc, _, cid, sub = GetItemInfoInstant(id)
+  if not (loc and FLT.GEAR_LOC_SLOTS and FLT.GEAR_LOC_SLOTS[loc]) or not FLT.GearCanUse(loc, cid, sub) then return false end
+  if nowOnly then
+    local minLevel = select(5, GetItemInfo(id))
+    if minLevel and UnitLevel and minLevel > UnitLevel("player") then return false end
+  end
+  local kind = FLT.GearValue.Change(id)
+  if kind ~= "up" and kind ~= "new" then return false end
+  return true, FLT.QoL.Get("arrowTiers") and lighterArmor(loc, cid, sub) or false
+end
+local function arrowFile(lighter) return lighter and "icon_arrow_up_yellow" or "icon_arrow_up" end
+-- the arrow texture of a mark, green or yellow
+local function upMark(parent, size, point, x, y, up, lighter)
+  local t = mark(parent, "ofaUp", "icon_arrow_up", size, point, x, y)
+  if up and t.ofaFile ~= arrowFile(lighter) then t.ofaFile = arrowFile(lighter); FLT.SetTex(t, ASSET .. t.ofaFile) end
+  t:SetShown(up and true or false)
+  return t
+end
+
+
 -- Loot roll window --------------------------------------------------------------
 local function iconOf(frame)
   return frame.IconFrame or (frame.GetName and frame:GetName() and _G[frame:GetName() .. "IconFrame"])
@@ -55,9 +79,9 @@ local function decorateRoll(frame)
   if not icon then return end
   local id = frame.rollID and GetLootRollItemLink and itemID(GetLootRollItemLink(frame.rollID))
   local wish = on() and id and FLT.IsOnWishlist and FLT.IsOnWishlist(id)
-  local up = isUpgrade(id)
+  local up, lighter = isUpgrade(id)
   mark(icon, "ofaStar", "icon_star", 18, "TOPLEFT", -6, 6, true):SetShown(wish and true or false)
-  mark(icon, "ofaUp", "icon_arrow_up", 18, "BOTTOMRIGHT", 5, -5):SetShown(up)
+  upMark(icon, 18, "BOTTOMRIGHT", 5, -5, up, lighter)
 end
 
 local function rollFrames()
@@ -86,12 +110,12 @@ local function markBag(frame)
   if not (frame and frame:IsShown()) then return end
   local active = on()
   for _, b in ipairs(buttonsOf(frame)) do
-    local up = false
+    local up, lighter = false, false
     if active and b:IsShown() then
       local bag = b.GetBagID and b:GetBagID() or frame:GetID()
-      up = isUpgrade(getContainerItemID and getContainerItemID(bag, b:GetID()), true)
+      up, lighter = isUpgrade(getContainerItemID and getContainerItemID(bag, b:GetID()), true)
     end
-    if up or b.ofaUp then mark(b, "ofaUp", "icon_arrow_up", 15, "TOPLEFT", 1, -1):SetShown(up) end
+    if up or b.ofaUp then upMark(b, 15, "TOPLEFT", 1, -1, up, lighter) end
   end
 end
 local function bagFrames()
@@ -110,12 +134,16 @@ local function hookBaganator()
   local api = Baganator and Baganator.API
   if baganator or not (api and api.RegisterCornerWidget) then return end
   baganator = api
-  pcall(api.RegisterCornerWidget, "OneForAll: upgrade", "oneforall_upgrade", function(_, details)
+  pcall(api.RegisterCornerWidget, "OneForAll: upgrade", "oneforall_upgrade", function(t, details)
     if not on() then return false end
     local id = details and (details.itemID or itemID(details.itemLink))
     if not id then return false end
     if not GetItemInfo(id) then return nil end
-    return isUpgrade(id, true)
+    local up, lighter = isUpgrade(id, true)
+    if up and type(t) == "table" and t.SetTexture and t.ofaFile ~= arrowFile(lighter) then
+      t.ofaFile = arrowFile(lighter); FLT.SetTex(t, ASSET .. t.ofaFile)
+    end
+    return up
   end, function(button)
     local t = button:CreateTexture(nil, "OVERLAY"); t:SetSize(15, 15); FLT.SetTex(t, ASSET .. "icon_arrow_up")
     return t
@@ -143,17 +171,17 @@ local function markQuest()
   local active = on()
   local fromLog = QuestInfoFrame and QuestInfoFrame.questLog
   for _, b in ipairs(questButtons()) do
-    local up = false
+    local up, lighter = false, false
     if active and b:IsShown() and b.type then
       local link
       if fromLog and GetQuestLogItemLink then link = GetQuestLogItemLink(b.type, b:GetID())
       elseif GetQuestItemLink then link = GetQuestItemLink(b.type, b:GetID()) end
-      up = isUpgrade(itemID(link))
+      up, lighter = isUpgrade(itemID(link))
     end
     if up or b.ofaUp then
       local icon = b.Icon or (b:GetName() and _G[b:GetName() .. "IconTexture"]) or b
-      local t = mark(b, "ofaUp", "icon_arrow_up", 16, "TOPLEFT", 0, 0)
-      t:ClearAllPoints(); t:SetPoint("TOPLEFT", icon, "TOPLEFT", 1, -1); t:SetShown(up)
+      local t = upMark(b, 16, "TOPLEFT", 0, 0, up, lighter)
+      t:ClearAllPoints(); t:SetPoint("TOPLEFT", icon, "TOPLEFT", 1, -1)
     end
   end
 end
@@ -192,6 +220,7 @@ function GM.Refresh()
   GM.RefreshBags()
   if baganator and baganator.RequestItemButtonsRefresh then pcall(baganator.RequestItemButtonsRefresh) end
 end
+if FLT.QoL and FLT.QoL.On then FLT.QoL.On("arrowTiers", function() GM.Refresh() end) end
 
 -- /ofa rolltest ---------------------------------------------------------------------
 local TEST_ID = 999999

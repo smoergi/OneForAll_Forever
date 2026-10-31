@@ -87,9 +87,7 @@ local function setItem(it, v)
 end
 
 local W, H = 600, 470
--- arrows on the page buttons (user 27.10.): the spellbook's page arrows as text icons
-local NEXT = "|TInterface\\Buttons\\UI-SpellbookIcon-NextPage-Up:20:20|t"
-local PREV = "|TInterface\\Buttons\\UI-SpellbookIcon-PrevPage-Up:20:20|t"
+-- arrows on the page buttons (user 31.10.): the gold chevron of the "< Dungeons" button (GoldButton:SetArrow)
 local frame, pages, page, refresh = nil, {}, 1, nil
 
 local function recommended()
@@ -112,14 +110,15 @@ local function switchRow(parent, it, y)
 end
 
 -- the five logo colors as pictures (user 27.10.)
-local LOGOS = { { "teal", "Turquoise" }, { "red", "Red" }, { "blue", "Blue" }, { "green", "Green" }, { "violet", "Violet" } }
+local LOGOS = { { "teal", "Turquoise" }, { "red", "Red" }, { "blue", "Blue" }, { "green", "Green" }, { "violet", "Violet" }, { "bronze", "Bronze" } }
 local function logoRow(parent, it, y)
   local l = FLT.NewFS(parent, nil, "OVERLAY", "GameFontHighlight"); l:SetPoint("TOPLEFT", 48, y - 1); l:SetText(it[1])
   local d = FLT.NewFS(parent, nil, "OVERLAY", "GameFontDisableSmall"); d:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -2); d:SetText(it[2])
   local marks = {}
   for i, c in ipairs(LOGOS) do
     local b = CreateFrame("Button", nil, parent); b:SetSize(30, 30); b:SetPoint("TOPLEFT", 330 + (i - 1) * 40, y + 2)
-    local t = b:CreateTexture(nil, "ARTWORK"); t:SetAllPoints(); t:SetTexture(UI.ASSET_ROOT .. "logo_round_" .. c[1])
+    local t = b:CreateTexture(nil, "ARTWORK"); t:SetAllPoints(); t:SetTexture(UI.ASSET_ROOT .. "logo_round_" .. (c[1] == "bronze" and "teal" or c[1]))
+    if FLT.TintLogo then FLT.TintLogo(t, c[1]) end
     local sel = b:CreateTexture(nil, "OVERLAY"); sel:SetPoint("TOPLEFT", -4, 4); sel:SetPoint("BOTTOMRIGHT", 4, -4)
     sel:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"); sel:SetBlendMode("ADD")
     b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
@@ -202,7 +201,7 @@ local function create()
   UI.FramedPanel(f)
   for _, t in ipairs(UI.OrnateFrame(f, f, 18, 3, "OVERLAY", 4)) do t:SetVertexColor(FLT.SkinC(1, 1, 1, 1)) end
   local logo = f:CreateTexture(nil, "OVERLAY"); logo:SetSize(30, 30); logo:SetPoint("TOPLEFT", 14, -10)
-  logo:SetTexture(FLT.LogoTexture and FLT.LogoTexture("round") or (UI.ASSET_ROOT .. "minimap_icon"))
+  logo:SetTexture(FLT.LogoTexture and FLT.LogoTexture("round") or (UI.ASSET_ROOT .. "minimap_icon")); if FLT.TintLogo then FLT.TintLogo(logo) end
   local title = UI.SmallCaps(f, "OneForAll - Setup", 19, 15, { 1, 0.82, 0.20 }, "GameFontNormalLarge"); title:SetPoint("TOPLEFT", 52, -14)
   -- the page number bottom right above "Next", from the first page on (user 27.10.: "1 / 7" shows there is more)
   local stepText = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); stepText:SetPoint("BOTTOMRIGHT", -20, 44)
@@ -213,7 +212,7 @@ local function create()
   for _, p in ipairs(PAGES) do pages[#pages + 1] = optionPage(body, p) end
   pages[#pages + 1] = textPage(body, false)
 
-  local back = UI.GoldButton(f, PREV .. " Back", 160, 26, nil, 13); back:SetPoint("BOTTOMLEFT", 16, 14)
+  local back = UI.GoldButton(f, "Back", 160, 26, nil, 13); back:SetPoint("BOTTOMLEFT", 16, 14); back:SetArrow("prev")
   local skip = UI.GoldButton(f, "Skip", 160, 26, nil, 13); skip:SetPoint("BOTTOMLEFT", 16, 14)
   local rec = UI.GoldButton(f, "Recommended settings", 190, 26, nil, 13); rec:SetPoint("BOTTOM", 0, 14)
   local nextB = UI.GoldButton(f, "Next", 160, 26, nil, 13); nextB:SetPoint("BOTTOMRIGHT", -16, 14)
@@ -230,7 +229,7 @@ local function create()
     stepText:SetText(last and "" or string.format("%d / %d", page, #pages - 1))
     back:SetShown(not first and not last); skip:SetShown(first)
     rec:SetShown(not last); openQ:SetShown(last)
-    nextB:SetLabel(first and ("Choose myself " .. NEXT) or (last and "Done" or ("Next " .. NEXT)))
+    nextB:SetLabel(first and "Choose myself" or (last and "Done" or "Next")); nextB:SetArrow(not last and "next" or nil)
   end
   back:SetScript("OnClick", function() page = math.max(1, page - 1); refresh() end)
   nextB:SetScript("OnClick", function() if page == #pages then f:Hide() else page = page + 1; refresh() end end)
