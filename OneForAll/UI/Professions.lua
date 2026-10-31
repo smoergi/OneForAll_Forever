@@ -74,9 +74,7 @@ local function createProfessionPanel(parent)
   panel:SetScript("OnShow",function() updateFavor() end)
 
 
-  local nav=CreateFrame("Frame",nil,panel)
-  nav:SetPoint("TOPLEFT",8,-74); nav:SetSize(164,481) -- fixed: a taller window leaves it at the top (user 22.10.)
-  UI.FramedPanel(nav)
+  local nav,navTop=UI.SideNav(panel,-74,"emblem_professions","Professions") -- ht8: the same side list in every tab
 
   local body=CreateFrame("Frame",nil,panel)
   body:SetPoint("TOPLEFT",182,-74); body:SetPoint("BOTTOMRIGHT",-8,4)
@@ -841,24 +839,22 @@ local function createProfessionPanel(parent)
 
   -- Left navigation: Overview, the professions, Camping Buffs (last).
   -- (5.7.0: the separate Merchant's Favor box at the bottom is gone, its button shows the amount, user 22.10.)
-  local navY=-12
-  local homeButton=UI.NavButton(nav,"Overview",144,27,"Interface\\Icons\\INV_Misc_Book_09"); homeButton:SetPoint("TOPLEFT",10,navY); navY=navY-34
+  local navY=navTop
+  local homeButton; homeButton,navY=UI.NavEntry(nav,navY,"Overview","Interface\\Icons\\INV_Misc_Book_09")
   homeButton:SetScript("OnClick",function() showHome() end); navButtons.home=homeButton
-  local sep=nav:CreateTexture(nil,"ARTWORK"); FLT.SetTex(sep, UI.ASSET_ROOT.."divider_ornate"); sep:SetHeight(12); sep:SetPoint("TOPLEFT",6,navY+8); sep:SetPoint("TOPRIGHT",-6,navY+8); navY=navY-8
+  navY=UI.NavSeparator(nav,navY)
   for _,profession in ipairs(FLT.PROFESSION_ORDER or {}) do
-    local b=UI.NavButton(nav,profession,144,27,PROFESSION_ICONS[profession] or "Interface\\Icons\\INV_Misc_QuestionMark"); b:SetPoint("TOPLEFT",10,navY); navY=navY-32
+    local b; b,navY=UI.NavEntry(nav,navY,profession,PROFESSION_ICONS[profession] or "Interface\\Icons\\INV_Misc_QuestionMark")
     b:SetScript("OnClick",function() showProfession(profession) end)
     navButtons[profession]=b
   end
-  navY=navY-2
-  local sep2=nav:CreateTexture(nil,"ARTWORK"); FLT.SetTex(sep2, UI.ASSET_ROOT.."divider_ornate"); sep2:SetHeight(12); sep2:SetPoint("TOPLEFT",6,navY+8); sep2:SetPoint("TOPRIGHT",-6,navY+8); navY=navY-8
-  local campingButton=UI.NavButton(nav,"Camping Buffs",144,27,"Interface\\Icons\\Spell_Fire_Fire"); campingButton:SetPoint("TOPLEFT",10,navY); navY=navY-34
+  navY=UI.NavSeparator(nav,navY)
+  local campingButton; campingButton,navY=UI.NavEntry(nav,navY,"Camping Buffs","Interface\\Icons\\Spell_Fire_Fire")
   campingButton:SetScript("OnClick",showCamping); navButtons.camping=campingButton
-  -- taller, with your Merchant's Favor below the name
-  local favorButton=UI.NavButton(nav,"Merchant's Favor",144,44,"Interface\\Icons\\INV_Misc_Coin_02"); favorButton:SetPoint("TOPLEFT",10,navY); navY=navY-51
-  if favorButton.icon then favorButton.icon:SetSize(26,26) end
-  favorButton._label:ClearAllPoints(); favorButton._label:SetPoint("TOPLEFT",38,-7)
-  favorText=FLT.NewFS(favorButton, nil,"OVERLAY","GameFontNormal"); favorText:SetPoint("TOPLEFT",38,-24); favorText:SetTextColor(FLT.SkinC(1,0.86,0.40))
+  -- ht8: one line like the other entries, your Merchant's Favor as the count on the right (like the QoL counts)
+  local favorButton; favorButton,navY=UI.NavEntry(nav,navY,"Merchant's Favor","Interface\\Icons\\INV_Misc_Coin_02")
+  favorText=FLT.NewFS(favorButton, nil,"OVERLAY","GameFontDisableSmall"); favorText:SetPoint("RIGHT",-5,0)
+  do local font,_,flags=favorText:GetFont(); if font then favorText:SetFont(font,10,flags) end end
   favorButton:SetScript("OnClick",function() showFavorPage() end); navButtons.favor=favorButton
 
   updateFavor()

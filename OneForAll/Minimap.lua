@@ -56,16 +56,25 @@ end
 
 -- the logo in the chosen color: "round" (minimap button) or "card" (collector button)
 local LOGO_COLORS = { red = true, blue = true, green = true, teal = true, violet = true }
+-- "bronze" (header test, user 31.10.): the logo of the window header - the turquoise file without colour, tinted
+-- bronze-gold (FLT.TintLogo on every texture that shows it)
 function FLT.LogoTexture(kind)
   local c = FLT.QoL and FLT.QoL.Get and FLT.QoL.Get("logoColor")
   if not LOGO_COLORS[c] then c = "teal" end
   return "Interface\\AddOns\\OneForAll\\Assets\\logo_" .. kind .. "_" .. c
 end
+function FLT.TintLogo(tex, color)
+  if not tex then return tex end
+  local bronze = (color or (FLT.QoL and FLT.QoL.Get and FLT.QoL.Get("logoColor"))) == "bronze"
+  if tex.SetDesaturated then tex:SetDesaturated(bronze) end
+  if bronze then tex:SetVertexColor(1, 0.80, 0.45) else tex:SetVertexColor(1, 1, 1) end
+  return tex
+end
 function FLT.ApplyLogoColor()
-  if button and button.icon then button.icon:SetTexture(FLT.LogoTexture("round")) end
-  if FLT.collectorIcon then FLT.collectorIcon:SetTexture(FLT.LogoTexture("card")) end
-  if FLT.trainerTabIcon then FLT.trainerTabIcon:SetTexture(FLT.LogoTexture("round")) end
-  if FLT.collectorHi then FLT.collectorHi:SetTexture(FLT.LogoTexture("card")) end
+  if button and button.icon then button.icon:SetTexture(FLT.LogoTexture("round")); FLT.TintLogo(button.icon) end
+  if FLT.collectorIcon then FLT.collectorIcon:SetTexture(FLT.LogoTexture("card")); FLT.TintLogo(FLT.collectorIcon) end
+  if FLT.trainerTabIcon then FLT.trainerTabIcon:SetTexture(FLT.LogoTexture("round")); FLT.TintLogo(FLT.trainerTabIcon) end
+  if FLT.collectorHi then FLT.collectorHi:SetTexture(FLT.LogoTexture("card")); FLT.TintLogo(FLT.collectorHi) end
 end
 
 function FLT:CreateMinimapButton()
@@ -86,7 +95,7 @@ function FLT:CreateMinimapButton()
   -- the round logo (5.7.3, user 26./27.10.) brings its own gold ring: no Blizzard border / background; about the size
   -- of the rings of other minimap buttons. Its color: QoL "logoColor" (turquoise by default, user 27.10.)
   local icon = button:CreateTexture(nil, "ARTWORK")
-  icon:SetTexture(FLT.LogoTexture("round"))
+  icon:SetTexture(FLT.LogoTexture("round")); FLT.TintLogo(icon)
   icon:SetSize(25, 25)
   icon:SetPoint("CENTER", 0, 0)
   button.icon = icon

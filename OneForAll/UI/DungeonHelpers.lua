@@ -206,16 +206,26 @@ local function placeItemTooltips()
   end
 end
 
+-- Tooltips of items you wear (the Armory gear slots): no comparison with themselves (user 31.10.).
+-- The owner sets GameTooltip.ofaNoCompare before showing; the comparison tooltips are hidden again right after
+-- the client shows them. Cleared when the tooltip hides.
+local function noCompare()
+  if not GameTooltip.ofaNoCompare then return end
+  if type(ShoppingTooltip1) == "table" then ShoppingTooltip1:Hide() end
+  if type(ShoppingTooltip2) == "table" then ShoppingTooltip2:Hide() end
+  return true
+end
+
 -- The client re-anchors the comparison tooltips itself (e.g. when Shift is
 -- pressed); move them back right after it does.
 if type(GameTooltip_ShowCompareItem) == "function" and hooksecurefunc then
-  hooksecurefunc("GameTooltip_ShowCompareItem", function(tt) if tt == nil or tt == GameTooltip then placeItemTooltips() end end)
+  hooksecurefunc("GameTooltip_ShowCompareItem", function(tt) if (tt == nil or tt == GameTooltip) and not noCompare() then placeItemTooltips() end end)
 end
 if TooltipComparisonManager and TooltipComparisonManager.AnchorShoppingTooltips and hooksecurefunc then
-  hooksecurefunc(TooltipComparisonManager, "AnchorShoppingTooltips", function() placeItemTooltips() end)
+  hooksecurefunc(TooltipComparisonManager, "AnchorShoppingTooltips", function() if not noCompare() then placeItemTooltips() end end)
 end
 
-GameTooltip:HookScript("OnHide", function() tipAnchor.owner = nil end)
+GameTooltip:HookScript("OnHide", function() tipAnchor.owner = nil; GameTooltip.ofaNoCompare = nil end)
 
 -- Position does not depend on where the mouse entered the row: right of the
 -- item's text (name / slot line), or left of the whole row if there is no room.

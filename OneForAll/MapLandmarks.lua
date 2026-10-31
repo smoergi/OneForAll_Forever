@@ -25,6 +25,10 @@ local KINDS = {
   zeppelin = { file = ASSET .. "landmark_zeppelin", w = 38, h = 38, key = "lmTransport" },
   tram = { file = ASSET .. "landmark_tram", w = 34, h = 34, key = "lmTransport" },
   book = { file = ASSET .. "landmark_book", w = 26, h = 26, key = "mapBooks" }, -- own art, tools/art/landmark_book.py
+  -- Skyborne (6.0.1): the user's icons (tools/art/skyborne_pins.py); the switch is on by default for Skyborne, off
+  -- for the other races (QoL.Get), who see them too when they switch it on (user 30.10.)
+  leyline = { file = ASSET .. "landmark_leyline", w = 31, h = 31, key = "lmSkyborne" }, -- 24 -> 31 (user 30.10.)
+  convergence = { file = ASSET .. "landmark_convergence", w = 31, h = 31, key = "lmSkyborne" },
 }
 local SIDE_NAME = { A = "Alliance", H = "Horde" }
 
@@ -74,6 +78,12 @@ local function buildIndex()
     add(s[1], { kind = "zeppelin", x = s[2], y = s[3], dest = { select(5, unpack(s)) }, only = not mine(s[4]) and SIDE_NAME[s[4]] or nil })
   end
   for _, t in ipairs(data.tram or {}) do add(t[1], { kind = "tram", x = t[2], y = t[3], dest = { t[4] } }) end
+  -- Skyborne spots (Data/SkyborneSpots.lua): High Order (Alliance) read Ley Lines, Windshapers (Horde) use Elemental
+  -- Convergences - the spots of your faction (other races too, when they switch it on)
+  if FLT.SKYBORNE_SPOTS then
+    local kind = letter == "H" and "convergence" or "leyline"
+    for _, p in ipairs(FLT.SKYBORNE_SPOTS[letter == "H" and "conv" or "ley"] or {}) do add(p[1], { kind = kind, x = p[2], y = p[3] }) end
+  end
   for _, b in ipairs(FLT.BOOKS or {}) do
     local mapID = b.x and b.y and ((FLT.MAP_IDS and FLT.MAP_IDS[b.zone]) or (FLT.FindMapID and FLT:FindMapID(b.zone)))
     if mapID then add(mapID, { kind = "book", x = b.x, y = b.y, book = b }) end
@@ -104,7 +114,10 @@ local function onClick(pin)
   FLT.UI.OpenDropDown(pin, options, nil, function(i) openDungeon(e.list[i]) end, 230)
 end
 
-local KIND_LABEL = { flight = "Flight master", zeppelin = "Zeppelin", shipA = "Ship", shipH = "Ship", tram = "Deeprun Tram" }
+local KIND_LABEL = { flight = "Flight master", zeppelin = "Zeppelin", shipA = "Ship", shipH = "Ship", tram = "Deeprun Tram",
+  leyline = "Ley Line", convergence = "Elemental Convergence" }
+local KIND_HINT = { leyline = "Read Leyline here: Attuned for 1 hour (100% regeneration).",
+  convergence = "Skysight here: Charged for 1 hour (30% movement speed)." }
 local function onEnter(pin)
   local e = pin.entry
   if not e or not GameTooltip then return end
@@ -129,6 +142,7 @@ local function onEnter(pin)
     GameTooltip:AddLine(title, 1, 0.82, 0.2)
     if e.name then GameTooltip:AddLine(KIND_LABEL[e.kind], 0.8, 0.8, 0.8) end
     for _, d in ipairs(e.dest or {}) do GameTooltip:AddLine("To " .. d, 1, 1, 1) end
+    if KIND_HINT[e.kind] then GameTooltip:AddLine(KIND_HINT[e.kind], 1, 1, 1, true) end
   end
   GameTooltip:Show()
 end
@@ -229,7 +243,7 @@ ev:SetScript("OnEvent", function(self)
   local Qo = FLT.QoL
   if Qo and Qo.On then
     Qo.On("mapLandmarks", LM.Apply)
-    Qo.On("lmDungeons", LM.Refresh); Qo.On("lmFlight", LM.Refresh); Qo.On("lmTransport", LM.Refresh); Qo.On("mapBooks", LM.Refresh)
+    Qo.On("lmDungeons", LM.Refresh); Qo.On("lmFlight", LM.Refresh); Qo.On("lmTransport", LM.Refresh); Qo.On("mapBooks", LM.Refresh); Qo.On("lmSkyborne", LM.Refresh)
   end
   if FLT.SafeCall then FLT.SafeCall("MapLandmarks", LM.Apply) else pcall(LM.Apply) end
 end)

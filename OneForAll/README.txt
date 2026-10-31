@@ -69,6 +69,68 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+6.0.1 - A new look, profiles and buff reminders
+================================================
+A new look for the whole window and a set of new helpers.
+
+New look
+- A banner with the logo across the top, the tabs below it in a browser style;
+  the Settings tab is a gear at the right end.
+- Every tab has the same list on the left with its emblem on top; no more boxes
+  around the parts of a page, fine lines between them instead. Switches instead
+  of checkboxes, thin scroll bars, thinner lines; popups get the window's frame.
+- Quality of Life, Dungeons & Raids and Hunter Pets have a head with a search.
+  Dungeons: names, zones and bosses. Hunter Pets: one search over families,
+  abilities and rare tames.
+- Talent Trees: larger trees, the preset actions (save, reset, import, export)
+  in the list on the left.
+- Map buttons in lists are a small map symbol now; the dungeon / raid page keeps
+  a real "Map" button.
+- Quality of Life: Chat has its own entry in the list.
+- Welcome setup: gold arrows on Back / Next. Lists you can remove entries from
+  (watched buffs, kept low ranks) show a red cross.
+- Logo color: new "Bronze", picked by clicking the logos. The card logo of the
+  minimap button collector no longer has dark corners.
+
+Profiles (Settings > Profiles)
+- A profile holds the Settings and Quality of Life options and the shown tabs
+  with their order; every character picks its own (new characters: Default).
+  New, Copy, Rename, Delete, Export / Import as text, or Send to a player who
+  has "Receive" switched on (off by default; they are asked first).
+- After the update every character starts on "Default". The shown tabs were
+  saved per character before and are part of the profile now.
+
+Quality of Life
+- Buff reminder (off by default): add your own buffs with a time in seconds;
+  a small card shows when one runs low or out - click its icon to cast it
+  again. Up to 4 cards, off in combat, "Sleep in cities" keeps it quiet in the
+  capitals. Name suggestions while typing.
+- Chat > Message history (on by default): arrow up / down in the chat box
+  brings back your last 5 messages.
+- Short green stats (off by default): long "Equip:" lines become "+1% Hit",
+  "+9 Spell Healing" and so on.
+- Hide error messages (off by default): no red "Out of range" messages; full
+  bags, a full quest log and not enough money are still shown.
+- Resize Blizzard windows (off by default): right mouse button + drag; also the
+  Looking For Group window can now be moved and resized.
+- Arrow color by armor type (off by default): a yellow arrow for upgrades in a
+  lighter armor type than your class's best.
+- Map Landmarks: Skyborne ley lines and elemental convergences on the world
+  map (on for Skyborne, locations from "Skyborne Leyline & Convergence Marker"
+  by tr0tsky, MIT).
+- "Compare items only with Shift" is now "Disable automatic compare tooltip".
+
+Professions & Armory
+- Skill-up chance in % on yellow and green recipes; known recipes show how many
+  you can make with the reagents in your bags, e.g. "Copper Rod (2)".
+- Gear Planner: the picture of your race behind your character; your own gear
+  no longer shows a comparison with itself.
+- Dungeon / raid page: a real "Map" button next to Bosses & Loot.
+
+Fixes
+- The window could not be closed in combat after a recipe with a Craft button
+  was shown.
+
 6.0.0 - Ready for the launch of WoW Forever
 ==========================================
 A fresh start: a welcome setup for everyone, a new logo, one look and many new

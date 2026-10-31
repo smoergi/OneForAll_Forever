@@ -666,7 +666,7 @@ local function addSpellbookButton()
   ic:SetTexture("Interface\\Icons\\INV_Misc_Book_09"); ic:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   b.icon = ic
   local logo = b:CreateTexture(nil, "OVERLAY", nil, 3); logo:SetSize(20, 20); logo:SetPoint("CENTER", ic, "TOPRIGHT", -3, -3)
-  logo:SetTexture(FLT.LogoTexture and FLT.LogoTexture("round") or (ASSET .. "logo_round_teal"))
+  logo:SetTexture(FLT.LogoTexture and FLT.LogoTexture("round") or (ASSET .. "logo_round_teal")); if FLT.TintLogo then FLT.TintLogo(logo) end
   FLT.trainerTabIcon = logo -- Logo color updates it (Minimap.lua ApplyLogoColor)
   local fr = b:CreateTexture(nil, "ARTWORK", nil, 1)
   if not (fr.SetAtlas and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("spellbook-Tab-Frame-C60")) then

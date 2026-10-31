@@ -192,9 +192,11 @@ local function create()
   -- the card logo in the chosen color (QoL "logoColor"); the picture sits in the middle 46 of 64 pixels
   local icon = collector:CreateTexture(nil, "ARTWORK"); icon:SetAllPoints()
   icon:SetTexture(FLT.LogoTexture and FLT.LogoTexture("card") or (UI.ASSET_ROOT .. "logo_card_teal")); icon:SetTexCoord(9 / 64, 55 / 64, 0, 1)
+  if FLT.TintLogo then FLT.TintLogo(icon) end
   FLT.collectorIcon = icon
   local hi = collector:CreateTexture(nil, "HIGHLIGHT"); hi:SetAllPoints()
   hi:SetTexture(icon:GetTexture() or (UI.ASSET_ROOT .. "logo_card_teal")); hi:SetTexCoord(9 / 64, 55 / 64, 0, 1); hi:SetBlendMode("ADD"); hi:SetAlpha(0.3)
+  if FLT.TintLogo then FLT.TintLogo(hi) end
   FLT.collectorHi = hi
 
   bar = CreateFrame("Frame", "OneForAllMinimapCollectorBar", UIParent)

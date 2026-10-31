@@ -132,7 +132,7 @@ end
 local function createBooksPanel(frame)
   local panel = CreateFrame("Frame", nil, frame)
   UI.PlacePanel(panel, frame)
-  local W = UI.CONTENT_W
+  local W = UI.CONTENT_W - 174 -- ht8: right of the side list
   local Card = UI.Card
   local rows, sections, progress, nearbyCheck = {}, {}, nil, nil
 
@@ -146,11 +146,24 @@ local function createBooksPanel(frame)
   progress:SetPoint("RIGHT", -18, 8); progress:SetJustifyH("RIGHT"); progress:SetTextColor(FLT.SkinC(1, 0.86, 0.40))
   local progress2 = FLT.NewFS(band, nil, "OVERLAY", "GameFontHighlightSmall")
   progress2:SetPoint("TOPRIGHT", progress, "BOTTOMRIGHT", 0, -4); progress2:SetJustifyH("RIGHT"); progress2:SetTextColor(FLT.SkinC(0.84, 0.81, 0.74))
+  -- header test: the band is gone - both counts go into the action row, right of the rewards button (placed below)
+  progress:SetParent(panel); progress2:SetParent(panel)
 
   -- Action row: rewards button, nearby alerts and a colour legend.
-  local reward = UI.GoldButton(panel, "What can I do with the books?", 236, 24, "Interface\\Icons\\INV_Misc_Book_09", 12)
-  reward:SetPoint("TOPLEFT", 8, -74)
+  -- ht8 (user 30.10.): the side list like every tab - the counts, "What can I do?", the sets to jump to, the legend
+  local nav, ny = UI.SideNav(panel, -74, "emblem_books", "Library Books")
+  progress:SetParent(nav); progress2:SetParent(nav)
+  progress:ClearAllPoints(); progress:SetPoint("TOPLEFT", UI.NAV.entryX + 8, ny); progress:SetJustifyH("LEFT")
+  do local font, _, flags = progress:GetFont(); if font then progress:SetFont(font, 12, flags) end end
+  progress2:ClearAllPoints(); progress2:SetPoint("TOPLEFT", progress, "BOTTOMLEFT", 0, -4); progress2:SetJustifyH("LEFT")
+  ny = ny - 40
+  local reward; reward, ny = UI.NavEntry(nav, ny, "What can I do?", "Interface\\Icons\\INV_Misc_Book_09")
   reward:SetScript("OnClick", function() showBookRewardsPopup(frame) end)
+  reward:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine("What can I do with the books?", 1, 0.82, 0); GameTooltip:Show() end)
+  reward:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  ny = UI.NavSeparator(nav, ny)
+  local setJump = {} -- filled when the sets exist (below)
+  local navY = ny
 
   -- the "Nearby book alerts" option lives in the Settings tab
   -- small gem: tinted stone inside a gold rim
@@ -160,15 +173,14 @@ local function createBooksPanel(frame)
     return f
   end
   local legendKeys = { "done", "bag", "bank", "manual", "questflag", "missing" }
-  local lx = -14
-  for i = #legendKeys, 1, -1 do
+  local legendHolds = {} -- ht8: the legend at the bottom of the side list (placed once the sets are listed)
+  for i = 1, #legendKeys do
     local st = STATE[legendKeys[i]]
-    local hold = CreateFrame("Frame", nil, panel)
-    local t = FLT.NewFS(hold, nil, "OVERLAY", "GameFontHighlightSmall"); t:SetPoint("RIGHT", 0, 0); t:SetText(st.text); t:SetTextColor(FLT.SkinC(0.84, 0.81, 0.74))
-    local d = gem(hold, 12); d:SetPoint("RIGHT", t, "LEFT", -3, 0); d:SetVertexColor(unpack(st.color))
-    local w = (t:GetStringWidth() or 40) + 15
-    hold:SetSize(w, 20); hold:SetPoint("TOPRIGHT", panel, "TOPRIGHT", lx, -76)
-    lx = lx - w - 14
+    local hold = CreateFrame("Frame", nil, nav)
+    local d = gem(hold, 12); d:SetPoint("LEFT", 0, 0); d:SetVertexColor(unpack(st.color))
+    local t = FLT.NewFS(hold, nil, "OVERLAY", "GameFontHighlightSmall"); t:SetPoint("LEFT", d, "RIGHT", 6, 0); t:SetText(st.text); t:SetTextColor(FLT.SkinC(0.84, 0.81, 0.74))
+    hold:SetSize(140, 18)
+    legendHolds[i] = hold
     if legendKeys[i] == "questflag" then
       hold:EnableMouse(true)
       hold:SetScript("OnEnter", function(self)
@@ -181,20 +193,21 @@ local function createBooksPanel(frame)
   end
 
   -- Columns (x inside a row; rows sit BOX_PAD px inside their box).
-  local SECTION_H, ROW_H, ROW_GAP, BOX_PAD = 34, 34, 3, 5
+  local SECTION_H, ROW_H, ROW_GAP, BOX_PAD = 32, 34, 0, 0
   local ROW_INNER = W - 2 * BOX_PAD
-  local COL = { status = 14, name = 150, side = 560, zone = 660, actions = 866 }
-  local COL_W = { status = 130, name = 400, side = 90, zone = 200, actions = 110 }
-  UI.ColumnHeader(panel, {
+  local COL = { status = 14, name = 130, side = 440, zone = 510, actions = 712 }
+  local COL_W = { status = 110, name = 300, side = 60, zone = 190, actions = 92 }
+  local colHead = UI.ColumnHeader(panel, {
     { x = COL.status + BOX_PAD - 6, w = COL_W.status, text = "Status" },
     { x = COL.name + BOX_PAD - 4, w = COL_W.name, text = "Book Title" },
     { x = COL.side + BOX_PAD, w = COL_W.side, text = "Territory", justify = "CENTER" },
     { x = COL.zone + BOX_PAD, w = COL_W.zone, text = "Zone / Coordinates" },
     { x = COL.actions + BOX_PAD, w = COL_W.actions, text = "Actions", justify = "CENTER" },
-  }, W, -106)
+  }, W, -74)
+  colHead:ClearAllPoints(); colHead:SetPoint("TOPLEFT", 182, -74)
 
   local bookScroll = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate"))
-  bookScroll:SetPoint("TOPLEFT", 8, -136); bookScroll:SetPoint("BOTTOMRIGHT", -8, 4)
+  bookScroll:SetPoint("TOPLEFT", 182, -104); bookScroll:SetPoint("BOTTOMRIGHT", -8, 4)
   UI.PlaceScrollBar(bookScroll)
   local content = CreateFrame("Frame", nil, bookScroll); content:SetSize(W, 1); bookScroll:SetScrollChild(content)
 
@@ -218,11 +231,8 @@ local function createBooksPanel(frame)
     local row = CreateFrame("Button", nil, content)
     row:SetSize(ROW_INNER, ROW_H)
     row.book = book
-    local card = Card(row, row, 4, ROW_BORDER, {0.060, 0.062, 0.074, 0.97}, "BACKGROUND", 0)
+    local card = UI.QuietRow(row) -- ht8: no frame, a fine line under the row
     row.card = card
-    local hi = row:CreateTexture(nil, "HIGHLIGHT"); hi:SetPoint("TOPLEFT", 1, -1); hi:SetPoint("BOTTOMRIGHT", -1, 1); hi:SetColorTexture(FLT.SkinC(0.90, 0.66, 0.22, 0.07))
-    UI.HoverEdge(row)
-    local sep = makeTexture(row, "BORDER", 0.72, 0.50, 0.12, 0.16); sep:SetPoint("LEFT", COL.actions - 2, 0); sep:SetSize(1, ROW_H - 12)
 
     local dot = gem(row, 13); dot:SetPoint("LEFT", COL.status - 1, 0)
     row.statusDot = dot
@@ -265,11 +275,29 @@ local function createBooksPanel(frame)
     current.rows[#current.rows + 1] = row
   end
 
+  -- the sets in the side list (jump to them), then the legend under them
+  for i, section in ipairs(sections) do
+    local b; b, navY = UI.NavEntry(nav, navY, FLT.SETS[section.id] or section.id)
+    b.count = FLT.NewFS(b, nil, "OVERLAY", "GameFontDisableSmall"); b.count:SetPoint("RIGHT", -5, 0)
+    do local font, _, flags = b.count:GetFont(); if font then b.count:SetFont(font, 10, flags) end end
+    b._label:SetPoint("RIGHT", b.count, "LEFT", -4, 0); b._label:SetWordWrap(false)
+    b:SetScript("OnClick", function()
+      if OneForAllDB.collapsedSets[section.id] then OneForAllDB.collapsedSets[section.id] = nil; relayout() end
+      if section.y then
+        local range = bookScroll:GetVerticalScrollRange() or 0
+        bookScroll:SetVerticalScroll(math.max(0, math.min(range, -section.y - 4)))
+      end
+    end)
+    setJump[i] = b; section.nav = b
+  end
+  navY = UI.NavSeparator(nav, navY)
+  for i, hold in ipairs(legendHolds) do hold:SetPoint("TOPLEFT", nav, "TOPLEFT", UI.NAV.entryX + 8, navY - 4 - (i - 1) * 20) end
+
   relayout = function()
     local y = -4
     for i, section in ipairs(sections) do
       if i > 1 then y = y - 10 end
-      section.header:ClearAllPoints(); section.header:SetPoint("TOPLEFT", 0, y); section.header:Show()
+      section.header:ClearAllPoints(); section.header:SetPoint("TOPLEFT", 0, y); section.header:Show(); section.y = y
       y = y - SECTION_H - 3
       local collapsed = OneForAllDB.collapsedSets and OneForAllDB.collapsedSets[section.id]
       section:SetCollapsed(collapsed)
@@ -310,6 +338,7 @@ local function createBooksPanel(frame)
     for _, section in ipairs(sections) do
       local c = perSet[section.id] or { done = 0, n = #section.rows }
       section.info:SetText(string.format("%d / %d turned in", c.done, c.n))
+      if section.nav then section.nav.count:SetText(c.done .. "/" .. c.n) end
     end
   end
 

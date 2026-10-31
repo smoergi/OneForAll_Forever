@@ -44,7 +44,72 @@ function FLT.SetTex(tex, path, ...)
   tex:SetTexture(path, ...)
   noSnap(tex)
 end
-function FLT.SkinBlizz(f) return f end
+-- header test (user 30.10.): Blizzard checkboxes (UICheckButtonTemplate) become the switches of the Classic Refined
+-- test; the API stays (Click / GetChecked / SetChecked / SetEnabled), the button is as wide as the switch + 8
+local SW_W, SW_H = 34, 18
+-- ht4 (user 30.10.: "gold/gelb, aber nicht so kraeftig"): a muted gold track when on, a slightly softer knob
+local SW_TRACK_OFF, SW_TRACK_ON = { 0.23, 0.23, 0.25 }, { 0.62, 0.49, 0.27 }
+local SW_KNOB_OFF, SW_KNOB_ON = { 0.55, 0.56, 0.58 }, { 0.90, 0.87, 0.80 }
+local function toggleSkin(cb)
+  if cb._ofaToggle then return cb end
+  cb._ofaToggle = true
+  for _, get in ipairs({ "GetNormalTexture", "GetPushedTexture", "GetHighlightTexture", "GetCheckedTexture", "GetDisabledCheckedTexture", "GetDisabledTexture" }) do
+    local t = cb[get] and cb[get](cb)
+    if t then t:SetTexture(nil); t:SetAlpha(0) end
+  end
+  local setSize = cb.SetSize
+  function cb:SetSize(_, h) setSize(self, SW_W + 8, math.max(h or SW_H, SW_H)) end
+  cb:SetSize(SW_W, cb:GetHeight() or SW_H)
+  local pill = CreateFrame("Frame", nil, cb); pill:SetSize(SW_W, SW_H); pill:SetPoint("CENTER", 0, 0)
+  local track = UI.RoundRect(cb, pill, "ARTWORK", 0, SW_H / 2, 0, 1, 1, 1, 1, ASSET_ROOT .. "pill_fill")
+  local hov = UI.RoundRect(cb, pill, "HIGHLIGHT", 0, SW_H / 2, 0, 0.07, 0.07, 0.07, 1, ASSET_ROOT .. "pill_fill")
+  for _, t in ipairs(hov.pieces) do if t.SetBlendMode then t:SetBlendMode("ADD") end end
+  local knob = cb:CreateTexture(nil, "OVERLAY"); knob:SetSize(14, 14); FLT.SetTex(knob, ASSET_ROOT .. "knob")
+  local function paint()
+    local on, en = cb:GetChecked() and true or false, cb:IsEnabled() and true or false
+    track:SetColor(unpack(on and SW_TRACK_ON or SW_TRACK_OFF)); knob:SetVertexColor(unpack(on and SW_KNOB_ON or SW_KNOB_OFF))
+    knob:ClearAllPoints(); knob:SetPoint(on and "RIGHT" or "LEFT", pill, on and "RIGHT" or "LEFT", on and -2 or 2, 0)
+    cb:SetAlpha(en and 1 or 0.4); hov:SetShown(en)
+  end
+  local setChecked, setEnabled = cb.SetChecked, cb.SetEnabled
+  function cb:SetChecked(v) setChecked(self, v); paint() end
+  function cb:SetEnabled(v) setEnabled(self, v); paint() end
+  if cb.Enable then function cb:Enable() setEnabled(self, true); paint() end end
+  if cb.Disable then function cb:Disable() setEnabled(self, false); paint() end end
+  cb.Paint = paint
+  cb:SetScript("PostClick", paint) -- callers set OnClick themselves (that drops hooks)
+  cb:HookScript("OnShow", paint)
+  local fs = cb.Text or cb.text
+  if type(fs) == "table" and fs.ClearAllPoints then fs:ClearAllPoints(); fs:SetPoint("LEFT", cb, "RIGHT", 4, 0) end
+  paint()
+  return cb
+end
+-- ht12 (user 30.10.): the scroll bars of UIPanelScrollFrameTemplate thin and plain - no arrows, a 4 px grey track,
+-- a grey thumb (still dragged and scrolled as before)
+local function slimBar(bar)
+  if type(bar) ~= "table" or bar._ofaSlim or not bar.GetRegions then return end
+  bar._ofaSlim = true
+  local thumb = bar.GetThumbTexture and bar:GetThumbTexture()
+  for _, r in ipairs({ bar:GetRegions() }) do
+    if r ~= thumb and r.GetObjectType and r:GetObjectType() == "Texture" then r:SetAlpha(0) end
+  end
+  for _, k in ipairs({ "ScrollUpButton", "ScrollDownButton", "Back", "Forward" }) do
+    local btn = bar[k]
+    if type(btn) == "table" and btn.SetAlpha then btn:SetAlpha(0); if btn.EnableMouse then btn:EnableMouse(false) end end
+  end
+  local track = bar:CreateTexture(nil, "BACKGROUND"); track:SetColorTexture(0.071, 0.082, 0.098, 1) -- ht13: Classic Refined colours
+  track:SetPoint("TOP", 0, 0); track:SetPoint("BOTTOM", 0, 0); track:SetWidth(4)
+  if thumb and thumb.SetColorTexture then thumb:SetColorTexture(0.431, 0.329, 0.204, 1); thumb:SetWidth(4) end
+end
+UI.SlimScrollBar = slimBar
+function FLT.SkinBlizz(f)
+  if f and f.GetObjectType and f:GetObjectType() == "CheckButton" and f.GetCheckedTexture and f:GetCheckedTexture() then
+    toggleSkin(f)
+  elseif f and f.GetObjectType and f:GetObjectType() == "ScrollFrame" and type(f.ScrollBar) == "table" then
+    slimBar(f.ScrollBar)
+  end
+  return f
+end
 function FLT.SkinArtTex() end
 -- inline colour code ("|cffRRGGBB")
 function FLT.SkinHex(hex) return "|cff" .. hex end
@@ -283,6 +348,14 @@ end
 -- The line lies inside the anchor (scroll frames clip anything outside).
 local function OrnateFrame(owner, anchor, c, outset, layer, sub, tex)
   anchor = anchor or owner; layer = layer or "OVERLAY"; sub = sub or 0
+  -- ht7 (user 30.10.: popups like the main window): the frame line of popups (corner 16 / 18, outset 3) is the window's
+  -- outer frame now; the callers tint what they get back, so they get no pieces
+  if tex ~= WINDOW_TEX and (c == 16 or c == 18) and outset == 3 and owner == anchor and UI.WindowFrame then
+    local deco = CreateFrame("Frame", nil, owner); deco:SetAllPoints(owner)
+    deco:SetFrameLevel((owner:GetFrameLevel() or 0) + 15)
+    UI.WindowFrame(deco, owner)
+    return {}
+  end
   if tex == WINDOW_TEX then c = 14 else c = 8 end
   local A, B = 0.25, 0.75
   local function piece(l, r, t, b) return sliceTex(owner, layer, sub, MODERN_TEX, l, r, t, b) end
@@ -341,7 +414,23 @@ local function Plate(b, h)
 end
 
 -- GoldButton: plate button with optional icon. b:SetActive(on) for toggles.
-local function GoldButton(parent, text, w, h, icon, fontSize)
+-- ht11 (user 30.10.): "Map" buttons are only the map symbol (like the trainer list in Professions); same API
+local function MapIcon(parent, h)
+  local b = CreateFrame("Button", nil, parent); local sz = math.max(18, math.min(22, (h or 20)))
+  b:SetSize(sz, sz)
+  local t = b:CreateTexture(nil, "ARTWORK"); t:SetAllPoints(); FLT.SetTex(t, ASSET_ROOT .. "icon_map")
+  b:SetHighlightTexture(ASSET_ROOT .. "icon_map", "ADD")
+  b.icon = t
+  b._label = b:CreateFontString(nil, "OVERLAY", "GameFontNormal"); b._label:Hide()
+  function b:SetLook(on) t:SetAlpha(on and 1 or 0.3); FLT.Desat(t, not on) end
+  function b:SetActive() end
+  function b:SetLabel() end
+  b._place = function() end
+  return b
+end
+-- plain = true: a real "Map" button with text (the dungeon / raid detail head, user 31.10.)
+local function GoldButton(parent, text, w, h, icon, fontSize, plain)
+  if text == "Map" and not plain and type(icon) == "string" and icon:find("icon_map$") then return MapIcon(parent, h) end
   local b = CreateFrame("Button", nil, parent)
   b:SetSize(w, h)
   local plate = Plate(b, h)
@@ -350,10 +439,16 @@ local function GoldButton(parent, text, w, h, icon, fontSize)
   label:SetText(text); label:SetTextColor(FLT.SkinC(0.95, 0.82, 0.50))
   local function place(dx, dy)
     label:ClearAllPoints()
-    if b.icon then
-      local tw = (label:GetStringWidth() or 0) + (b.icon:GetWidth() or 14) + 5
-      b.icon:ClearAllPoints(); b.icon:SetPoint("LEFT", b, "CENTER", -tw / 2 + dx, dy)
-      label:SetPoint("LEFT", b.icon, "RIGHT", 5, 0)
+    if b.icon and b.icon:IsShown() then
+      -- b.iconGap: room between icon and text; b.iconRight: the icon after the text (b:SetArrows, Welcome setup)
+      local gap = b.iconGap or 5
+      local tw = (label:GetStringWidth() or 0) + (b.icon:GetWidth() or 14) + gap
+      b.icon:ClearAllPoints()
+      if b.iconRight then
+        label:SetPoint("LEFT", b, "CENTER", -tw / 2 + dx, dy); b.icon:SetPoint("LEFT", label, "RIGHT", gap, 0)
+      else
+        b.icon:SetPoint("LEFT", b, "CENTER", -tw / 2 + dx, dy); label:SetPoint("LEFT", b.icon, "RIGHT", gap, 0)
+      end
     else
       label:SetPoint("CENTER", dx, dy)
     end
@@ -374,9 +469,45 @@ local function GoldButton(parent, text, w, h, icon, fontSize)
     if b.icon then FLT.Desat(b.icon, not enabled); b.icon:SetAlpha(enabled and 1 or 0.5) end
   end
   function b:SetLabel(t) label:SetText(t); place(0, 0) end
+  -- the gold chevron of the "< Dungeons" button as a page arrow (Welcome setup, user 31.10.): dir "prev" / "next" / nil
+  function b:SetArrow(dir)
+    if not b.icon then b.icon = b:CreateTexture(nil, "ARTWORK"); b.icon:SetSize(h - 10, h - 10); FLT.SetTex(b.icon, ASSET_ROOT .. "icon_back") end
+    b.icon:SetShown(dir ~= nil); b.iconRight, b.iconGap = dir == "next", 8
+    if dir == "next" then b.icon:SetTexCoord(1, 0, 0, 1) else b.icon:SetTexCoord(0, 1, 0, 1) end
+    place(0, 0)
+  end
   b:SetScript("OnMouseDown", function(self) if self:IsEnabled() then place(1, -1) end end)
   b:SetScript("OnMouseUp", function() place(0, 0) end)
   return b
+end
+
+-- A secure button inside an addon window makes the whole window protected: in combat it then cannot be closed
+-- (ADDON_ACTION_BLOCKED on OneForAllFrame:Hide(), user 30.10.). Right before combat starts (PLAYER_REGEN_DISABLED still
+-- runs outside the lockdown) such buttons leave their window (parent UIParent, hidden); after combat they go back to
+-- their place. onBack (optional) runs after that, e.g. to update what the button shows.
+local detached, detachFrame = {}, nil
+function UI.CombatDetach(btn, onBack)
+  detached[#detached + 1] = { b = btn, onBack = onBack }
+  if detachFrame then return end
+  detachFrame = CreateFrame("Frame")
+  detachFrame:RegisterEvent("PLAYER_REGEN_DISABLED"); detachFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+  detachFrame:SetScript("OnEvent", function(_, event)
+    for _, d in ipairs(detached) do
+      local b = d.b
+      if event == "PLAYER_REGEN_DISABLED" and not d.home then
+        if not (InCombatLockdown and InCombatLockdown()) then
+          d.home, d.shown, d.points = b:GetParent(), b:IsShown(), {}
+          for i = 1, (tonumber(b:GetNumPoints()) or 0) do d.points[i] = { b:GetPoint(i) } end
+          b:Hide(); b:ClearAllPoints(); b:SetParent(UIParent)
+        end
+      elseif event == "PLAYER_REGEN_ENABLED" and d.home then
+        b:SetParent(d.home); b:ClearAllPoints()
+        for _, pt in ipairs(d.points) do b:SetPoint(unpack(pt)) end
+        b:SetShown(d.shown); d.home, d.points = nil, nil
+        if d.onBack then d.onBack() end
+      end
+    end
+  end)
 end
 
 UI.Nine = Nine
@@ -391,8 +522,12 @@ UI.CONTENT_W = 988
 UI.GOLD = {1, 0.82, 0.20}
 UI.HEAD_GOLD = {0.90, 0.74, 0.42}
 
-function UI.PlacePanel(panel, parent)
-  panel:SetPoint("TOPLEFT", UI.PANEL_INSET, -76)
+-- header test (user 30.10.): pages start under the banner and the tabs; a page with a title band starts
+-- TITLE_BAND_H higher, because the band is gone (UI.TitleBand)
+UI.CONTENT_TOP, UI.TITLE_BAND_H = 124, 66
+function UI.PlacePanel(panel, parent, up)
+  panel:ClearAllPoints()
+  panel:SetPoint("TOPLEFT", UI.PANEL_INSET, -UI.CONTENT_TOP + (up or 0))
   panel:SetPoint("BOTTOMRIGHT", -UI.PANEL_INSET, 15)
 end
 
@@ -451,6 +586,14 @@ end
 -- opts = { emblem=, title=, subtitle=, art=, width= }
 function UI.TitleBand(parent, opts)
   local w = opts.width or UI.CONTENT_W
+  -- header test (user 30.10.): no title band, no tab name, no emblem under the tabs any more: the page moves up by the
+  -- band's height (its content keeps its offsets); the band stays as an empty, hidden frame for callers
+  do
+    local band = CreateFrame("Frame", nil, parent); band:SetPoint("TOPLEFT", 8, -8); band:SetSize(w, 58); band:Hide()
+    UI.PlacePanel(parent, nil, UI.TITLE_BAND_H)
+    band.title = band:CreateFontString(nil, "OVERLAY", "GameFontNormal"); band.subtitle = band:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    return band
+  end
   local band = CreateFrame("Frame", nil, parent); band:SetPoint("TOPLEFT", 8, -8); band:SetSize(w, 58)
   local bg = makeTexture(band, "BACKGROUND", 0.045, 0.045, 0.058, 0.96); bg:SetPoint("TOPLEFT", 2, -2); bg:SetPoint("BOTTOMRIGHT", -2, 2)
   if opts.art then
@@ -479,18 +622,61 @@ end
 -- Column header strip: small caps, separators. cols = { {x=,w=,text=,justify=} }
 function UI.ColumnHeader(parent, cols, width, y)
   local h = CreateFrame("Frame", nil, parent); h:SetPoint("TOPLEFT", 8, y); h:SetSize(width or UI.CONTENT_W, 24)
-  local bg = makeTexture(h, "BACKGROUND", 0.075, 0.062, 0.040, 0.96); bg:SetPoint("TOPLEFT", 2, -2); bg:SetPoint("BOTTOMRIGHT", -2, 2)
-  OrnateFrame(h, h, 10, 1, "OVERLAY", 1)
+  -- ht8: no gold bar - the column names on the page with a fine line under them
+  local ln = h:CreateTexture(nil, "ARTWORK"); ln:SetColorTexture(0.50, 0.38, 0.19, 0.6); ln:SetHeight(1)
+  ln:SetPoint("BOTTOMLEFT", 2, 0); ln:SetPoint("BOTTOMRIGHT", -2, 0)
   for i, c in ipairs(cols) do
     local holder = CreateFrame("Frame", nil, h); holder:SetPoint("LEFT", c.x, 0); holder:SetSize(c.w or 100, 22)
     local label = UI.SmallCaps(holder, c.text, 12, 9, UI.HEAD_GOLD)
     if c.justify == "CENTER" then label:SetPoint("LEFT", holder, "CENTER", -math.floor(label:GetWidth() / 2), 0)
     else label:SetPoint("LEFT", 10, 0) end
     if i > 1 then
-      local sep = makeTexture(h, "ARTWORK", 0.72, 0.50, 0.12, 0.45); sep:SetPoint("LEFT", c.x - 2, 0); sep:SetSize(1, 14)
+      local sep = makeTexture(h, "ARTWORK", 0.72, 0.50, 0.12, 0.25); sep:SetPoint("LEFT", c.x - 2, 0); sep:SetSize(1, 12)
     end
   end
   return h
+end
+
+-- The client's dressing-room picture of the player's race (Interface\DressUpFrame, 4 pieces = 318 x 383) filling the
+-- rectangle (x1, y1) - (x2, y2) of parent: scaled to its height, cropped at the sides, dimmed (6.0.1, user 30.10.:
+-- behind the character in the Gear Planner). Gnome / Troll use Dwarf / Orc when the client has no own picture.
+-- Returns the frame that holds it (one level above parent; raise what must stay on top).
+local DRESS_PIECES = { -- point x, y, w, h, u2, v2
+  { 0, 0, 256, 255, 1, 255 / 256 }, { 256, 0, 62, 255, 62 / 64, 255 / 256 },
+  { 0, -255, 256, 128, 1, 1 }, { 256, -255, 62, 128, 62 / 64, 1 },
+}
+local DRESS_ALT = { Gnome = "Dwarf", Troll = "Orc", Goblin = "Orc", Worgen = "Human" }
+function UI.RaceBackdrop(parent, x1, y1, x2, y2)
+  local clip = CreateFrame("Frame", nil, parent)
+  clip:SetPoint("TOPLEFT", x1, y1); clip:SetPoint("BOTTOMRIGHT", x2, y2)
+  clip:SetFrameLevel(parent:GetFrameLevel() + 1)
+  if clip.SetClipsChildren then clip:SetClipsChildren(true) end
+  local H = math.max(1, (parent:GetHeight() or 0) + y1 - y2)
+  local sc = H / 383
+  local pic = CreateFrame("Frame", nil, clip); pic:SetSize(318 * sc, H); pic:SetPoint("CENTER")
+  local tex = {}
+  local function load(name)
+    local ok = true
+    for i, p in ipairs(DRESS_PIECES) do
+      local t = tex[i] or pic:CreateTexture(nil, "BACKGROUND"); tex[i] = t
+      if t:SetTexture("Interface\\DressUpFrame\\DressUpBackground-" .. name .. i) == false then ok = false end
+      t:SetSize(p[3] * sc, p[4] * sc); t:SetPoint("TOPLEFT", p[1] * sc, p[2] * sc); t:SetTexCoord(0, p[5], 0, p[6])
+    end
+    return ok
+  end
+  local race = UnitRace and select(2, UnitRace("player")) or "Human"
+  if not load(race or "Human") and DRESS_ALT[race] then load(DRESS_ALT[race]) end
+  -- dimmed by a shade on a frame above the picture (a child frame draws over its parent)
+  local ov = CreateFrame("Frame", nil, clip); ov:SetAllPoints(); ov:SetFrameLevel(pic:GetFrameLevel() + 1)
+  local shade = ov:CreateTexture(nil, "BACKGROUND"); shade:SetAllPoints(); shade:SetColorTexture(0, 0, 0, 0.42)
+  -- the picture's lower end fades into the panel's dark (no hard edge where it stops; beta3, user 30.10.)
+  local fade = ov:CreateTexture(nil, "ARTWORK"); fade:SetPoint("BOTTOMLEFT"); fade:SetPoint("BOTTOMRIGHT"); fade:SetHeight(H * 0.38)
+  fade:SetColorTexture(1, 1, 1, 1)
+  local r, g, b = 0.045, 0.045, 0.055 -- the panel background (FramedPanel)
+  if not (fade.SetGradient and CreateColor and pcall(fade.SetGradient, fade, "VERTICAL", CreateColor(r, g, b, 1), CreateColor(r, g, b, 0))) then
+    if fade.SetGradientAlpha then fade:SetGradientAlpha("VERTICAL", r, g, b, 1, r, g, b, 0) else fade:Hide() end
+  end
+  return clip
 end
 
 -- Collapsible section band (landscape silhouette, chevron box, title, info)
@@ -499,6 +685,17 @@ end
 function UI.SectionBand(parent, label, strip, width, onToggle)
   width = width or UI.CONTENT_W
   local holder = CreateFrame("Button", nil, parent); holder:SetSize(width, 34)
+  do -- ht8: a quiet head, no landscape; the rows below without a box
+    local chevron, title, info = UI.QuietHead(holder, label)
+    local box = CreateFrame("Frame", nil, parent); box:SetWidth(width)
+    local section = { header = holder, box = box, chevron = chevron, info = info, title = title }
+    function section:SetCollapsed(on)
+      if on then chevron:SetTexCoord(0.5, 1, 0, 1) else chevron:SetTexCoord(0, 0.5, 0, 1) end
+    end
+    holder:SetScript("OnClick", function() if onToggle then onToggle() end end)
+    section:SetCollapsed(false)
+    return section
+  end
   local base = makeTexture(holder, "BACKGROUND", 0.05, 0.05, 0.065, 0.98); base:SetPoint("TOPLEFT", 2, -2); base:SetPoint("BOTTOMRIGHT", -2, 2)
   local sil = holder:CreateTexture(nil, "BORDER"); sil:SetPoint("TOPLEFT", 2, -2); sil:SetPoint("BOTTOMRIGHT", -2, 2)
   strip = (strip or 0) % 3
@@ -534,22 +731,145 @@ end
 function UI.FramedPanel(f, inset)
   -- flat background with the same rounded corners as the line
   UI.MarkBG(RoundRect(f, f, "BACKGROUND", 0, 7, 1, 0.045, 0.045, 0.055, 0.96))
-  for _, t in ipairs(OrnateFrame(f, f, 12, 1, "OVERLAY", 3)) do t:SetVertexColor(FLT.SkinC(0.62, 0.52, 0.40, 0.9)) end
+  -- ht3 (user 30.10.: "alle Rahmen deutlich schlanker"): a 1 px line (Assets/window_ring) instead of the 1.5 px gold line
+  RoundRect(f, f, "OVERLAY", 3, 8, 0, 0.50, 0.42, 0.30, 0.85, ASSET_ROOT .. "window_ring")
+end
+-- ht3 (user 30.10.): the side list, middle and right parts of a tab without a frame of their own; lineX: a quiet
+-- upright line that far right of the column's right edge (the gap to the next column)
+function UI.Column(f, lineX)
+  if not lineX then return end
+  local vl = f:CreateTexture(nil, "ARTWORK"); vl:SetColorTexture(0.50, 0.38, 0.19, 0.55); vl:SetWidth(1)
+  vl:SetPoint("TOPLEFT", f, "TOPRIGHT", lineX, 0); vl:SetPoint("BOTTOMLEFT", f, "BOTTOMRIGHT", lineX, 0)
+  return vl
+end
+-- ht3 (user 30.10.): the tab's emblem and name at the top of its side list; returns the height it takes
+function UI.NavHeader(nav, emblem, title)
+  local e = nav:CreateTexture(nil, "ARTWORK"); e:SetSize(36, 36); e:SetPoint("TOPLEFT", 4, -4); FLT.SetTex(e, ASSET_ROOT .. emblem)
+  local t = FLT.NewFS(nav, nil, "OVERLAY", "GameFontNormalLarge"); t:SetPoint("LEFT", e, "RIGHT", 8, 0); t:SetText(title)
+  t:SetTextColor(1, 0.84, 0.42); t:SetJustifyH("LEFT")
+  local w = (nav:GetWidth() or 160) - 52
+  if (t:GetStringWidth() or 0) > w then -- narrow lists (Talent Trees): a little smaller
+    local font, _, flags = t:GetFont(); if font then t:SetFont(font, 13, flags) end
+  end
+  t:SetWidth(w)
+  return 54 -- ht5: no line under it (user 30.10.)
+end
+-- ht8 (user 30.10.: "die Liste links einheitlich"): one geometry for every side list. The list frame sits 12 from the
+-- window's edge, its entries 4 inside it (16 from the edge), 156 wide; the line follows 16 after them; pages from 182.
+-- Entries 27 high, every 32; a separator: a quiet line with the same gap above and below.
+UI.NAV = { x = -6, w = 164, line = 12, entryX = 4, entryW = 156, entryH = 27, step = 32 }
+function UI.SideNav(panel, top, emblem, title)
+  local nav = CreateFrame("Frame", nil, panel); nav:SetPoint("TOPLEFT", UI.NAV.x, top); nav:SetSize(UI.NAV.w, 560)
+  UI.Column(nav, UI.NAV.line)
+  local y = -12
+  if emblem then y = y - UI.NavHeader(nav, emblem, title) end
+  return nav, y
+end
+-- an entry at y (top), returns it and the y of the next one
+function UI.NavEntry(nav, y, label, icon, h)
+  local b = UI.NavButton(nav, label, UI.NAV.entryW, h or UI.NAV.entryH, icon); b:SetPoint("TOPLEFT", UI.NAV.entryX, y)
+  return b, y - (h or UI.NAV.entryH) - (UI.NAV.step - UI.NAV.entryH)
+end
+-- a separator under the entry above y (y = the next entry's top as NavEntry returned it); returns the new y
+function UI.NavSeparator(nav, y)
+  local sep = nav:CreateTexture(nil, "ARTWORK"); FLT.SetTex(sep, ASSET_ROOT .. "divider_ornate"); sep:SetHeight(12)
+  sep:SetPoint("LEFT", nav, "TOPLEFT", 6, y - 3); sep:SetPoint("RIGHT", nav, "TOPLEFT", UI.NAV.entryX + UI.NAV.entryW - 2, y - 3)
+  return y - 11
+end
+-- ht8: a quiet group head (dark plate, thin line, chevron, gold title, the count right) instead of the landscape band
+function UI.QuietHead(holder, label)
+  UI.MarkBG(RoundRect(holder, holder, "BACKGROUND", 0, 7, 1, 0.075, 0.068, 0.058, 0.96))
+  RoundRect(holder, holder, "BORDER", 0, 8, 0, 0.42, 0.33, 0.20, 0.9, ASSET_ROOT .. "window_ring")
+  local hov = RoundRect(holder, holder, "HIGHLIGHT", 0, 7, 1, 0.07, 0.06, 0.04, 1); for _, t in ipairs(hov.pieces) do t:SetBlendMode("ADD") end
+  local chevron = holder:CreateTexture(nil, "OVERLAY"); chevron:SetSize(14, 14); chevron:SetPoint("LEFT", 14, 0)
+  FLT.SetTex(chevron, ASSET_ROOT .. "chevron")
+  local title = FLT.NewFS(holder, nil, "OVERLAY", "GameFontNormal"); title:SetPoint("LEFT", 38, 0); title:SetText(label or "")
+  do local font, _, flags = title:GetFont(); if font then title:SetFont(font, 14, flags) end end
+  title:SetTextColor(FLT.SkinC(unpack(UI.GOLD)))
+  local info = FLT.NewFS(holder, nil, "OVERLAY", "GameFontHighlightSmall"); info:SetPoint("RIGHT", -16, 0); info:SetJustifyH("RIGHT")
+  info:SetTextColor(0.72, 0.70, 0.66)
+  return chevron, title, info
+end
+-- ht8: a table row without a frame: a fine line under it and a faint hover; returns a stub with :SetBorder
+function UI.QuietRow(row)
+  local ln = row:CreateTexture(nil, "BORDER"); ln:SetColorTexture(0.40, 0.32, 0.20, 0.35); ln:SetHeight(1)
+  ln:SetPoint("BOTTOMLEFT", 4, 0); ln:SetPoint("BOTTOMRIGHT", -4, 0)
+  local hl = row:CreateTexture(nil, "HIGHLIGHT"); hl:SetAllPoints(); hl:SetColorTexture(FLT.SkinC(0.90, 0.66, 0.22, 0.06))
+  return { SetBorder = function() end, SetFill = function() end, line = ln }
+end
+
+-- ht7: the window's outer frame (header test): a thin dark gold line with small corners (Assets/window_ring: radius 4,
+-- line 1) and short, faint gold accents at the four corners (corner arc, two lines fading out along the edges, a soft
+-- shine inside: fade_lr, corner_glow, edge_fade). deco: a frame above the content; frame: the window to frame.
+-- The main window and every popup use it.
+function UI.WindowFrame(deco, frame)
+    local ring = RoundRect(deco, frame, "OVERLAY", 0, 8, 0, 1, 1, 1, 1, ASSET_ROOT .. "window_ring")
+    ring:SetColor(FLT.SkinC(0.50, 0.38, 0.19, 1))
+    local ACC = { FLT.SkinC(0.95, 0.72, 0.32) }
+    local LINE_A, SHINE_A = 0.55, 0.16
+    local function tex(file, layer, alpha, l, r, t, b)
+      local x = deco:CreateTexture(nil, layer, nil, 2); FLT.SetTex(x, ASSET_ROOT .. file); x:SetBlendMode("ADD")
+      x:SetVertexColor(ACC[1], ACC[2], ACC[3]); x:SetAlpha(alpha)
+      if l then x:SetTexCoord(l, r, t, b) end
+      return x
+    end
+    local CORNERS = {
+      { "TOPLEFT", 1, -1, { 0, 0.25, 0, 0.25 }, false, false }, { "TOPRIGHT", -1, -1, { 0.75, 1, 0, 0.25 }, true, false },
+      { "BOTTOMLEFT", 1, 1, { 0, 0.25, 0.75, 1 }, false, true }, { "BOTTOMRIGHT", -1, 1, { 0.75, 1, 0.75, 1 }, true, true },
+    }
+    local HLEN, VLEN, DEPTH, CG = 34, 26, 5, 10
+    for _, c in ipairs(CORNERS) do
+      local pt, sx, sy, fu, fv = c[1], c[2], c[3], c[5], c[6]
+      local u0, u1 = fu and 1 or 0, fu and 0 or 1
+      local v0, v1 = fv and 1 or 0, fv and 0 or 1
+      local arc = tex("window_ring", "OVERLAY", LINE_A, unpack(c[4])); arc:SetSize(8, 8); arc:SetPoint(pt, frame, pt, 0, 0)
+      local hl = tex("fade_lr", "OVERLAY", LINE_A, u0, u1, 0, 1); hl:SetSize(HLEN, 1); hl:SetPoint(pt, frame, pt, sx * 8, 0)
+      local vl = tex("fade_lr", "OVERLAY", LINE_A); vl:SetSize(1, VLEN); vl:SetPoint(pt, frame, pt, 0, sy * 8)
+      if sy < 0 then vl:SetTexCoord(0, 0, 1, 0, 0, 1, 1, 1) else vl:SetTexCoord(1, 0, 0, 0, 1, 1, 0, 1) end
+      local cg = tex("corner_glow", "ARTWORK", SHINE_A, u0, u1, v0, v1); cg:SetSize(CG, CG); cg:SetPoint(pt, frame, pt, 0, 0)
+      local hs = tex("edge_fade", "ARTWORK", SHINE_A, u0, u1, v0, v1); hs:SetSize(HLEN - CG + 8, DEPTH); hs:SetPoint(pt, frame, pt, sx * CG, 0)
+      local vs = tex("edge_fade", "ARTWORK", SHINE_A); vs:SetSize(DEPTH, VLEN - CG + 8); vs:SetPoint(pt, frame, pt, 0, sy * CG)
+      local d0, d1 = fu and 1 or 0, fu and 0 or 1
+      if sy < 0 then vs:SetTexCoord(0, d0, 1, d0, 0, d1, 1, d1) else vs:SetTexCoord(1, d0, 0, d0, 1, d1, 0, d1) end
+    end
+  return ring
 end
 
 -- Left-aligned navigation button (plate skin, icon, label); b:SetActive(on).
+-- glow line (Assets/glow_line, ADD): side "LEFT" upright on the left edge, else along the bottom (header test)
+function UI.GlowLine(owner, side, alpha, width)
+  local g = owner:CreateTexture(nil, "ARTWORK", nil, 2)
+  FLT.SetTex(g, ASSET_ROOT .. "glow_line"); g:SetBlendMode("ADD"); g:SetVertexColor(1, 0.78, 0.35); g:SetAlpha(alpha or 0.85)
+  if side == "LEFT" then
+    g:SetTexCoord(0, 0, 1, 0, 0, 1, 1, 1)
+    g:SetWidth(width or 10); g:SetPoint("TOP", owner, "TOPLEFT", 1, 2); g:SetPoint("BOTTOM", owner, "BOTTOMLEFT", 1, -2)
+  else
+    g:SetHeight(10); g:SetPoint("LEFT", owner, "BOTTOMLEFT", -2, 1); g:SetPoint("RIGHT", owner, "BOTTOMRIGHT", 2, 1)
+  end
+  return g
+end
+
+-- header test (user 30.10.): side lists are lists, no buttons - no plate; the chosen entry gets a dark warm plate and
+-- the gold glow on its left edge, hover lightens a little
+local NAV_TEXT, NAV_TEXT_ON = { 0.90, 0.86, 0.78 }, { 1, 0.86, 0.45 }
 function UI.NavButton(parent, text, w, h, icon)
   local b = CreateFrame("Button", nil, parent); b:SetSize(w, h)
-  local plate = Plate(b, h)
+  local sel = RoundRect(b, b, "BACKGROUND", 1, 6, 0, 0.21, 0.15, 0.08, 0.95)
+  local hov = RoundRect(b, b, "HIGHLIGHT", 0, 6, 0, 0.07, 0.06, 0.04, 1)
+  for _, t in ipairs(hov.pieces) do t:SetBlendMode("ADD") end
+  local glow = UI.GlowLine(b, "LEFT", 0.85, 5) -- ht6: the mark half as wide (ht5 had made it fainter instead)
+  local plate = {}
+  function plate:SetActive(on) sel:SetShown(on and true or false); glow:SetShown(on and true or false) end
+  plate:SetActive(false)
   local ic
   if icon then ic = b:CreateTexture(nil, "ARTWORK"); ic:SetSize(h - 9, h - 9); ic:SetPoint("LEFT", 7, 0); FLT.SetTex(ic, icon) end
   local label = FLT.NewFS(b, nil, "OVERLAY", "GameFontNormal")
   do local font, _, flags = label:GetFont(); if font then label:SetFont(font, 12, flags) end end
-  label:SetPoint("LEFT", icon and (h + 2) or 10, 0); label:SetJustifyH("LEFT"); label:SetText(text); label:SetTextColor(FLT.SkinC(0.95, 0.82, 0.50))
+  label:SetPoint("LEFT", icon and (h + 2) or 10, 0); label:SetJustifyH("LEFT"); label:SetText(text); label:SetTextColor(unpack(NAV_TEXT))
   b._label, b.icon = label, ic
   function b:SetActive(on)
     plate:SetActive(on)
-    if on then label:SetTextColor(FLT.SkinC(1, 0.93, 0.66)) else label:SetTextColor(FLT.SkinC(0.95, 0.82, 0.50)) end
+    label:SetTextColor(unpack(on and NAV_TEXT_ON or NAV_TEXT))
   end
   return b
 end
@@ -572,7 +892,8 @@ function UI.SectionTitle(parent, text, x, y, right)
   local t = FLT.NewFS(parent, nil, "OVERLAY", "GameFontNormal"); t:SetPoint("TOPLEFT", x, y); t:SetText(text); t:SetTextColor(FLT.SkinC(unpack(UI.GOLD)))
   do local font, _, flags = t:GetFont(); if font then t:SetFont(font, 14, flags) end end
   local dv = parent:CreateTexture(nil, "ARTWORK"); FLT.SetTex(dv, ASSET_ROOT .. "divider_ornate"); dv:SetHeight(14)
-  dv:SetPoint("TOPLEFT", t, "BOTTOMLEFT", -4, -1); dv:SetPoint("RIGHT", parent, "RIGHT", right or -20, 0)
+  -- ht5 (user 30.10.): the line right next to the word (like Classic Refined), same line, a little quieter
+  dv:SetPoint("LEFT", t, "RIGHT", 12, -1); dv:SetPoint("RIGHT", parent, "RIGHT", right or -20, 0); dv:SetAlpha(0.65)
   t.divider = dv
   return t
 end
@@ -653,6 +974,40 @@ function UI.Gem(parent, size, r, g, b)
   function f:SetColor(cr, cg, cb) fill:SetVertexColor(FLT.SkinC(cr, cg, cb)) end
   if r then f:SetColor(r, g, b) end
   return f
+end
+
+-- Head of a page's right side (QoL; Dungeons and Hunter Pets since 31.10., user): masked icon, gold title, one grey
+-- line, a search box at the top right with an X next to it. opts = { x = left edge, y = top, right = inset of the box
+-- from the right edge, placeholder = text, onSearch = function(lowerText) }. The page content starts 60 below y.
+-- h:Set(icon, title, line); h.box is the edit box (h.box:SetText("") clears the search).
+function UI.PageHeader(parent, opts)
+  local x, y = opts.x or 0, opts.y or 0
+  local h = {}
+  local icon = parent:CreateTexture(nil, "ARTWORK"); icon:SetSize(30, 30); icon:SetPoint("TOPLEFT", x + 16, y - 12)
+  icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  if icon.AddMaskTexture and parent.CreateMaskTexture then
+    local m = parent:CreateMaskTexture(); FLT.SetTex(m, ASSET_ROOT .. "talent_icon_mask2", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    m:SetAllPoints(icon); icon:AddMaskTexture(m)
+  end
+  local title = FLT.NewFS(parent, nil, "OVERLAY", "GameFontNormalLarge"); title:SetPoint("TOPLEFT", x + 56, y - 12)
+  title:SetTextColor(1, 0.82, 0.20)
+  local sub = FLT.NewFS(parent, nil, "OVERLAY", "GameFontHighlightSmall"); sub:SetPoint("TOPLEFT", x + 56, y - 32)
+  sub:SetTextColor(0.84, 0.81, 0.74)
+  local box = FLT.SkinBlizz(CreateFrame("EditBox", nil, parent, "InputBoxTemplate"))
+  box:SetSize(210, 20); box:SetPoint("TOPRIGHT", -(opts.right or 46), y - 18); box:SetAutoFocus(false)
+  local ph = FLT.NewFS(box, nil, "OVERLAY", "GameFontDisableSmall"); ph:SetPoint("LEFT", 4, 0); ph:SetText(opts.placeholder or "Search...")
+  -- X next to the box, not inside (user 22.10.)
+  local clear = GoldButton(parent, "X", 20, 20, nil, 10); clear:SetPoint("LEFT", box, "RIGHT", 4, 0); clear:Hide()
+  clear:SetScript("OnClick", function() box:SetText(""); box:ClearFocus() end)
+  box:SetScript("OnTextChanged", function(self)
+    local t = (self:GetText() or ""):lower(); ph:SetShown(t == ""); clear:SetShown(t ~= "")
+    if opts.onSearch then opts.onSearch(t) end
+  end)
+  box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+  box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+  h.icon, h.title, h.sub, h.box = icon, title, sub, box
+  function h:Set(tex, text, line) FLT.SetTex(icon, tex); title:SetText(text or ""); sub:SetText(line or "") end
+  return h
 end
 
 -- Small confirmation popup: UI.Confirm(text, onYes[, yesLabel[, secureMacro]]).
@@ -843,12 +1198,15 @@ function UI.OpenDropDown(owner, options, current, onPick, width)
       r.text = FLT.NewFS(r, nil, "OVERLAY", "GameFontHighlight"); r.text:SetPoint("LEFT", 22, 0)
       r.check = r:CreateTexture(nil, "OVERLAY"); r.check:SetSize(14, 14); r.check:SetPoint("LEFT", 5, 0)
       r.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check"); FLT.SkinBlizz(r)
+      -- o.remove: a red cross on the right - a click on this entry deletes it (user 31.10.)
+      r.del = r:CreateTexture(nil, "OVERLAY"); r.del:SetSize(14, 14); r.del:SetPoint("RIGHT", -6, 0)
+      r.del:SetTexture("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
       ddMenu.rows[i] = r
     end
     r:ClearAllPoints(); r:SetPoint("TOPLEFT", 4, -4 - (i - 1) * 22); r:SetWidth(w - 8)
     r.text:SetText(o.label)
     local sel = (o.key == current)
-    r.check:SetShown(sel)
+    r.check:SetShown(sel); r.del:SetShown(o.remove and true or false)
     if sel then r.text:SetTextColor(FLT.SkinC(1, 0.82, 0.2)) else r.text:SetTextColor(0.92, 0.90, 0.84) end
     r:SetScript("OnClick", function() ddMenu:Hide(); onPick(o.key) end)
     r:Show()
