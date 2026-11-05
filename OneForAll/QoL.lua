@@ -786,6 +786,9 @@ do
             if left <= sec then due[#due + 1] = name
             elseif not nextAt or left - sec < nextAt then nextAt = left - sec end
           end
+        elseif fight then -- in combat the lookup by name finds nothing although the buff is up (aura names are
+          -- secret values then, so FindAuraByName returns nil): treat it like the secret case, keep the card as it was
+          if wasDue[name] then due[#due + 1] = name end
         elseif buffSeen[name] then due[#due + 1] = name -- ran out after it was up
         end
       end
