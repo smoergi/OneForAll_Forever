@@ -36,6 +36,26 @@ end
 
 -- map data, read on first use: { starts = { {x, y, name, quests = { {id, lvl, req, max, side, race, class, pre1, preAll, excl, bc, name} } } },
 -- ends = { {x, y, name, ids = {id ...}} } }
+-- Quests whose QuestieDB entry misses requiredClasses (class 0 = everyone), so the pin showed for every class
+-- (issue #41: Divine Grace, the human priest level 10 racial quest, on a paladin's map). The mask here is the
+-- in-game truth, checked quest by quest; an entry can go once QuestieDB carries requiredClasses for it.
+-- Priest (16): Divine Grace 94773/94774 (human racial, Priestess Josetta / High Priestess Laurena) and Confounding
+-- Flash 94824 (gnome racial, Maxan Anvol) are Forever's new priest racial quests; Desperate Prayer 5640 and Arcane
+-- Feedback 5678 (Priestess Alathea) are the vanilla racial variants whose siblings (5634-5639, 5676-5677) all carry 16.
+-- Paladin (2): Lord Grayson Shadowbreaker 7670 (charger chain, excludes paladin-only 7638) and A Difficult Path 98601
+-- (first step of the Forsaken paladin line).
+-- Druid (1024): Moonglade 94913/94914 (Teleport: Moonglade spell quest) and the level 20 Cat Form chain
+-- (98340/98341/98362/98393/98394/98397/98405, 98731/98739) in Moonglade.
+-- Shaman (64): the reworked totem quests Call of Earth 94375 and Call of Fire 94468 (totem objects, like the vanilla
+-- 1516-1527 chain which all carries 64).
+-- Warlock (256): the reworked succubus chain (The Binding 65597/65603/65604, Hearts of the Lovers 65593, Love Hurts
+-- 65601, What Is Love? 65602, Wish You Were Here 65610) at the warlock trainers, rooted in the warlock-only
+-- 1472/1507/1716.
+local CLASS_FIX = { [94773] = 16, [94774] = 16, [94824] = 16, [5640] = 16, [5678] = 16, [7670] = 2, [98601] = 2,
+  [94913] = 1024, [94914] = 1024, [98340] = 1024, [98341] = 1024, [98362] = 1024, [98393] = 1024, [98394] = 1024,
+  [98397] = 1024, [98405] = 1024, [98731] = 1024, [98739] = 1024, [94375] = 64, [94468] = 64,
+  [65593] = 256, [65597] = 256, [65601] = 256, [65602] = 256, [65603] = 256, [65604] = 256, [65610] = 256 }
+
 local parsed = {}
 local function split(s) local t = {}; for v in s:gmatch("[^/]+") do t[#t + 1] = tonumber(v) end; return t end
 local function mapData(mapID)
@@ -61,7 +81,7 @@ local function mapData(mapID)
       local f = {}
       for v in (line .. "|"):gmatch("([^|]*)|") do f[#f + 1] = v end
       cur.quests[#cur.quests + 1] = { id = tonumber(f[1]), lvl = tonumber(f[2]) or 0, req = tonumber(f[3]) or 0,
-        max = tonumber(f[4]) or 0, side = f[5], race = tonumber(f[6]), class = tonumber(f[7]) or 0,
+        max = tonumber(f[4]) or 0, side = f[5], race = tonumber(f[6]), class = CLASS_FIX[tonumber(f[1])] or tonumber(f[7]) or 0,
         pre1 = f[8] ~= "" and split(f[8]) or nil, preAll = f[9] ~= "" and split(f[9]) or nil,
         excl = f[10] ~= "" and split(f[10]) or nil, bc = tonumber(f[11]), name = f[12] }
     end
