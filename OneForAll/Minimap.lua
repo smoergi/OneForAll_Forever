@@ -110,7 +110,8 @@ function FLT:CreateMinimapButton()
   -- Shift-right-click: the Crafting List (user 24.10.)
   button:SetScript("OnClick", function(_, mouse)
     if mouse == "RightButton" then
-      if IsShiftKeyDown and IsShiftKeyDown() and FLT.CraftList then FLT.CraftList.Toggle() end
+      if IsAltKeyDown and IsAltKeyDown() and FLT.SkillUp and FLT.SkillUp.ToggleLastGuide then FLT.SkillUp.ToggleLastGuide()
+      elseif IsShiftKeyDown and IsShiftKeyDown() and FLT.CraftList then FLT.CraftList.Toggle() end
       return
     end
     if FLT.ToggleUI then FLT:ToggleUI() end
@@ -129,6 +130,7 @@ function FLT:CreateMinimapButton()
     GameTooltip:AddLine(FLT.DISPLAY_NAME or "OneForAll", 1, 0.82, 0)
     GameTooltip:AddLine(L["Left-click: Open / close"], 1, 1, 1)
     GameTooltip:AddLine(L["Shift-right-click: Crafting List"], 1, 1, 1)
+    GameTooltip:AddLine(L["Alt-right-click: last Skill-Up guide"], 1, 1, 1)
     GameTooltip:AddLine(L["Drag: Move around the minimap"], 0.75, 0.75, 0.75)
     GameTooltip:Show()
   end)
@@ -170,13 +172,15 @@ function FLT.RegisterLDBIcon()
     type = "launcher", icon = "Interface\\AddOns\\OneForAll\\Assets\\minimap_icon",
     OnClick = function(_, mouse)
       if mouse == "RightButton" then
-        if IsShiftKeyDown and IsShiftKeyDown() and FLT.CraftList then FLT.CraftList.Toggle() end
+        if IsAltKeyDown and IsAltKeyDown() and FLT.SkillUp and FLT.SkillUp.ToggleLastGuide then FLT.SkillUp.ToggleLastGuide()
+        elseif IsShiftKeyDown and IsShiftKeyDown() and FLT.CraftList then FLT.CraftList.Toggle() end
       elseif FLT.ToggleUI then FLT:ToggleUI() end
     end,
     OnTooltipShow = function(tt)
       tt:AddLine(FLT.DISPLAY_NAME or "OneForAll", 1, 0.82, 0)
       tt:AddLine(L["Left-click: Open / close"], 1, 1, 1)
       tt:AddLine(L["Shift-right-click: Crafting List"], 1, 1, 1)
+      tt:AddLine(L["Alt-right-click: last Skill-Up guide"], 1, 1, 1)
     end,
   })
   if not obj then return false end
@@ -202,7 +206,9 @@ end
 -- compass and north tag are hidden, GetMinimapShape() answers "SQUARE" so other addons' buttons follow the edge.
 -- Left alone when ElvUI runs or another addon already made the minimap square. Switching off restores everything.
 local square = { on = false }
-local SQUARE_HIDE = { "MinimapBorder", "MinimapCompassTexture", "MinimapNorthTag" }
+-- MinimapCompassTextureUnderlay: Forever's own round ring, shown again by MinimapCluster:UpdateMinimapConfig() (beta39,
+-- found by ProEvilz on Discord 12.11.: "Enabling the square minimap doesn't remove the circular border")
+local SQUARE_HIDE = { "MinimapBorder", "MinimapCompassTexture", "MinimapNorthTag", "MinimapCompassTextureUnderlay" }
 -- the zoom buttons sit on the round rim; on the square map they go to its corner (user 25.10.; GameTimeFrame is the
 -- calendar in Forever, not the sun - left alone): name, anchor point on the Minimap, x, y
 -- the frames may also hang under Minimap / MinimapCluster as .ZoomIn / .ZoomOut (newer client code, user 26.10.:
@@ -257,6 +263,21 @@ local function moveCorners(on)
     end
   end
 end
+-- the client sets the round mask and shows its ring again whenever it sets up the minimap (UpdateMinimapConfig, e.g.
+-- when the rotation changes): put the square back right after it (hooked once, does nothing while the option is off)
+local function squareAgain()
+  if not square.on then return end
+  Minimap:SetMaskTexture("Interface\\ChatFrame\\ChatFrameBackground")
+  for _, n in ipairs(SQUARE_HIDE) do
+    local t = _G[n]
+    if type(t) == "table" and t.IsShown and t:IsShown() then
+      t:Hide()
+      local known = false
+      for _, h in ipairs(square.hidden or {}) do if h == t then known = true end end
+      if not known and square.hidden then square.hidden[#square.hidden + 1] = t end
+    end
+  end
+end
 function FLT.ApplySquareMinimap()
   if type(Minimap) ~= "table" or not Minimap.SetMaskTexture then return end
   local want = FLT.QoL and FLT.QoL.Get and FLT.QoL.Get("mmSquare") and true or false
@@ -286,6 +307,9 @@ function FLT.ApplySquareMinimap()
       square.frame = f
     end
     square.frame:Show()
+    if not square.hooked and type(MinimapCluster) == "table" and type(MinimapCluster.UpdateMinimapConfig) == "function" and hooksecurefunc then
+      hooksecurefunc(MinimapCluster, "UpdateMinimapConfig", squareAgain); square.hooked = true
+    end
     moveCorners(true)
     -- once more a moment later, in case the game lays out the minimap after us
     if C_Timer and C_Timer.After then C_Timer.After(1, function() if square.on then moveCorners(true) end end) end
@@ -297,6 +321,8 @@ function FLT.ApplySquareMinimap()
     Minimap:SetMaskTexture(186178)
     for _, t in ipairs(square.hidden or {}) do t:Show() end
     square.hidden = nil
+    -- let the client set its minimap up again (its own mask, the ring only where it belongs); not in combat
+    if square.hooked and not (InCombatLockdown and InCombatLockdown()) then pcall(MinimapCluster.UpdateMinimapConfig, MinimapCluster) end
     if square.frame then square.frame:Hide() end
     moveCorners(false)
     GetMinimapShape = square.shape

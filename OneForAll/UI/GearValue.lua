@@ -2,8 +2,8 @@ local _, FLT = ...
 local L = FLT.L or setmetatable({}, { __index = function(_, k) return k end }) -- (tests without Locales)
 
 -- Gear Planner "Value" (5.6.3): sum of the item's stats x the stat weights of the active spec (the talent tree
--- with the most points; user 16.10.: standard specs only, no choice yet). Weights: Data/GearWeights.lua (Sharpie's
--- Gear Judge, MIT): level 60 = the raid profile, below 60 = the spec's leveling curve at the player's level,
+-- with the most points; user 16.10.: standard specs only, no choice yet). Weights: Data/GearWeights.lua (SimGear
+-- Forever + our overrides, 6.2.6): level 60 = the raid profile, below 60 = the spec's leveling curve at the player's level,
 -- no talents = the class's general leveling curve. Ratings are turned into % first (GEAR_RATING).
 -- Compared with what is worn: rings / trinkets with the weaker one, two-handers with main + off hand; the % is of
 -- the whole gear's Value (6.2.5).
@@ -181,8 +181,27 @@ local function forMyClass(id)
   return ok
 end
 
+-- SimGear's weapon speed (6.2.6, Score.speedFactor): its spdmh / spdoh / spdrg = % of the weapon DPS value per second
+-- above the kind's normalized speed, the speed clamped to what SimGear simmed for that kind
+local SPEED_KIND = { twoHand = { 3.3, 2.8, 3.9 }, oneHand = { 2.4, 1.5, 2.9 }, dagger = { 1.7, 1.3, 1.9 }, ranged = { 2.8, 2.0, 3.2 } }
+local function speedBonus(dpsValue, slot, id)
+  local pct = (slot == 16 and W.spdmh) or (slot == 17 and W.spdoh) or (slot == 18 and W.spdrg)
+  if not pct or pct == 0 or dpsValue <= 0 then return 0 end
+  local sp = weaponSpeed(id)
+  if not sp then return 0 end
+  local kind = "ranged"
+  if slot ~= 18 then
+    local info = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
+    local _, _, _, loc, _, classID, subID
+    if info then _, _, _, loc, _, classID, subID = info(id) end
+    kind = (loc == "INVTYPE_2HWEAPON" and "twoHand") or (classID == 2 and subID == 15 and "dagger") or "oneHand"
+  end
+  local k = SPEED_KIND[kind]
+  return dpsValue * pct / 100 * (math.min(math.max(sp, k[2]), k[3]) - k[1])
+end
+
 local function score(stats, slot, id, isWand)
-  local total = 0
+  local total, dpsValue = 0, 0
   for k, v in pairs(stats) do
     local s = KEYS[k]
     if s and type(v) == "number" then
@@ -205,6 +224,7 @@ local function score(stats, slot, id, isWand)
         local val = RATING[s] and v / RATING[s] or v
         if slot == 17 and s == "dps" and wk ~= "dpsoh" then val = val * 0.5 end
         total = total + val * w
+        if s == "dps" then dpsValue = dpsValue + val * w end
       end
     end
   end
@@ -216,7 +236,7 @@ local function score(stats, slot, id, isWand)
     local sp = weaponSpeed(id)
     if sp then total = total + (wsp > 0 and sp * wsp or -wsp * math.max(0, 4 - sp)) end
   end
-  return total
+  return total + speedBonus(dpsValue, slot, id)
 end
 
 -- Value of an enchant / armor kit / ... (FLT.ENCHANTS stats) on the item in a slot; nil = no Value (procs and

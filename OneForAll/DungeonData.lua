@@ -84,6 +84,7 @@ local function convertQuest(q)
     level=q.level,
     required=q.requires or q.level,
     side=q.faction or "Both",
+    races=q.races, -- race mask (QuestieDB requiredRaces), only for quests not open to every race of the side (6.2.6)
     class=class,
     starts=q.pickup,
     objective=q.objective,
