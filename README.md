@@ -6,7 +6,7 @@ All-in-one companion addon for **WoW Forever**. No other addons required.
 - **Armory** – item sets for your class (raid, dungeon, PvP, crafted, world; buttons for the main tiers) with the pieces you own, set bonuses and where they drop; reputation rewards by standing
 - **Dungeons & Raids** – dungeon maps with boss portraits (M inside a dungeon), bosses, loot with drop chances, quests with quest chains and map pins, dungeon keys and raid attunements
 - **Library Books** – which books you have, still need, and where to find them
-- **Professions** – a Crafting List that checks your bags, bank and other characters for the materials, Merchant's Favor recipes, who in your guild (or on your other characters) knows a recipe, the nearest trainer of every profession
+- **Professions** – a Skill-Up Helper with the cheapest way to your target skill and a step-by-step guide, a Profit page with the recipes worth crafting (both with Auctionator prices), a Crafting List that checks your bags, bank and other characters for the materials, Merchant's Favor recipes, who in your guild (or on your other characters) knows a recipe, the nearest trainer of every profession
 - **Talent planner** – plan your talents with two saved presets per class, import builds from talentsforever.com / wowforevertalents.com and export your own; trainer window (also a tab in the spellbook) with the spells you can learn next, weapon skills and your class quests with progress
 - **Hunter pets** – where to tame which family, which abilities a pet can learn
 - **Map Landmarks** – dungeon and raid entrances, flight masters, zeppelins, ships, the Deeprun Tram and Library Books on the world map; click an entrance to open that dungeon

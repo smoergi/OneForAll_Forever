@@ -17,6 +17,25 @@ local getDungeonQuestStatus = H.getDungeonQuestStatus
 local getQuestLogInfo = H.getQuestLogInfo
 local questLogButton = H.questLogButton
 local getChainProgress = H.getChainProgress
+local getUnavailableReason = H.getUnavailableReason
+-- a place text without its "(x, y)": coordinates are shown only next to a Map button (6.2.6, user 11.11.)
+local function noCoords(s) return type(s) == "string" and (s:gsub("%s*%(%-?[%d%.]+, %-?[%d%.]+%)", "")) or s end
+-- why a dungeon quest is unavailable, as text (nil = no known reason)
+local function unavailableText(q)
+  local kind, a, b = getUnavailableReason(q)
+  if kind == "side" then return string.format(L["%s only"], L[a]) end
+  if kind == "class" then
+    return string.format(L["%s only"], (type(LOCALIZED_CLASS_NAMES_MALE) == "table" and LOCALIZED_CLASS_NAMES_MALE[a]) or (a:sub(1,1)..a:sub(2):lower()))
+  end
+  if kind == "race" then return string.format(L["%s only"], a) end
+  if kind == "level" then return string.format(L["Requires level %d (you are level %d)"], a, b) end
+  if kind == "step" then
+    local t = string.format(L["First: %s"], NM(a.name) or (L["Quest"].." "..tostring(a.id)))
+    local detail = a.id and FLT.QUEST_PREREQ_DETAILS and FLT.QUEST_PREREQ_DETAILS[a.id]
+    if detail and detail.pickup then t = t.."\n"..string.format(L["Start: %s"], PT(noCoords(detail.pickup))) end
+    return t
+  end
+end
 local dungeonSideColor = H.dungeonSideColor
 local normalizeDungeonItem = H.normalizeDungeonItem
 local colorDungeonItemText = H.colorDungeonItemText
@@ -1526,7 +1545,7 @@ local function createDungeonPanel(parent)
       do
         local loc=FLT.QuestLoc and FLT:QuestLoc(q.id,q.starts)
         local yStart=ry
-        ry=infoRow(rchild,ry,N"Starts at",q.starts and PT(q.starts) or L["Unknown"],loc and 250 or 330)
+        ry=infoRow(rchild,ry,N"Starts at",q.starts and PT(loc and q.starts or noCoords(q.starts)) or L["Unknown"],loc and 250 or 330)
         if loc then
           local mapBtn=UI.GoldButton(rchild,L["Map"],62,20,ASSET_ROOT.."icon_map",11)
           mapBtn:SetPoint("TOPRIGHT",rchild,"TOPLEFT",446,yStart+3)
@@ -1541,9 +1560,14 @@ local function createDungeonPanel(parent)
           mapBtn:SetScript("OnLeave",function() GameTooltip:Hide() end)
         end
       end
-      if q.turnin and q.turnin~="" then ry=infoRow(rchild,ry,N"Turn in",PT(q.turnin)) end
+      if q.turnin and q.turnin~="" then ry=infoRow(rchild,ry,N"Turn in",PT(noCoords(q.turnin))) end
       ry=infoRow(rchild,ry,N"Dungeon",DN(d.name))
       ry,statusValue=infoRow(rchild,ry,N"Status","")
+      -- why it is unavailable, under the status (6.2.6, user 11.11.); the pane is rebuilt when the reason changes
+      local builtReason=getDungeonQuestStatus(d, q)=="unavailable" and unavailableText(q) or nil
+      if builtReason then
+        local rv; ry,rv=infoRow(rchild,ry,N"Reason",builtReason); rv:SetTextColor(FLT.SkinC(0.80,0.74,0.62))
+      end
       -- next to "In log": open the quest in the quest log (user 06.11.; chain quests have it per step below)
       local statusLog=questLogButton(rchild); statusLog:SetQuest(q.id,q.name)
       local chain=q.id and FLT.QUEST_PREREQ_CHAINS and FLT.QUEST_PREREQ_CHAINS[q.id]
@@ -1594,9 +1618,9 @@ local function createDungeonPanel(parent)
             GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
             GameTooltip:SetText(NM(step.name) or (L["Quest"].." "..tostring(step.id or "?")),1,0.82,0.20)
             if detail then
-              if detail.pickup then GameTooltip:AddLine(string.format(L["Start: %s"],PT(detail.pickup)),0.92,0.90,0.84,true) end
+              if detail.pickup then GameTooltip:AddLine(string.format(L["Start: %s"],PT(noCoords(detail.pickup))),0.92,0.90,0.84,true) end
               if detail.objective then GameTooltip:AddLine(NM(detail.objective),1,1,1,true) end
-              if detail.turnin then GameTooltip:AddLine(string.format(L["Turn in: %s"],PT(detail.turnin)),0.76,0.76,0.72,true) end
+              if detail.turnin then GameTooltip:AddLine(string.format(L["Turn in: %s"],PT(noCoords(detail.turnin))),0.76,0.76,0.72,true) end
               if step.optional then GameTooltip:AddLine(L["Optional lead-in: not required to accept the quest."],0.62,0.60,0.56,true) end
             elseif isCurrent then
               GameTooltip:AddLine(q.objective and NM(q.objective) or L["The dungeon quest on this page"],0.92,0.90,0.84,true)
@@ -1652,6 +1676,8 @@ local function createDungeonPanel(parent)
 
       pane.update=function()
         local questStatus=getDungeonQuestStatus(d, q)
+        local reason=questStatus=="unavailable" and unavailableText(q) or nil
+        if reason~=builtReason then pane:Hide(); detailPanes[newIdx]=nil; if questSelection[d.key]==newIdx then selectQuest(newIdx) end; return end
         local statusLabel=L[QUEST_STATUS_LABELS[questStatus] or questStatus]
         local stepIdx, stepTotal = getChainProgress(q)
         local col=STATUS_COLOR[questStatus] or STATUS_COLOR.available
@@ -1833,18 +1859,18 @@ local function createDungeonPanel(parent)
       if step then
         if step.pickup then
           local yStart=y
-          y=infoRow(c,y,N"Starts at",PT(step.pickup),step.map and 250 or 330)
+          y=infoRow(c,y,N"Starts at",PT(step.map and step.pickup or noCoords(step.pickup)),step.map and 250 or 330)
           if step.map then
             local mb=UI.GoldButton(c,L["Map"],62,20,ASSET_ROOT.."icon_map",11); mb:SetPoint("TOPRIGHT",c,"TOPLEFT",446,yStart+3)
             mb:SetScript("OnClick",function() FLT:ShowOnMap({mapID=step.map.mapID,x=step.map.x,y=step.map.y,name=step.name}) end)
           end
         end
-        if step.turnin then y=infoRow(c,y,N"Turn in",PT(step.turnin)) end
+        if step.turnin then y=infoRow(c,y,N"Turn in",PT(noCoords(step.turnin))) end
         if step.loot then
           -- an item the step needs and where it lies, with its own Map button (6.2.4, user 10.11.: the Grimy Key in
           -- "Key to the City")
           local yStart=y
-          y=infoRow(c,y,N"Loot",NM(step.loot.name)..": "..PT(step.loot.place),step.loot.map and 250 or 330)
+          y=infoRow(c,y,N"Loot",NM(step.loot.name)..": "..PT(step.loot.map and step.loot.place or noCoords(step.loot.place)),step.loot.map and 250 or 330)
           if step.loot.map then
             local lb=UI.GoldButton(c,L["Map"],62,20,ASSET_ROOT.."icon_map",11); lb:SetPoint("TOPRIGHT",c,"TOPLEFT",446,yStart+3)
             lb:SetScript("OnClick",function() FLT:ShowOnMap({mapID=step.loot.map.mapID,x=step.loot.map.x,y=step.loot.map.y,name=step.loot.name}) end)

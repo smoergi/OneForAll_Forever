@@ -86,6 +86,7 @@ function FLT.CharSave(tbl, d, legacy)
   local key = FLT.CharKey(); if not key then return end
   local _, cls = UnitClass("player")
   d.name, d.realm, d.class = UnitName("player"), GetRealmName and GetRealmName() or "", cls
+  if type(OneForAllCharDB) == "table" and OneForAllCharDB.fullName then d.full = OneForAllCharDB.fullName end -- with surname
   tbl[key] = d
   local old = legacy or oldKey()
   if old and old ~= key then tbl[old] = nil end
@@ -97,6 +98,7 @@ function FLT.CharLabel(tbl, key, d)
   if not dup then
     for k, o in pairs(tbl) do if k ~= key and FLT.CharOf(k, o) == name then dup = true; break end end
   end
+  if dup and type(d) == "table" and d.full and d.full ~= name then return d.full end -- "Smörgi Banklshofer"
   local cn = dup and cls and LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[cls]
   return cn and (name .. " (" .. cn .. ")") or name
 end
@@ -180,10 +182,11 @@ function FLT:GetCounts()
   local done, owned = 0, 0
   for _, b in ipairs(self.BOOKS) do
     local s = self:GetBookState(b)
-    if s == "done" then
+    -- "manual" = marked as turned in by hand (6.2.6, user 12.11.: turned in before OneForAll was installed - it counts)
+    if s == "done" or s == "manual" then
       done = done + 1
       owned = owned + 1
-    elseif s == "manual" or s == "bag" or s == "bank" then
+    elseif s == "bag" or s == "bank" then
       owned = owned + 1
     end
   end

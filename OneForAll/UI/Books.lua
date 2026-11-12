@@ -23,7 +23,7 @@ local relayout
 local STATE = {
   -- mark = the symbol (UI.Mark, 6.2.3: shapes as well as colours, user 10.11.)
   done={text=N"Turned in", color={0.45,0.85,0.45}, mark="check"},
-  manual={text=N"Manual", color={0.72,0.58,0.90}, mark="pencil"},
+  manual={text=N"Manual", color={0.45,0.85,0.45}, mark="pencil"}, -- green like "Turned in": it counts as turned in (6.2.6)
   bag={text=N"Bag", color={0.92,0.78,0.35}, mark="bag"},
   bank={text=N"Bank", color={0.45,0.68,0.92}, mark="bank"},
   questflag={text=N"Quest flagged", color={0.92,0.58,0.28}, mark="bang"},
@@ -62,7 +62,7 @@ local function showBookTooltip(row, book)
   if apiDone and not OneForAllCharDB.confirmedDone[book.itemId] then
     GameTooltip:AddLine(L["Unverified: the server reports this quest completed, but this addon did not observe the turn-in."], 1, 0.55, 0.15, true)
   end
-  GameTooltip:AddLine(L["Right-click: toggle a manual ownership/completion note"], 0.7, 0.7, 0.7, true)
+  GameTooltip:AddLine(L["Right-click: mark as turned in (counts) or undo"], 0.7, 0.7, 0.7, true)
   GameTooltip:Show()
 end
 
@@ -180,7 +180,7 @@ local function createBooksPanel(frame)
   local navY = ny
 
   -- the "Nearby book alerts" option lives in the Settings tab
-  local legendKeys = { "done", "bag", "bank", "manual", "questflag", "missing" }
+  local legendKeys = { "done", "manual", "bag", "bank", "questflag", "missing" }
   local legendHolds = {} -- ht8: the legend at the bottom of the side list (placed once the sets are listed)
   for i = 1, #legendKeys do
     local st = STATE[legendKeys[i]]

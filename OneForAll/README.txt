@@ -71,6 +71,51 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+6.2.6 - Skill-Up Helper, Profit, new stat weights
+=================================================
+- New: Skill-Up Helper (Professions > every crafting profession, also Cooking and First Aid): the cheapest way from your
+  skill to a target - auction house prices from Auctionator (if installed), vendor prices and trainer fees; materials you
+  have (bags, bank, other characters) count as free. A big progress bar, the costs as tiles, when Auctionator last scanned,
+  the steps with ranks to train, tools (runed rods, Blacksmith Hammer, Arclight Spanner ...) and intermediates to make
+  first; patterns from vendors and the auction house are planned by default. The plan keeps its recipes after buying,
+  relogging or a reload; "Recalculate" works it out again.
+- Skill-Up guide window: walks you through it step by step (auction house, vendors, trainer, materials, crafts) and sends
+  the shopping list to Auctionator. "Craft" / "Craft all" in the current step, a small progress bar and your chance of a
+  skill point per craft, right-click marks a step done, finished shopping sections get a green check, materials say where
+  they are when not in your bags and shrink while you craft, "Learn at the trainer" names the recipe and the nearest
+  trainer who really teaches it, pattern steps name the pattern. Alt-right-click on the minimap button opens the last guide.
+- New: Profit (Professions > a profession > "Profit"): recipes that sell for more than their materials cost (Auctionator
+  prices, after the 5% cut), only known recipes by default; filters for learn level and least profit; select recipes with
+  a craft count and see the gold to invest and the profit; send the materials to Auctionator (what is in your bags is left
+  out, cheaper raw materials when making a material yourself costs less) or put them on the Crafting List; right-click
+  opens the recipe.
+- Gear Planner / item Value: new stat weights based on SimGear Forever by Frostmil (simulated per spec and level), with
+  OneForAll's own changes for leveling: Intellect and Spirit for casters and healers, Stamina, mana and health per 5 sec.,
+  healers' crit, Protection Paladin block value, Bear Stamina, smooth values from 50 to 60, no wand DPS for classes without
+  one. Weapon speed counts per spec (Cat and Bear: weapon DPS only, their speed is fixed by the form). Your own custom
+  weights stay as they are.
+- New Quality of Life option "Disenchant value" (Tooltips, off by default): what green, blue and purple weapons and armor
+  are worth disenchanted, at Auctionator prices (only with Auctionator).
+- Key bindings in their own "OneForAll" section (Options > Keybindings): the window, each main tab, the Skill-Up Helper,
+  the last Skill-Up guide, Profit and the Crafting List; pressing the key again closes the window.
+- Hide chat also hides the "Social" friends button next to the chat.
+- Professions: the Crafting List button moved into All recipes / Favorites; trainer fees are read and remembered; recipe
+  vendors and mobs have their map button again (many had no position); clicking a crafted item in the Gear Planner or the
+  dungeon loot opens its recipe even with a recipe filter set.
+- Crafting List / Skill-Up Helper: the reagent bag counts as bags (it was read as bank and counted twice), the bank is no
+  longer counted twice, characters with the same first name no longer take over each other's bank; Darkmoon Faire items
+  no longer count as vendor materials.
+- Dungeons: quests only some races can take show as unavailable for the others (Compendium of the Fallen); The Eye of
+  Bhossca and The Horn of Xelthos track the right quest step; an unavailable quest says why (faction, class, level or which
+  chain step comes first); coordinates only next to a Map button; Gnomeregan teleporter note fixed.
+- Library Books: the third reward tier is at 25 books (level 35); a book marked by hand counts as turned in.
+- Move Blizzard windows: the loot window stays at the mouse with "Open loot window at mouse".
+- Square minimap: the round ring no longer comes back (thanks to ProEvilz).
+- Loot feed: money lines without the coin icon in front.
+- Quest XP on the experience bar: the mark stays inside the bar and has the fill's height and pointed end.
+- Noteworthy changes for 6.2.6 (shown once, bigger window): Skill-Up Helper, Profit, new stat weights.
+- Data update: QuestieDB (Forever NPC / quest fixes, quest icons, reagent sources, hunter pet spawns, names).
+
 6.2.5 - Special Quests, movable info bar, Gear Planner values
 =============================================================
 - Armory: new list "Special Quests" - quest chains with an unusual reward, for now the Cozy Sleeping Bag (both

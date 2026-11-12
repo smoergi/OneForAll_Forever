@@ -21,6 +21,7 @@ local NEW_TAGS = { -- the 6.1.x marks removed when 6.2.0 started (rule: marks st
   questXPTracked = "6.2.2",
   guildMap = "6.2.2",
   quiverAmmo = "6.2.2",
+  deValue = "6.2.6",
 }
 -- placed left of the checkbox (or of the label when there is none), user 16.10.
 local function newTag(parent, anchor, key, dx)
@@ -622,6 +623,8 @@ local function createQoLPanel(parent)
   check(g, N"Arrow color by armor type", N"Yellow arrow for upgrades in a lighter armor type.", N"The green arrow stays for upgrades in the best armor type of your class. Upgrades in a lighter type get a yellow arrow: warriors and paladins wear plate from level 40 (mail before), hunters and shamans mail from 40 (leather before), rogues and druids leather. Cloaks, jewelry, shields and weapons are not affected. Needs \"Gear Value\".", "arrowTiers", 24)
   check(g, N"Short green stats", N"Long \"Equip:\" lines as short stats, e.g. \"+1% Hit\".", N"\"Equip: Improves your chance to hit by 1%.\" becomes \"+1% Hit\", spell damage and healing get a line each, and \"Enchanted:\" lines put the number first. Lines it does not know stay as they are. Hover the item again after switching.", "shortStats")
   check(g, N"Hide \"appearance not collected\"", N"No more blue \"You haven't collected this appearance\" line on items.", N"Also hides \"You've collected this appearance, but not from this item\". Hover the item again after switching.", "hideAppearance")
+  -- off until the user decides (CLAUDE.md "Fixed rules"), 6.2.6-beta33
+  check(g, N"Disenchant value", N"What an item is worth disenchanted, at auction house prices.", N"Needs Auctionator (the prices come from it); without it the line stays away. Green, blue and purple weapons and armor: the dust, essences and shards it usually gives, from the known disenchant chances by quality and item level - an estimate.", "deValue")
   check(g, N"Recipes: who knows it", N"Whether you, an alt or a guild member knows a recipe.", nil, "recipeTip")
   check(g, N"Disable automatic compare tooltip", N"Hold Shift to see your equipped item next to the tooltip.", N"Item tooltips no longer show your equipped item next to them automatically.", nil, nil,
     function() return Q.GetCompareShift() end, function(v) Q.SetCompareShift(v) end)

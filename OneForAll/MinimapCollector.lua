@@ -220,6 +220,7 @@ local function create()
   collector:SetScript("OnClick", function(_, mouse)
     if mouse == "RightButton" then
       if IsShiftKeyDown and IsShiftKeyDown() then if FLT.CraftList then FLT.CraftList.Toggle() end -- user 24.10.
+      elseif IsAltKeyDown and IsAltKeyDown() then if FLT.SkillUp and FLT.SkillUp.ToggleLastGuide then FLT.SkillUp.ToggleLastGuide() end
       elseif FLT.ToggleUI then FLT:ToggleUI() end
       return
     end
@@ -233,6 +234,7 @@ local function create()
     GameTooltip:AddLine(L["Left-click: Minimap buttons"], 1, 1, 1)
     GameTooltip:AddLine(L["Right-click: Open / close OneForAll"], 1, 1, 1)
     GameTooltip:AddLine(L["Shift-right-click: Crafting List"], 1, 1, 1)
+    GameTooltip:AddLine(L["Alt-right-click: last Skill-Up guide"], 1, 1, 1)
     GameTooltip:AddLine(L["Drag: Move"], 0.75, 0.75, 0.75)
     GameTooltip:Show()
   end)

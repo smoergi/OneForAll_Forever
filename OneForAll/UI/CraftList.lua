@@ -101,9 +101,9 @@ local function me()
   local inv = db("craftInv")
   local c = inv[key]
   if not c then
-    -- 6.2.5: take over the entry under the old "Name-Realm" key (bank as last seen), then drop that key
-    local oldK = (UnitName("player") or "?") .. "-" .. (GetRealmName and GetRealmName() or "")
-    c = type(inv[oldK]) == "table" and inv[oldK] or { bags = {}, bank = {} }
+    -- 6.2.6-beta16: a new entry; the old "Name-Realm" entry is NOT taken over any more - characters share a first
+    -- name on Forever ("Smörgi Smörglshofer" / "Smörgi Banklshofer"), so it could be another character's bags and bank
+    c = { bags = {}, bank = {} }
     FLT.CharSave(inv, c)
   end
   c.faction = UnitFactionGroup and UnitFactionGroup("player") or c.faction
@@ -119,14 +119,38 @@ local function scan(c, field, bags)
     end
   end
 end
-local BAGS, BANK = { 0, 1, 2, 3, 4 }, { -1, 5, 6, 7, 8, 9, 10, 11 }
+-- bag IDs (6.2.6-beta17): Forever has the reagent bag (Enum.BagIndex.ReagentBag = 5), so the bank bags start at 6 and
+-- there is a reagent bank (-3). The old fixed list {-1, 5 ... 11} counted the reagent bag as "bank" and missed it in the
+-- bags (user 12.11.: 60 Soul Dust in the reagent bag were "bank").
+local BAGS, BANK = { 0, 1, 2, 3, 4 }, { -1 }
+do
+  local BI = type(Enum) == "table" and type(Enum.BagIndex) == "table" and Enum.BagIndex or nil
+  local reagent = BI and BI.ReagentBag
+  if reagent then BAGS[#BAGS + 1] = reagent end
+  local first = BI and BI.BankBag_1 or ((reagent or 4) + 1)
+  for i = 0, (tonumber(NUM_BANKBAGSLOTS) or 7) - 1 do BANK[#BANK + 1] = first + i end
+  if BI and BI.Reagentbank then BANK[#BANK + 1] = BI.Reagentbank end
+end
 
 -- what I have of an item: total and the places (for the tooltip). This character: bags live, bank as last seen.
 local places = {} -- reused
+-- exactly what is in the bags incl. the reagent bag (6.2.6-beta16/17: the 60 Soul Dust were in the reagent bag, which the
+-- old bank list also counted as bank - so they counted twice)
+function CL.InBags(id)
+  if not ((C_Container and C_Container.GetContainerNumSlots) or GetContainerNumSlots) then return GetItemCount and GetItemCount(id) or 0 end
+  local n = 0
+  for _, bag in ipairs(BAGS) do
+    for slot = 1, numSlots(bag) do
+      local i, k = slotItem(bag, slot)
+      if i == id then n = n + (k or 1) end
+    end
+  end
+  return n
+end
 local function stock(id)
   wipe(places)
-  local c, key = me(), charKey()
-  local bags = GetItemCount and GetItemCount(id) or (c and c.bags[id]) or 0
+  local c = me()
+  local bags = CL.InBags(id)
   local bank = c and c.bank[id] or 0
   local total = bags + bank
   if bags > 0 then places[#places + 1] = L["Bags"] .. " " .. bags end
@@ -149,6 +173,9 @@ local function stock(id)
   end
   return total
 end
+-- for the Skill-Up Helper (SkillUp.lua): total of an item over bags, bank and the other characters, and the places
+-- (a table reused by the next call)
+function CL.Stock(id) index(); local n = stock(id); return n, places end
 
 -- Materials -------------------------------------------------------------------------
 -- rows: { id, need, have, depth, maker = {r, prof}, who, craft = n (crafted), miss = n (to get), mode }
@@ -472,39 +499,8 @@ local function create()
     if UI.Confirm then UI.Confirm(L["Remove everything from the Crafting List?"], function() wipe(list()); changed() end)
     else wipe(list()); changed() end
   end)
-  -- one secure Craft button, laid over the small "Craft" of the row under the mouse (secure buttons cannot be
-  -- moved in combat, rows are reused, so there is only this one; it opens the profession window, then crafts)
-  local ov = CreateFrame("Button", "OneForAllCraftListCraft", frame, "SecureActionButtonTemplate"); ov:Hide()
-  UI.CombatDetach(ov) -- not inside the Crafting List window in combat, so the window can still be closed
-  local ohl = ov:CreateTexture(nil, "HIGHLIGHT"); ohl:SetAllPoints(); ohl:SetColorTexture(FLT.SkinC(1, 0.82, 0.3, 0.15))
-  -- the small button grows with its text ("Craft now" ran over its edge, user 05.11.), the secure one follows it
-  secureCraft(ov, function() if ov.t then return ov.t.prof, ov.t.r, ov.t.n end end, function(t)
-    local fake = ov.fake
-    if not fake then return end
-    fake:SetLabel(t)
-    local fs = fake._label
-    local w = fs and fs.GetStringWidth and fs:GetStringWidth() or 0
-    fake:SetWidth(math.max(46, math.ceil(w) + 14))
-    if CL._hoverCraft then CL._hoverCraft(fake) end
-  end)
-  ov:SetScript("OnEnter", function(self)
-    if not self.t then return end
-    GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(string.format(L["Craft %sx"], self.t.n), 1, 0.82, 0)
-    GameTooltip:AddLine(L["Opens your profession window if it is closed; click again to craft."], 1, 1, 1, true); GameTooltip:Show()
-  end)
-  ov:SetScript("OnLeave", function(self) GameTooltip:Hide(); if not (InCombatLockdown and InCombatLockdown()) then self:Hide() end end)
-  CL._hoverCraft = function(fake)
-    if InCombatLockdown and InCombatLockdown() then return end
-    -- placed by screen position, not anchored to the row (user 05.11.: "Cannot anchor protected frames to regions" -
-    -- the live client does not let a secure button hang on a normal frame)
-    local l, b, w, h = fake:GetLeft(), fake:GetBottom(), fake:GetWidth(), fake:GetHeight()
-    if not (l and b and w and h) then return end
-    local k = (fake:GetEffectiveScale() or 1) / (ov:GetEffectiveScale() or 1)
-    ov:ClearAllPoints(); ov:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", l * k, b * k); ov:SetSize(w * k, h * k)
-    ov:SetFrameStrata(frame:GetFrameStrata()); ov:SetFrameLevel(fake:GetFrameLevel() + 5)
-    ov.t, ov.fake = fake.target, fake
-    ov:Show()
-  end
+  -- one secure Craft button, laid over the small "Craft" of the row under the mouse (CL.CraftOverlay)
+  CL._hoverCraft = CL.CraftOverlay(frame, "OneForAllCraftListCraft")
   -- like the OneForAll window (user 26.10.): the corner grip scales the whole list, the bottom grip sets its height.
   -- Scale: OneForAllDB.craftListScale (unset = the OneForAll window's scale), height: OneForAllDB.craftListH.
   local function cdb() return type(OneForAllDB) == "table" and OneForAllDB or {} end
@@ -716,6 +712,46 @@ secureCraft = function(btn, target, onState)
 end
 CL._secureCraft = secureCraft
 
+-- one secure Craft button for a window: laid over the small look-only "Craft" (a GoldButton with .target =
+-- { prof, r, n }) the mouse is on. Secure buttons cannot be moved in combat and rows are reused, so there is only this
+-- one per window; it opens the profession window, then crafts. Returns hover(fake) for the fake's OnEnter.
+-- (Crafting List 6.1.x; Skill-Up guide 6.2.6-beta19)
+function CL.CraftOverlay(frame, name)
+  local ov = CreateFrame("Button", name, frame, "SecureActionButtonTemplate"); ov:Hide()
+  UI.CombatDetach(ov) -- not inside the window in combat, so the window can still be closed
+  local ohl = ov:CreateTexture(nil, "HIGHLIGHT"); ohl:SetAllPoints(); ohl:SetColorTexture(FLT.SkinC(1, 0.82, 0.3, 0.15))
+  local hover
+  -- the small button grows with its text ("Craft now" ran over its edge, user 05.11.), the secure one follows it
+  secureCraft(ov, function() if ov.t then return ov.t.prof, ov.t.r, ov.t.n end end, function(t)
+    local fake = ov.fake
+    if not fake then return end
+    fake:SetLabel(t == L["Craft"] and (fake.label0 or t) or t)
+    local fs = fake._label
+    local w = fs and fs.GetStringWidth and fs:GetStringWidth() or 0
+    fake:SetWidth(math.max(fake.minW or 46, math.ceil(w) + 14))
+    hover(fake)
+  end)
+  ov:SetScript("OnEnter", function(self)
+    if not self.t then return end
+    GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(string.format(L["Craft %sx"], self.t.n), 1, 0.82, 0)
+    GameTooltip:AddLine(L["Opens your profession window if it is closed; click again to craft."], 1, 1, 1, true); GameTooltip:Show()
+  end)
+  ov:SetScript("OnLeave", function(self) GameTooltip:Hide(); if not (InCombatLockdown and InCombatLockdown()) then self:Hide() end end)
+  hover = function(fake)
+    if InCombatLockdown and InCombatLockdown() then return end
+    -- placed by screen position, not anchored to the row (user 05.11.: "Cannot anchor protected frames to regions" -
+    -- the live client does not let a secure button hang on a normal frame)
+    local l, b, w, h = fake:GetLeft(), fake:GetBottom(), fake:GetWidth(), fake:GetHeight()
+    if not (l and b and w and h) then return end
+    local k = (fake:GetEffectiveScale() or 1) / (ov:GetEffectiveScale() or 1)
+    ov:ClearAllPoints(); ov:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", l * k, b * k); ov:SetSize(w * k, h * k)
+    ov:SetFrameStrata(frame:GetFrameStrata()); ov:SetFrameLevel(fake:GetFrameLevel() + 5)
+    ov.t, ov.fake = fake.target, fake
+    ov:Show()
+  end
+  return hover
+end
+
 function CL.RecipeBar(parent)
   -- stacked (user 24.10.): amount and "+ List", below it "Craft", below that how many are on the list
   local bar = CreateFrame("Frame", nil, parent); bar:SetSize(104, 70)
@@ -807,7 +843,15 @@ ev:SetScript("OnEvent", function(_, event, _, _, spell)
     if spell and not (FLT.IsSecret and FLT.IsSecret(spell)) and #list() > 0 then CL.Crafted(spell) end
   elseif event == "BANKFRAME_OPENED" then bankOpen = true; local c = me(); if c then scan(c, "bank", BANK); changed() end
   elseif event == "BANKFRAME_CLOSED" then bankOpen = false
-  else bagsLater() end
+  else
+    -- 6.2.6-beta17, once: the banks saved so far may hold the reagent bag (old bag list) - forget them, each character's
+    -- bank is read again the next time it is opened
+    if event == "PLAYER_LOGIN" and type(OneForAllDB) == "table" and not OneForAllDB.craftInvBank2 then
+      for _, o in pairs(OneForAllDB.craftInv or {}) do if type(o) == "table" and type(o.bank) == "table" then wipe(o.bank) end end
+      OneForAllDB.craftInvBank2 = true
+    end
+    bagsLater()
+  end
 end)
 CL._compute = function() compute(); return rows, shop end -- tests
 CL._reset = function() bySpell = nil; dirty = true end

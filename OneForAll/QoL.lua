@@ -1560,6 +1560,8 @@ local function hiddenByAddon(f)
 end
 local function applyPos(f, name)
   if padBag(name) or hiddenByAddon(f) then return end
+  -- "Open loot window at mouse" (6.2.6, Discord 0xveri 12.11.): the game puts the loot window at the cursor - leave it there
+  if name == "LootFrame" and GetCVar and GetCVar("lootUnderMouse") == "1" then return end
   local p = positions()[name]
   if not p or not QoL.Get("moveWindows") then return end
   if inCombat() and f:IsProtected() then return end
@@ -1785,7 +1787,7 @@ function QoL.CompletedQuestXP(list)
   return total, n
 end
 
-local xpMarker, xpBar, xpHooked -- xpHooked = { line = tooltip hook, done = { XP bars that have it } }
+local xpMarker, xpCap, xpBar, xpHooked -- xpHooked = { line = tooltip hook, done = { XP bars that have it } }
 local xpPending
 -- Each status bar container has its own XP bar: with a tracked reputation the game shows the
 -- reputation in one container and the XP in the other, so take the XP bar that is shown
@@ -1810,14 +1812,18 @@ local function findXPBar()
   return first, firstHolder
 end
 local function updateXP()
-  if not QoL.Get("questXP") then if xpMarker then xpMarker:Hide() end; return end
+  if not QoL.Get("questXP") then if xpMarker then xpMarker:Hide(); xpCap:Hide() end; return end
   local bar, holder = findXPBar()
   if not bar then return end
   if not xpMarker then
     xpMarker = bar:CreateTexture(nil, "ARTWORK", nil, 2)
     xpMarker:SetColorTexture(1, 0.82, 0.25, 0.45)
+    -- the pointed end, like the bar's own end (user 11.11. 23:13: "am Ende abrunden")
+    xpCap = bar:CreateTexture(nil, "ARTWORK", nil, 2)
+    if xpCap.SetTexture then FLT.SetTex(xpCap, "Interface\\AddOns\\OneForAll\\Assets\\xp_cap") end
+    if xpCap.SetVertexColor then xpCap:SetVertexColor(1, 0.82, 0.25, 0.45) end
   elseif xpBar ~= bar then
-    xpMarker:SetParent(bar) -- the shown XP bar changed (reputation tracked / untracked)
+    xpMarker:SetParent(bar); xpCap:SetParent(bar) -- the shown XP bar changed (reputation tracked / untracked)
   end
   xpBar = bar
   if not xpHooked then
@@ -1871,12 +1877,42 @@ local function updateXP()
   local xp = QoL.CompletedQuestXP()
   local cur, max = UnitXP and UnitXP("player") or 0, UnitXPMax and UnitXPMax("player") or 0
   local w = bar:GetWidth() or 0
+  xpCap:Hide()
   if xp <= 0 or max <= 0 or w <= 0 then xpMarker:Hide(); return end
-  local x1 = w * math.min(1, cur / max)
-  local x2 = w * math.min(1, (cur + xp) / max)
+  -- measure the track on the game's own fill (user 11.11.2026: at a full bar the mark stuck out past the end cap, and
+  -- guessing the cap with fixed insets put the mark on top of the fill in beta2): the fill starts where the track starts
+  -- and its width is cur/max of the track, so the track's 100 % end is where the fill would end at a full bar
+  local fill = bar.GetStatusBarTexture and bar:GetStatusBarTexture()
+  local bl = bar.GetLeft and bar:GetLeft()
+  local fl, fr = fill and fill.GetLeft and fill:GetLeft(), fill and fill.GetRight and fill:GetRight()
+  local frac = cur / max
+  local start, full = 0, w
+  if bl and fl and fr and frac >= 0.05 and fr > fl then
+    local s0, f0 = fl - bl, (fr - fl) / frac
+    if s0 >= 0 and f0 > w * 0.5 and s0 + f0 <= w * 1.05 then start, full = s0, math.min(f0, w - s0) end
+  end
+  local x1 = start + full * math.min(1, frac)
+  local x2 = start + full * math.min(1, (cur + xp) / max)
+  -- height of the game's own fill (the bar frame is taller: a full-height mark showed outside the frame, beta3);
+  -- the track ends in a point: measured on the user's screenshots (11.11. 23:04 / 23:27, beta7 stopped ~5 px short)
+  -- the point starts 0.27 fill heights before the 100 % end and ends 0.08 after it - the mark ends there with the same point (Assets/xp_cap.tga)
+  local top, bottom, hf = 0, 0, bar.GetHeight and bar:GetHeight() or 0
+  local bt, bb = bar.GetTop and bar:GetTop(), bar.GetBottom and bar:GetBottom()
+  local ft, fb = fill and fill.GetTop and fill:GetTop(), fill and fill.GetBottom and fill:GetBottom()
+  if bt and bb and ft and fb and ft > fb and ft <= bt + 1 and fb >= bb - 1 then top, bottom, hf = ft - bt, fb - bb, ft - fb end
+  local tipStart, tipEnd = start + full - hf * 0.27, start + full + hf * 0.08
+  local capped = x2 >= tipStart
+  if capped then x2 = tipStart end
+  if x2 - x1 < 1 and not capped then xpMarker:Hide(); return end
   xpMarker:ClearAllPoints()
-  xpMarker:SetPoint("TOPLEFT", bar, "TOPLEFT", x1, 0); xpMarker:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", x1, 0)
-  xpMarker:SetWidth(math.max(1, x2 - x1)); xpMarker:Show()
+  xpMarker:SetPoint("TOPLEFT", bar, "TOPLEFT", x1, top); xpMarker:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", x1, bottom)
+  xpMarker:SetWidth(math.max(x2 - x1, 0.01)); if x2 - x1 >= 1 then xpMarker:Show() else xpMarker:Hide() end
+  if capped then
+    local cx = math.max(x1, tipStart)
+    xpCap:ClearAllPoints()
+    xpCap:SetPoint("TOPLEFT", bar, "TOPLEFT", cx, top); xpCap:SetPoint("BOTTOMLEFT", bar, "BOTTOMLEFT", cx, bottom)
+    xpCap:SetWidth(math.max(tipEnd - tipStart, 1)); xpCap:Show()
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -2005,10 +2041,81 @@ local function nameList(list, max)
   return table.concat(t, ", ") .. string.format(" +%d", #list - max)
 end
 
+-- Disenchant value (6.2.6-beta33, user 12.11.: "disenchant value ... als schalter im qol ... nur wenn auctionator
+-- installiert ist ... im gleichen stil wie auctionator und darunter"): the expected worth of the dust, essences and shards
+-- (Data/Disenchant.lua chances x Auctionator prices) for green, blue and purple weapons and armor; nil = none / no prices
+do -- (in a block: the file is at Lua's limit of 200 locals)
+local NO_DE = { INVTYPE_BODY = true, INVTYPE_TABARD = true, INVTYPE_BAG = true, INVTYPE_AMMO = true, INVTYPE_QUIVER = true }
+-- (beta34, user 12.11.: "sehe keinen tooltip fuer disenchant" - the Forever client has these only under C_Item; looked
+-- up at call time so the tests can swap them)
+local function info(id) local f = (C_Item and C_Item.GetItemInfo) or GetItemInfo; if f then return f(id) end end
+local function instant(id) local f = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant; if f then return f(id) end end
+function QoL.DisenchantValue(id)
+  local SU, T = FLT.SkillUp, FLT.DISENCHANT
+  if not (SU and SU.AHPrice and T) then return nil end
+  local _, _, _, loc, _, cls = instant(id)
+  if not (cls == 2 or cls == 4) or not loc or loc == "" or NO_DE[loc] then return nil end
+  local _, _, q, ilvl = info(id)
+  local list = q and T[q]
+  if not (list and ilvl and ilvl > 0) then return nil end
+  for _, b in ipairs(list) do
+    if ilvl <= b[1] then
+      local parts = (cls == 2 and b.weapon) or b.armor
+      local v = 0
+      for _, p in ipairs(parts) do
+        local price = SU.AHPrice(p[1])
+        if price then v = v + price * p[2] * (p[3] + p[4]) / 2 end
+      end
+      return v > 0 and v or nil
+    end
+  end
+end
+end
+
+-- beta35 (user 12.11.: "bekommt man den eintrag irgendwie direkt drunter ... also unter Auction"): other addons
+-- (Syndicator's "Inventory") add lines between Auctionator's and ours - the last line (ours) is moved up right under
+-- Auctionator's "Auction" line, the lines in between move one down (text, colours, right side)
+do
+  local LABELS = { Auction = true, Auktion = true, ["Enchères"] = true, Subasta = true }
+  local function plain(t) return type(t) == "string" and t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):match("^%s*(.-)%s*$") or nil end
+  function QoL.MoveUnderAuction(tt)
+    local name = tt and tt.GetName and tt:GetName()
+    local n = name and tt.NumLines and tt:NumLines()
+    if not n or n < 3 then return end
+    local A = Auctionator and Auctionator.Locales and Auctionator.Locales.Get
+    local own = A and select(2, pcall(A, "AUCTION"))
+    local at
+    for i = n - 1, 2, -1 do
+      local fs = _G[name .. "TextLeft" .. i]
+      local t = fs and plain(fs:GetText())
+      if t and (LABELS[t] or (type(own) == "string" and t == own)) then at = i; break end
+    end
+    if not at or at >= n - 1 then return end -- not there, or ours is right under it already
+    local function get(i)
+      local l, r = _G[name .. "TextLeft" .. i], _G[name .. "TextRight" .. i]
+      return { l:GetText(), { l:GetTextColor() }, r and r:GetText(), r and { r:GetTextColor() }, r and r:IsShown() }
+    end
+    local function put(i, d)
+      local l, r = _G[name .. "TextLeft" .. i], _G[name .. "TextRight" .. i]
+      l:SetText(d[1]); l:SetTextColor(unpack(d[2]))
+      if r then r:SetText(d[3]); if d[4] then r:SetTextColor(unpack(d[4])) end; r:SetShown(d[5] and true or false) end
+    end
+    local mine = get(n)
+    for i = n, at + 2, -1 do put(i, get(i - 1)) end
+    put(at + 1, mine)
+    tt:Show() -- lay the lines out again
+  end
+end
+
 local function addItemLines(tt, link)
   if type(link) ~= "string" then return end
   local id = tonumber(link:match("item:(%d+)"))
   if not id then return end
+  -- right under Auctionator's "Vendor" / "Auction" lines, in their look (only with Auctionator: the prices come from it)
+  if QoL.Get("deValue") and FLT.SkillUp and FLT.SkillUp.HasAuctionator() then
+    local v = QoL.DisenchantValue(id)
+    if v then tt:AddDoubleLine(L["Disenchant"], money(v), 1, 0.82, 0, 1, 1, 1); pcall(QoL.MoveUnderAuction, tt) end
+  end
   if QoL.Get("bossDrops") then
     local drops = bossDrops(id)
     if drops then tt:AddLine(L["Drops from:"] .. " " .. nameList(drops, 2), 0.95, 0.80, 0.45, true) end
@@ -2165,7 +2272,7 @@ local function setupTooltips()
     pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetUnit", function(tt) pcall(addTargetLine, tt); pcall(addQuestLines, tt) end)
   end
   local function handler(tt)
-    if not (QoL.Get("bossDrops") or QoL.Get("recipeTip") or QoL.Get("gearValue")) then return end
+    if not (QoL.Get("bossDrops") or QoL.Get("recipeTip") or QoL.Get("gearValue") or QoL.Get("deValue")) then return end
     if not tt or not tt.GetItem then return end
     local _, link = tt:GetItem()
     addItemLines(tt, link)
@@ -2273,11 +2380,15 @@ local function feedAdd(icon, text, r, g, b)
     e = CreateFrame("Frame", nil, f); e:SetSize(FEED_W - 8, 20)
     e.icon = e:CreateTexture(nil, "ARTWORK"); e.icon:SetSize(18, 18); e.icon:SetPoint("LEFT")
     e.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    e.text = e:CreateFontString(nil, "OVERLAY", "GameFontNormal"); e.text:SetPoint("LEFT", e.icon, "RIGHT", 6, 0)
+    e.text = e:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     e.text:SetJustifyH("LEFT"); e.text:SetWidth(FEED_W - 34); e.text:SetWordWrap(false)
     do local font, _, flags = e.text:GetFont(); if font then e.text:SetFont(font, 14, "OUTLINE") end end
   end
-  e.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+  -- icon = false: no icon, the text starts at the left (money: the coins are in the text already; 6.2.6, user 11.11.)
+  e.icon:SetShown(icon ~= false)
+  e.text:ClearAllPoints()
+  if icon == false then e.text:SetPoint("LEFT", e, "LEFT", 0, 0)
+  else e.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark"); e.text:SetPoint("LEFT", e.icon, "RIGHT", 6, 0) end
   e.text:SetText(text); e.text:SetTextColor(r or 1, g or 1, b or 1)
   -- keep a gap to the entry above
   local newest = feedActive[#feedActive]
@@ -2346,7 +2457,7 @@ end
 local lastMoney, moneyMsgAt, pendingGain, pendingAt = nil, -10, 0, -10
 local function showMoney(amount)
   if amount > 0 and QoL.Get("lootFeed") and QoL.Get("lootFeedMoney") then
-    feedAdd("Interface\\Icons\\INV_Misc_Coin_02", "+" .. money(amount), 1, 0.85, 0.3)
+    feedAdd(false, "+" .. money(amount), 1, 0.85, 0.3)
   end
 end
 local function moneyChanged()
@@ -2367,7 +2478,7 @@ end
 function QoL.TestLootFeed()
   feedAdd("Interface\\Icons\\INV_Misc_Pelt_Wolf_01", "+3 Light Leather", 1, 1, 1)
   feedAdd("Interface\\Icons\\INV_Sword_04", "+Trogg Scepter", 0, 0.44, 0.87)
-  feedAdd("Interface\\Icons\\INV_Misc_Coin_02", "+" .. money(31240), 1, 0.85, 0.3)
+  feedAdd(false, "+" .. money(31240), 1, 0.85, 0.3)
   feedAdd("Interface\\Icons\\INV_Sword_39", "+Thunderfury, Blessed Blade of the Windseeker", 1, 0.5, 0)
 end
 

@@ -70,6 +70,7 @@ local function profDB(prof)
   return p
 end
 FLT.GetProfessionState = profDB
+FLT.ReadSkillLines = function() if FLT._readSkillLines then FLT._readSkillLines() end end
 
 -- Favourite recipes (account wide): OneForAllDB.recipeFavorites[prof][spell]
 local function favDB(prof, create)
@@ -125,6 +126,7 @@ end
 local function readSkillLines()
   eachOwnProfession(function(prof, rank, maxRank) local p = profDB(prof); p.skill = rank; p.maxSkill = maxRank end)
 end
+FLT._readSkillLines = readSkillLines
 
 local browser -- set when created; refreshed after scans
 -- the browser holds the secure craft buttons (RecipeBar): resizing it in combat is blocked (ADDON_ACTION_BLOCKED
@@ -353,6 +355,7 @@ do
   ev:SetScript("OnEvent", function(_, event)
     if event == "SKILL_LINES_CHANGED" or event == "PLAYER_LOGIN" then
       readSkillLines(); cleanAllProfessions(); refreshBrowser(true)
+      if FLT.SkillUp and FLT.SkillUp.OnSkill then FLT.SkillUp.OnSkill() end -- the Skill-Up guide ticks its steps
     else
       scanSoon()
     end
@@ -456,7 +459,8 @@ local function canMake(r)
   if not r.r or #r.r == 0 or not GetItemCount then return 0 end
   local n
   for _, rg in ipairs(r.r) do
-    local k = math.floor((GetItemCount(rg[1]) or 0) / math.max(1, rg[2] or 1))
+    local have = FLT.CraftList and FLT.CraftList.InBags and FLT.CraftList.InBags(rg[1]) or GetItemCount(rg[1]) or 0
+    local k = math.floor(have / math.max(1, rg[2] or 1))
     if not n or k < n then n = k end
   end
   return n or 0
@@ -568,6 +572,19 @@ function UI.CreateRecipeBrowser(parent)
   scanHint:SetPoint("TOPRIGHT", f, "TOPRIGHT", -14, legendFirst and -33 or -32)
   scanHint:SetPoint("LEFT", f, "LEFT", 344, 0) -- the detail column (the list is 336 wide)
   scanHint:SetJustifyH("RIGHT"); scanHint:SetWordWrap(false)
+
+  -- the Crafting List window (5.7.3, UI/CraftList.lua; stays open when OneForAll closes) - its button lives here since
+  -- 6.2.6-beta28 (user 12.11.: out of the sub-tab row, "in All Recipes und Favorites ... da ist er besser aufgehoben")
+  do
+    local b = UI.GoldButton(f, L["Crafting List"], 130, 22, nil, 12); b:SetPoint("TOPRIGHT", f, "TOPRIGHT", -14, -52)
+    b:SetScript("OnClick", function() if FLT.CraftList then FLT.CraftList.Toggle() end end)
+    b:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(L["Crafting List"], 1, 0.82, 0)
+      GameTooltip:AddLine(L["Plan what to craft: the materials you have in your bags, bank and on your other characters, and what is still missing. Add recipes with \"+ List\". Also /ofa craft."], 1, 1, 1, true)
+      GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end
 
   -- filters + search
   local filters = {}
@@ -1265,14 +1282,17 @@ function UI.CreateRecipeBrowser(parent)
 
   -- Opens the browser on one recipe (used by the dungeon loot list).
   function f:SelectRecipe(name, spell)
-    f:ShowProfession(name, "all")
+    -- an old search or recipe filter would hide the recipe: clear both first (user 11.11.)
     search = ""
     box:SetText(""); box:ClearFocus()
-    local list = recipesFor(prof)
-    for idx, r in ipairs(list) do
+    if knowFilter() and type(OneForAllDB) == "table" then OneForAllDB.recipeKnowFilter = nil; paintFunnel() end
+    f:ShowProfession(name, "all")
+    for _, r in ipairs(recipesFor(prof)) do
       if r.s == spell then
         selected = r
         f:Refresh()
+        local idx = 1
+        for i, v in ipairs(f.visible or {}) do if v == r then idx = i; break end end
         local function scrollTo()
           local range = lsf:GetVerticalScrollRange() or 0
           lsf:SetVerticalScroll(math.max(0, math.min(range, (idx - 1) * 29 - 120)))
