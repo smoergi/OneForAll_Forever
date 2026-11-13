@@ -16,6 +16,7 @@ Locales\frFR.lua
 Locales\Names_frFR.lua
 Locales\esES.lua
 Locales\Names_esES.lua
+Locales\ptBR.lua
 Data.lua
 ExtraData.lua
 ProfessionData.lua
