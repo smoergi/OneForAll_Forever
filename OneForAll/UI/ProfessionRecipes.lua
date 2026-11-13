@@ -194,6 +194,80 @@ local function foreignTradeSkill()
   return call(IsTradeSkillLinked) or call(IsTradeSkillGuild) or false
 end
 
+-- Reagents as the server has them (user 13.11.2026: Green Silk Pack needs 5 Bolts of Silk Cloth in the game, 4 in the
+-- client files and on wowtbc.gg - a server-side change): read from the open profession window and, when they differ from
+-- the data, saved account wide (OneForAllDB.recipeReagents[spell] = {{item, count, name}, ...}) and laid over the data
+-- (Crafting List, Skill-Up Helper, Profit all read r.r). Compared first, a new table only when something differs.
+local function applyReagentFixes()
+  local db = type(OneForAllDB) == "table" and OneForAllDB.recipeReagents
+  if type(db) ~= "table" then return end
+  for _, recipes in pairs(FLT.PROFESSION_RECIPES or {}) do
+    for _, r in ipairs(recipes) do local l = db[r.s]; if type(l) == "table" and #l > 0 then r.r = l end end
+  end
+end
+local function hasReagent(r, id, count)
+  for _, g in ipairs(r.r or {}) do if g[1] == id then return g[2] == count, g[3] end end
+  return false
+end
+-- n reagents, get(src, k) -> item ID, count, name; returns true when the recipe changed
+local function takeReagents(r, n, get, src)
+  if not n or n == 0 then return false end
+  local same = n == #(r.r or {})
+  for k = 1, n do
+    local id, count = get(src, k)
+    if not (id and count and count > 0) then return false end -- not loaded yet: the next scan reads it
+    if same and not hasReagent(r, id, count) then same = false end
+  end
+  if same then return false end
+  local list = {}
+  for k = 1, n do
+    local id, count, name = get(src, k)
+    local _, oldName = hasReagent(r, id, count)
+    list[k] = { id, count, name or oldName }
+  end
+  r.r = list
+  if type(OneForAllDB) == "table" then
+    OneForAllDB.recipeReagents = OneForAllDB.recipeReagents or {}
+    OneForAllDB.recipeReagents[r.s] = list
+  end
+  return true
+end
+local function oldReagent(i, k)
+  local l2 = GetTradeSkillReagentItemLink(i, k)
+  local name, _, count = GetTradeSkillReagentInfo(i, k)
+  return l2 and tonumber(l2:match("item:(%d+)")), count, name
+end
+local basic = {} -- the basic reagent slots of one recipe (reused)
+local function newReagent(_, k) return basic[k].reagents[1].itemID, basic[k].quantityRequired end
+local function readReagents(recipeBySpell, knownNew)
+  local changed = false
+  -- old trade skill window
+  if GetNumTradeSkills and GetTradeSkillRecipeLink and GetTradeSkillNumReagents and GetTradeSkillReagentInfo and GetTradeSkillReagentItemLink then
+    for i = 1, GetNumTradeSkills() or 0 do
+      local link = GetTradeSkillRecipeLink(i)
+      local r = link and recipeBySpell[tonumber(link:match("enchant:(%d+)") or link:match("spell:(%d+)") or 0)]
+      if r and takeReagents(r, GetTradeSkillNumReagents(i), oldReagent, i) then changed = true end
+    end
+  end
+  -- new profession window (Enchanting on Forever): only the basic reagent slots
+  local T = C_TradeSkillUI
+  if T and T.GetRecipeSchematic and knownNew then
+    for _, id in ipairs(knownNew) do
+      local r = recipeBySpell[id]
+      local ok, sc = pcall(T.GetRecipeSchematic, id, false)
+      local slots = ok and type(sc) == "table" and sc.reagentSlotSchematics
+      if r and type(slots) == "table" then
+        wipe(basic)
+        for _, sl in ipairs(slots) do
+          if (sl.reagentType == nil or sl.reagentType == 1) and sl.reagents and sl.reagents[1] then basic[#basic + 1] = sl end
+        end
+        if takeReagents(r, #basic, newReagent) then changed = true end
+      end
+    end
+  end
+  return changed
+end
+
 local function scanTradeSkill()
   if foreignTradeSkill() then lastScan = {foreign = true}; return end
   local prof, rank, maxRank, hint
@@ -316,6 +390,7 @@ local function scanTradeSkill()
   -- also drop implausible entries stored by older versions
   for s in pairs(p.known) do local r = recipeBySpell[s]; if r and not plausible(r) then p.known[s] = nil end end
   p.scanned = true
+  readReagents(recipeBySpell, fullList and known)
   lastScan = {prof = prof, count = #known, matched = n, skill = rank, stats = stats}
   readSkillLines()
   if FLT.OnProfessionScan then FLT.OnProfessionScan() end
@@ -354,6 +429,7 @@ do
                       "NEW_RECIPE_LEARNED", "SKILL_LINES_CHANGED", "PLAYER_LOGIN"}) do pcall(ev.RegisterEvent, ev, e) end
   ev:SetScript("OnEvent", function(_, event)
     if event == "SKILL_LINES_CHANGED" or event == "PLAYER_LOGIN" then
+      if event == "PLAYER_LOGIN" then applyReagentFixes() end
       readSkillLines(); cleanAllProfessions(); refreshBrowser(true)
       if FLT.SkillUp and FLT.SkillUp.OnSkill then FLT.SkillUp.OnSkill() end -- the Skill-Up guide ticks its steps
     else

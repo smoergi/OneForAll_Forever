@@ -147,14 +147,10 @@ function CL.InBags(id)
   end
   return n
 end
-local function stock(id)
-  wipe(places)
-  local c = me()
-  local bags = CL.InBags(id)
-  local bank = c and c.bank[id] or 0
-  local total = bags + bank
-  if bags > 0 then places[#places + 1] = L["Bags"] .. " " .. bags end
-  if bank > 0 then places[#places + 1] = L["Bank"] .. " " .. bank end
+-- this character's bank as last seen (6.2.7-beta2, user 13.11.: Profit's shopping list should look at the bank too)
+function CL.InBank(id) local c = me(); return c and c.bank[id] or 0 end
+-- the other characters of this realm and faction that have the item: fn(inv, key, entry, bags, bank)
+local function forAlts(c, id, fn)
   local inv = db("craftInv")
   local realm = GetRealmName and GetRealmName() or ""
   local fac = c and c.faction
@@ -162,20 +158,43 @@ local function stock(id)
     local _, r = FLT.CharOf(k, o)
     if not FLT.IsMyChar(k) and r == realm and type(o) == "table" and (not fac or not o.faction or o.faction == fac) then
       local b, k2 = o.bags and o.bags[id] or 0, o.bank and o.bank[id] or 0
-      if b + k2 > 0 then
-        total = total + b + k2
-        local parts = {}
-        if b > 0 then parts[#parts + 1] = string.format(L["%d bags"], b) end
-        if k2 > 0 then parts[#parts + 1] = string.format(L["%d bank"], k2) end
-        places[#places + 1] = FLT.CharLabel(inv, k, o) .. ": " .. table.concat(parts, ", ")
-      end
+      if b + k2 > 0 then fn(inv, k, o, b, k2) end
     end
   end
+end
+local function stock(id, noAlts)
+  wipe(places)
+  local c = me()
+  local bags = CL.InBags(id)
+  local bank = c and c.bank[id] or 0
+  local total = bags + bank
+  if bags > 0 then places[#places + 1] = L["Bags"] .. " " .. bags end
+  if bank > 0 then places[#places + 1] = L["Bank"] .. " " .. bank end
+  if noAlts then return total end
+  forAlts(c, id, function(inv, k, o, b, k2)
+    total = total + b + k2
+    local parts = {}
+    if b > 0 then parts[#parts + 1] = string.format(L["%d bags"], b) end
+    if k2 > 0 then parts[#parts + 1] = string.format(L["%d bank"], k2) end
+    places[#places + 1] = FLT.CharLabel(inv, k, o) .. ": " .. table.concat(parts, ", ")
+  end)
   return total
 end
+-- 6.2.7-beta4 (user 13.11.: "neben dem item einen hinweis (X in Bank) oder (X on Twink XY)"): where else an item lies,
+-- short - "12 in bank, 5 on Smörgi Banklshofer"; nil when only in the bags / nowhere. Callers show it only while the bags
+-- hold less than needed, so it goes away once the materials are fetched (the bank is read again while it is open).
+local ew = {} -- reused
+function CL.Elsewhere(id)
+  index(); wipe(ew)
+  local c = me()
+  local bank = c and c.bank[id] or 0
+  if bank > 0 then ew[#ew + 1] = string.format(L["%d in bank"], bank) end
+  forAlts(c, id, function(inv, k, o, b, k2) ew[#ew + 1] = string.format(L["%d on %s"], b + k2, FLT.CharLabel(inv, k, o)) end)
+  return #ew > 0 and table.concat(ew, ", ") or nil
+end
 -- for the Skill-Up Helper (SkillUp.lua): total of an item over bags, bank and the other characters, and the places
--- (a table reused by the next call)
-function CL.Stock(id) index(); local n = stock(id); return n, places end
+-- (a table reused by the next call); noAlts (6.2.7, Discord 13.11.: "a toggle"): without the other characters
+function CL.Stock(id, noAlts) index(); local n = stock(id, noAlts); return n, places end
 
 -- Materials -------------------------------------------------------------------------
 -- rows: { id, need, have, depth, maker = {r, prof}, who, craft = n (crafted), miss = n (to get), mode }
@@ -340,6 +359,15 @@ local function newRow()
   -- small "Craft" (user 24.10.): only the look; the secure button "overlay" is laid over it on mouse-over
   b.craftBtn = UI.GoldButton(b, L["Craft"], 46, 20, nil, 11)
   b.craftBtn:SetScript("OnEnter", function(self) if CL._hoverCraft then CL._hoverCraft(self) end end)
+  -- "Buy" at an open merchant who sells it (6.2.7, user 13.11.: "haendler oeffnen, button Buy erscheint")
+  b.buyBtn = UI.GoldButton(b, L["Buy"], 46, 20, nil, 11); b.buyBtn:SetPoint("RIGHT", b.c3, "LEFT", -6, 0)
+  b.buyBtn:SetScript("OnClick", function(self) if self.id and CL.BuyFromMerchant then self:Disable(); CL.BuyFromMerchant(self.id) end end)
+  b.buyBtn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(L["Buy"])
+    if self.cost then GameTooltip:AddLine(string.format(L["Buys what is missing from this merchant: %s"], self.cost), 1, 1, 1, true) end
+    GameTooltip:Show()
+  end)
+  b.buyBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
   b.count = FLT.NewFS(b, nil, "OVERLAY", "GameFontHighlight"); b.count:SetPoint("LEFT", b.minus, "RIGHT", 2, 0); b.count:SetPoint("RIGHT", b.plus, "LEFT", -2, 0)
   b:SetScript("OnEnter", rowTooltip); b:SetScript("OnLeave", function() GameTooltip:Hide() end)
   -- Shift-click: item link into the chat or the auction house search, Ctrl-click: dressing room (user 26.10.)
@@ -354,7 +382,7 @@ local function acquire()
   local b = pool[used]
   if not b then b = newRow(); pool[used] = b end
   b:ClearAllPoints(); b:Show()
-  for _, k in ipairs({ "mode", "minus", "plus", "del", "count", "c2", "c3", "tag", "craftBtn", "ok" }) do b[k]:Hide() end
+  for _, k in ipairs({ "mode", "minus", "plus", "del", "count", "c2", "c3", "tag", "craftBtn", "ok", "buyBtn" }) do b[k]:Hide() end
   b.data = nil
   return b
 end
@@ -434,6 +462,13 @@ refresh = function()
       b.craftBtn:ClearAllPoints(); b.craftBtn:SetPoint("RIGHT", b.c2, "LEFT", -2, 0); b.craftBtn:SetLabel(L["Craft"]); b.craftBtn:SetWidth(46); b.craftBtn:Show()
       b.craftBtn.target = { prof = row.maker.prof, r = row.maker.r, n = math.ceil(row.craft / (row.maker.r.c or 1)) }
     end
+    local where = CL.InBags(row.id) < row.need and CL.Elsewhere(row.id) -- 6.2.7-beta4: "(12 in bank)"
+    if where then
+      b.tag:SetText("|cffffd060(" .. where .. ")|r"); b.tag:ClearAllPoints()
+      local anchor = (row.craft and b.craftBtn:IsShown() and b.craftBtn) or (row.craft and b.c2) or b.c3
+      b.tag:SetPoint("RIGHT", anchor, "LEFT", -4, 0); b.tag:Show()
+      b.name:SetPoint("RIGHT", b.tag, "LEFT", -4, 0)
+    end
     local col = row.have >= row.need and "|cff59ff73" or (row.craft and "|cff9fd0ff" or "|cffff6060")
     b.c3:SetText(col .. row.have .. "|r / " .. row.need); b.c3:Show()
     if row.craft then b.c2:SetText("|cff9fd0ff" .. string.format(L["craft %s"], row.craft) .. "|r"); b.c2:Show() end
@@ -463,7 +498,10 @@ refresh = function()
     b.icon:SetTexture(GetItemIcon and GetItemIcon(id) or "Interface\\Icons\\INV_Misc_QuestionMark")
     local name, q = itemName(id)
     b.name:SetText(name); b.name:SetTextColor(qcolor(q)); b.name:SetPoint("RIGHT", b.c3, "LEFT", -50, 0)
-    if FLT.VENDOR_REAGENTS and FLT.VENDOR_REAGENTS[id] then b.tag:SetText(L["Vendor"]); b.tag:ClearAllPoints(); b.tag:SetPoint("RIGHT", b.c3, "LEFT", -6, 0); b.tag:Show() end
+    local m = CL.MerchantSells and CL.MerchantSells(id)
+    if m then
+      b.buyBtn.id = id; b.buyBtn.cost = CL.MerchantCost(m, shop[id]); b.buyBtn:Enable(); b.buyBtn:Show()
+    elseif FLT.VENDOR_REAGENTS and FLT.VENDOR_REAGENTS[id] then b.tag:SetText(L["Vendor"]); b.tag:ClearAllPoints(); b.tag:SetPoint("RIGHT", b.c3, "LEFT", -6, 0); b.tag:Show() end
     b.c3:SetText("|cffff6060" .. shop[id] .. "|r"); b.c3:Show()
   end
   child:SetHeight(-y + 8)
@@ -824,6 +862,18 @@ end
 
 -- Events: stock of this character ------------------------------------------------------
 local bankOpen, pending
+-- 6.2.7-beta5 (user 13.11.: took 1 Silk Cloth out of the bank, the bank count stayed): the bank is read right away on every
+-- change while it is open and once more when it closes (the 2 s delay missed a bank closed right after). Only while the
+-- bank containers can be read, so a closed bank never wipes what was saved.
+local function scanBank(c)
+  for _, bag in ipairs(BANK) do
+    if numSlots(bag) > 0 then scan(c, "bank", BANK); return true end
+  end
+end
+local function bankChanged() -- the Crafting List and the Skill-Up guide (its "(12 in bank)" hints)
+  changed()
+  if FLT.SkillUp and FLT.SkillUp.RefreshGuide then FLT.SkillUp.RefreshGuide() end
+end
 local function bagsLater()
   if pending or not (C_Timer and C_Timer.After) then return end
   pending = true
@@ -831,19 +881,90 @@ local function bagsLater()
     pending = false
     local c = me(); if not c then return end
     scan(c, "bags", BAGS)
-    if bankOpen then scan(c, "bank", BANK) end
+    if bankOpen then scanBank(c) end
     changed()
   end)
 end
+-- the open merchant (6.2.7, user 13.11.): [itemID] = { index, price, per (items per purchase), max (stack), left (-1 = any) };
+-- read only while the Crafting List has entries, gone when the merchant closes
+local merchant, merchantOpen = {}, false
+-- the modern client has C_MerchantFrame.GetItemInfo (a table) instead of GetMerchantItemInfo (6.2.7-beta22: no Buy button in
+-- the game with beta21)
+local function merchantInfo(i)
+  local CM = type(C_MerchantFrame) == "table" and C_MerchantFrame
+  if CM and CM.GetItemInfo then
+    local ok, t = pcall(CM.GetItemInfo, i)
+    if ok and type(t) == "table" then return t.price, t.stackCount, t.numAvailable, t.isPurchasable, t.hasExtendedCost end
+  end
+  if GetMerchantItemInfo then
+    local _, _, price, per, left, purchasable, _, extended = GetMerchantItemInfo(i)
+    return price, per, left, purchasable, extended
+  end
+end
+local function merchantItemID(i)
+  if GetMerchantItemID then return GetMerchantItemID(i) end
+  local link = GetMerchantItemLink and GetMerchantItemLink(i)
+  return link and tonumber(link:match("item:(%d+)")) or nil
+end
+local function readMerchant()
+  wipe(merchant)
+  local num = (GetMerchantNumItems and GetMerchantNumItems()) or (type(C_MerchantFrame) == "table" and C_MerchantFrame.GetNumItems and C_MerchantFrame.GetNumItems()) or 0
+  if not (merchantOpen and #list() > 0) then return end
+  for i = 1, num do
+    local id = merchantItemID(i)
+    local price, per, left, purchasable, extended = merchantInfo(i)
+    if id and price and price > 0 and purchasable ~= false and not extended then
+      merchant[id] = { i = i, price = price, per = math.max(1, per or 1), max = GetMerchantItemMaxStack and GetMerchantItemMaxStack(i) or 20, left = left or -1 }
+    end
+  end
+end
+function CL.MerchantSells(id) return merchantOpen and merchant[id] or nil end
+local function buys(m, need) -- purchases needed (one purchase = m.per items), limited by stock and money
+  local n = math.ceil(need / m.per)
+  if m.left and m.left >= 0 then n = math.min(n, m.left) end
+  local money = GetMoney and GetMoney()
+  if money then n = math.min(n, math.floor(money / m.price)) end
+  return math.max(0, n)
+end
+function CL.MerchantCost(m, need)
+  local n = buys(m, need or 0)
+  return n > 0 and (FLT.QoL and FLT.QoL.Money and FLT.QoL.Money(n * m.price) or tostring(n * m.price)) or nil
+end
+function CL.BuyFromMerchant(id)
+  local m = CL.MerchantSells(id)
+  if dirty then compute() end
+  local need = shop[id]
+  local buy = BuyMerchantItem or (type(C_MerchantFrame) == "table" and C_MerchantFrame.BuyItem) or nil
+  if not (m and need and need > 0 and buy) then return end
+  local n = buys(m, need)
+  if m.per > 1 then
+    for _ = 1, n do buy(m.i, 1) end -- packs: one pack per call
+  else
+    local stack = math.max(1, m.max or 1)
+    while n > 0 do local k = math.min(n, stack); buy(m.i, k); n = n - k end
+  end
+end
 local ev = CreateFrame("Frame")
-for _, e in ipairs({ "PLAYER_LOGIN", "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED" }) do pcall(ev.RegisterEvent, ev, e) end
+for _, e in ipairs({ "MERCHANT_SHOW", "MERCHANT_CLOSED", "MERCHANT_UPDATE" }) do pcall(ev.RegisterEvent, ev, e) end
+for _, e in ipairs({ "PLAYER_LOGIN", "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED", "PLAYERBANKSLOTS_CHANGED" }) do pcall(ev.RegisterEvent, ev, e) end
 if ev.RegisterUnitEvent then pcall(ev.RegisterUnitEvent, ev, "UNIT_SPELLCAST_SUCCEEDED", "player") end
 ev:SetScript("OnEvent", function(_, event, _, _, spell)
+  if event == "MERCHANT_SHOW" or event == "MERCHANT_UPDATE" or event == "MERCHANT_CLOSED" then
+    if event == "MERCHANT_UPDATE" and not merchantOpen then return end
+    merchantOpen = event ~= "MERCHANT_CLOSED"
+    local had = next(merchant) ~= nil
+    readMerchant()
+    if had or next(merchant) then changed() end
+    return
+  end
   if event == "UNIT_SPELLCAST_SUCCEEDED" then
     if spell and not (FLT.IsSecret and FLT.IsSecret(spell)) and #list() > 0 then CL.Crafted(spell) end
-  elseif event == "BANKFRAME_OPENED" then bankOpen = true; local c = me(); if c then scan(c, "bank", BANK); changed() end
-  elseif event == "BANKFRAME_CLOSED" then bankOpen = false
+  elseif event == "BANKFRAME_OPENED" then bankOpen = true; local c = me(); if c and scanBank(c) then bankChanged() end
+  elseif event == "BANKFRAME_CLOSED" then
+    local c = bankOpen and me(); if c and scanBank(c) then bankChanged() end
+    bankOpen = false
   else
+    if bankOpen and event ~= "PLAYER_LOGIN" then local c = me(); if c and scanBank(c) then bankChanged() end end
     -- 6.2.6-beta17, once: the banks saved so far may hold the reagent bag (old bag list) - forget them, each character's
     -- bank is read again the next time it is opened
     if event == "PLAYER_LOGIN" and type(OneForAllDB) == "table" and not OneForAllDB.craftInvBank2 then

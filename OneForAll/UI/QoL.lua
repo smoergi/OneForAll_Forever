@@ -22,6 +22,8 @@ local NEW_TAGS = { -- the 6.1.x marks removed when 6.2.0 started (rule: marks st
   guildMap = "6.2.2",
   quiverAmmo = "6.2.2",
   deValue = "6.2.6",
+  tipMouse = "6.2.7",
+  bookAlertNoFlying = "6.2.7",
 }
 -- placed left of the checkbox (or of the label when there is none), user 16.10.
 local function newTag(parent, anchor, key, dx)
@@ -628,6 +630,11 @@ local function createQoLPanel(parent)
   check(g, N"Recipes: who knows it", N"Whether you, an alt or a guild member knows a recipe.", nil, "recipeTip")
   check(g, N"Disable automatic compare tooltip", N"Hold Shift to see your equipped item next to the tooltip.", N"Item tooltips no longer show your equipped item next to them automatically.", nil, nil,
     function() return Q.GetCompareShift() end, function(v) Q.SetCompareShift(v) end)
+  -- 6.2.7-beta15 (user 13.11.): off until the user decides the defaults (CLAUDE.md "Fixed rules")
+  g = group(c, N"Tooltip position")
+  choice(g, N"Tooltip at the mouse", N"Tooltips that normally appear at the bottom right show at your mouse.", N"Choose on which side of the mouse it opens. Tooltips that addons or windows place themselves stay where they are.", "tipMousePos", Q.TIP_ANCHORS, "tipMouse")
+  check2(g, { N"Not in dungeons and raids", N"There the tooltip stays at its usual place.", nil, "tipMouseNoDungeon" },
+    { N"Not in battlegrounds", N"There the tooltip stays at its usual place.", nil, "tipMouseNoPvP" }, 24)
   g = group(c, N"Units")
   check(g, N"Target of players", N"Shows who a player or NPC under your mouse is targeting.", N"\"You\" when it is you.", "unitTarget")
   check(g, N"Quests on NPCs", N"Quests you can take (!) or turn in (?) at the NPC under your mouse.", N"The same quests as the quest icons on the world map: for your level, side, race and class, pre-quests done. Off while Questie is loaded (it shows its own).", "npcQuestTip")
@@ -842,6 +849,8 @@ local function createQoLPanel(parent)
   check(g, N"Nearby Library Book alerts", N"Popup when you are close to a missing library book.", nil, nil, nil,
     function() return FLT.IsNearbyAlertsEnabled and FLT:IsNearbyAlertsEnabled() and true or false end,
     function(v) if FLT.SetNearbyAlertsEnabled then FLT:SetNearbyAlertsEnabled(v) end end)
+  -- 6.2.7 (user 13.11.: "damit man es ausschalten kann waehrend man fliegt")
+  check(g, N"Not while flying", N"No book popup while you are on a flight path or flying mount.", nil, "bookAlertNoFlying", 24)
   check(g, N"Pet ability alerts (Hunter)", N"Popup when a beast nearby teaches a higher ability rank your pets can learn.", nil, nil, nil,
     function() return FLT.IsPetTeachAlertsEnabled and FLT:IsPetTeachAlertsEnabled() and true or false end,
     function(v) if FLT.SetPetTeachAlertsEnabled then FLT:SetPetTeachAlertsEnabled(v) end end)

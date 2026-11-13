@@ -71,6 +71,32 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+6.2.7 - New Forever dungeons filled in, Buy at the merchant, Tooltip at the mouse
+==================================================================================
+- New Forever dungeons: boss loot for Blackmaw Hold, Shaper's Terrace, Krol'dok Stronghold and Alcaz Prison (about 70 items
+  with the boss that drops them), boss names as in the game, boss levels, portraits (an icon where the game cannot draw the
+  model) and creature types, drop chances for Krol'dok Stronghold and Alcaz Prison, new bosses and rares (Zarla Ober, Umbra,
+  "Pyromancer" Braxton, Kroog, Gortek the Apprentice, Tunnelweb Matriarch, Ravasaur Hunters), their trash drops (56 blue
+  items), 17 more dungeon quests and map buttons for all their entrances. No more "Partial data" warning on them.
+- Dungeons: a boss level and type learned by targeting the boss show at once and win over the stored ones; arrow buttons
+  next to "Dungeons" switch to the previous / next dungeon of the list.
+- Dungeon quests: "Starts at" and "Turn in" have a Map button wherever the place is known; an NPC or a drop inside the
+  dungeon points to its entrance. Also for the key / attunement steps.
+- Crafting List: with a merchant open who sells a missing material, a "Buy" button buys exactly what is missing. Next to a
+  material not (all) in your bags it says where it is - "(12 in bank)", "(5 on <character>)".
+- Skill-Up Helper and Profit: the bank and your other characters count; new switch "Without other characters' materials"
+  (off by default). Skill-Up Helper: tidier header, item names that were not loaded yet are filled in, the "Materials"
+  rows sit at the left edge. "Send to Auctionator" waits for item names instead of dropping them.
+- Bank: read on every change while it is open and once more when you close it.
+- Tailoring: the coloured bags need one bolt more in WoW Forever (Green Silk Pack 5 Bolts of Silk Cloth ...); when the
+  profession window shows other materials than OneForAll's data, the window's amounts are used everywhere.
+- New Quality of Life option "Tooltip at the mouse" (off by default): six positions around the mouse, separate switches to
+  keep the usual place in dungeons and raids and on battlegrounds.
+- Nearby Library Book alerts: new switch "Not while flying" (off by default). Library Books info window: the librarians on
+  their own rows with crest, place and a Map button.
+- Quests on NPCs (tooltip): dungeon and raid quests show "D" / "R" and the dungeon's name.
+- Talent planner: ranks come from the talent data, not from the client (Marksmanship "Improved Stings" has 3 ranks).
+
 6.2.6 - Skill-Up Helper, Profit, new stat weights
 =================================================
 - New: Skill-Up Helper (Professions > every crafting profession, also Cooking and First Aid): the cheapest way from your
