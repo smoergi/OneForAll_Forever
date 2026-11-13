@@ -27,7 +27,31 @@ end
 -- "Patterns from the auction house" / "... from vendors": on by default (user 12.11.2026), false = switched off
 local function on(key) return sdb()[key] ~= false end
 local function money(c) if FLT.QoL and FLT.QoL.Money then return FLT.QoL.Money(math.floor((c or 0) + 0.5)) end return tostring(c) end
-local function itemName(id) local n = GetItemInfo and GetItemInfo(id); if not n and C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end return n or (L["Item"] .. " " .. id) end
+-- 6.2.7-beta15 (user screenshot 13.11.: "Item 16072", "Item 2692" ...): a name the client has not loaded yet is requested,
+-- and once GET_ITEM_INFO_RECEIVED came the page and the guide are drawn again (one redraw per burst, only while waiting)
+local nameWait
+local function waitForNames()
+  if not nameWait then
+    nameWait = CreateFrame("Frame")
+    nameWait:SetScript("OnEvent", function(self)
+      self:UnregisterAllEvents()
+      C_Timer.After(0.3, function()
+        local SU = FLT.SkillUp
+        if SU and SU._onSkillPage then SU._onSkillPage() end
+        if SU and SU.RefreshGuide then SU.RefreshGuide() end
+      end)
+    end)
+  end
+  nameWait:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+end
+local function itemName(id)
+  local n = GetItemInfo and GetItemInfo(id)
+  if not n then
+    if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+    if C_Timer then waitForNames() end
+  end
+  return n or (L["Item"] .. " " .. id)
+end
 local function recipeName(r) return FLT.RecipeName and FLT.RecipeName(r) or r.n end
 local function NM(s) return FLT.Name and FLT.Name(s) or s end
 local function ZN(z) return FLT.ZoneName and FLT.ZoneName(z) or z end
@@ -249,13 +273,9 @@ end
 
 -- where else a material lies (bank, other characters), for the material lines (beta23, user 12.11.: Greater Astral
 -- Essence "0 / 1 in bags" although it was on the bank - "ein direkter hinweis im fenster")
-local function elsewhere(id)
+local function elsewhere(id) -- "12 in bank, 5 on Smörgi Banklshofer" (6.2.7-beta4, CL.Elsewhere)
   local CL = FLT.CraftList
-  local places; if CL and CL.Stock then places = select(2, CL.Stock(id)) end
-  if not places then return nil end
-  local bagsLabel, out = L["Bags"] .. " ", {}
-  for _, pl in ipairs(places) do if pl:sub(1, #bagsLabel) ~= bagsLabel then out[#out + 1] = pl end end
-  return #out > 0 and table.concat(out, "  ·  ") or nil
+  return CL and CL.Elsewhere and CL.Elsewhere(id) or nil
 end
 
 local remain, prepS = {}, {} -- reused by refreshGuide (SU.RemainingMats, SU.PrepStatus)
@@ -326,7 +346,7 @@ local function refreshGuide()
       local inBags = FLT.CraftList and FLT.CraftList.InBags and FLT.CraftList.InBags(id) or 0
       local txt = itemName(id)
       local where = inBags < want and elsewhere(id)
-      if where then txt = txt .. "\n|cffffd060" .. where .. "|r" end
+      if where then txt = txt .. "  |cffffd060(" .. where .. ")|r" end -- next to the name (user 13.11.)
       y = line(y, { item = id, text = txt, right = string.format(L["%d / %d in bags"], inBags, want), done = inBags >= want, indent = 1 })
     end
   end
@@ -447,8 +467,11 @@ local function createGuide()
   ghint:SetPoint("RIGHT", guide, "RIGHT", -172, 0); ghint:SetJustifyH("LEFT")
   ghint:SetText(L["You can open this window with Alt + right-click on the minimap button."])
   gsend:SetScript("OnClick", function()
-    local ok = SU.SendToAuctionator(gplan)
-    if FLT.Msg then FLT.Msg(ok and L["Shopping list \"OneForAll Skill-Up\" is in Auctionator (Shopping tab)."] or L["Auctionator did not take the list (open the auction house once, then try again)."]) end
+    SU.SendToAuctionator(gplan, nil, function(ok, missing)
+      if not FLT.Msg then return end
+      FLT.Msg(ok and L["Shopping list \"OneForAll Skill-Up\" is in Auctionator (Shopping tab)."] or L["Auctionator did not take the list (open the auction house once, then try again)."])
+      if ok and missing > 0 then FLT.Msg(string.format(L["%d materials could not be added yet (item data still loading) - send the list again."], missing)) end
+    end)
   end)
   guide:SetScript("OnShow", function(self)
     self:RegisterEvent("BAG_UPDATE_DELAYED")
@@ -498,43 +521,77 @@ function SU.ScanText()
   return (m < 60 and "|cff40ff60" or "|cffff5050") .. t .. "|r"
 end
 
+-- "Without other characters' materials" (6.2.7, Discord 13.11.: twinks may be levelling their own professions), on the
+-- Skill-Up Helper and the Profit page, one setting for both (SU.NoAlts); off until the user decides
+function UI.NoAltsSwitch(f, onChange)
+  local cb = FLT.SkinBlizz(CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")); cb:SetSize(22, 22)
+  local fs = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); fs:SetText(L["Without other characters' materials"])
+  cb:SetScript("OnShow", function(self) self:SetChecked(SU.NoAlts()) end)
+  cb:SetChecked(SU.NoAlts())
+  cb:SetScript("OnClick", function(self) sdb().noAlts = self:GetChecked() and true or nil; if onChange then onChange() end end)
+  cb:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:AddLine(L["Without other characters' materials"], GOLD[1], GOLD[2], GOLD[3])
+    GameTooltip:AddLine(L["Only your bags and bank count; what your other characters have is bought or farmed like everything else."], 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  return cb, fs
+end
+
 -- Page --------------------------------------------------------------------------------------------------------------
 function UI.CreateSkillUpPage(parent)
   local f = CreateFrame("Frame", nil, parent); f:SetAllPoints(); f:Hide()
   local prof, plan
-  UI.SectionTitle(f, L["Skill-Up Helper"], 8, -4, -430)
-  local skillFS = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlight"); skillFS:SetPoint("TOPLEFT", 10, -34)
-  local tFS = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlight"); tFS:SetPoint("LEFT", skillFS, "RIGHT", 24, 0); tFS:SetText(L["Target"])
-  local box = FLT.SkinBlizz(CreateFrame("EditBox", nil, f, "InputBoxTemplate"))
+  -- header (6.2.7-beta19, user 13.11.: "den kopfteil nicht sehr uebersichtlich"): the title with Recalculate / Open guide,
+  -- under it one framed box - line 1 your skill, the target and the last auction house scan, line 2 the three switches
+  -- spread evenly - and the price note under the box
+  UI.SectionTitle(f, L["Skill-Up Helper"], 8, -4, -280)
+  local box0 = CreateFrame("Frame", nil, f); box0:SetPoint("TOPLEFT", 10, -30); box0:SetPoint("RIGHT", f, "RIGHT", -10, 0); box0:SetHeight(64)
+  UI.MarkBG(UI.RoundRect(box0, box0, "BACKGROUND", 0, 7, 1, 0.07, 0.06, 0.05, 0.95))
+  UI.RoundRect(box0, box0, "BORDER", 0, 8, 0, 0.45, 0.35, 0.20, 0.9, UI.ASSET_ROOT .. "window_ring")
+  local sep = UI.makeTexture(box0, "ARTWORK", 0.62, 0.47, 0.24, 0.35); sep:SetHeight(1)
+  sep:SetPoint("LEFT", box0, "TOPLEFT", 10, -33); sep:SetPoint("RIGHT", box0, "TOPRIGHT", -10, -33)
+  local skillFS = FLT.NewFS(box0, nil, "OVERLAY", "GameFontHighlight"); skillFS:SetPoint("LEFT", box0, "TOPLEFT", 14, -17)
+  local tFS = FLT.NewFS(box0, nil, "OVERLAY", "GameFontHighlight"); tFS:SetPoint("LEFT", skillFS, "RIGHT", 28, 0); tFS:SetText(L["Target"])
+  local box = FLT.SkinBlizz(CreateFrame("EditBox", nil, box0, "InputBoxTemplate"))
   box:SetSize(36, 20); box:SetPoint("LEFT", tFS, "RIGHT", 10, 0); box:SetAutoFocus(false); box:SetNumeric(true); box:SetMaxLetters(3); box:SetJustifyH("CENTER")
   local calc -- forward
   box:SetScript("OnEnterPressed", function(self) self:ClearFocus(); calc() end)
   box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-  local quick, qx = {}, nil
+  local quick = {}
   for i, cap in ipairs({ 75, 150, 225, 300 }) do
-    local b = UI.GoldButton(f, tostring(cap), 38, 20, nil, 11)
+    local b = UI.GoldButton(box0, tostring(cap), 38, 20, nil, 11)
     b:SetPoint("LEFT", i == 1 and box or quick[i - 1], "RIGHT", i == 1 and 10 or 4, 0)
     b:SetScript("OnClick", function() box:SetText(tostring(cap)); calc() end)
     quick[i] = b
   end
-  qx = quick[4]
-  -- switches (recipes from the auction house / from vendors): off until the user decides (CLAUDE.md "Fixed rules")
-  local function switch(text, key, anchor, dx)
-    local cb = FLT.SkinBlizz(CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")); cb:SetSize(22, 22)
-    cb:SetPoint("LEFT", anchor, "RIGHT", dx, 0)
-    local fs = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); fs:SetPoint("LEFT", cb, "RIGHT", 4, 0); fs:SetText(text)
+  -- when Auctionator last scanned the auction house: green within the hour, red after (user 12.11.)
+  local scanFS = FLT.NewFS(box0, nil, "OVERLAY", "GameFontHighlightSmall"); scanFS:SetPoint("RIGHT", box0, "TOPRIGHT", -14, -17); scanFS:SetJustifyH("RIGHT")
+  -- the switches (patterns from the auction house / from vendors, without other characters' materials), a third of the
+  -- box each
+  local switches = {}
+  local function switch(text, key)
+    local cb = FLT.SkinBlizz(CreateFrame("CheckButton", nil, box0, "UICheckButtonTemplate")); cb:SetSize(22, 22)
+    local fs = FLT.NewFS(box0, nil, "OVERLAY", "GameFontHighlightSmall"); fs:SetPoint("LEFT", cb, "RIGHT", 4, 0); fs:SetText(text)
     cb:SetChecked(on(key))
     cb:SetScript("OnClick", function(self) sdb()[key] = self:GetChecked() and true or false; calc() end)
-    return cb, fs
+    switches[#switches + 1] = cb
   end
-  local _, ahFS = switch(L["Patterns from the auction house"], "ah", qx, 20)
-  switch(L["Patterns from vendors"], "vendor", ahFS, 14)
-  local status = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); status:SetPoint("TOPLEFT", 10, -62); status:SetPoint("RIGHT", f, "RIGHT", -300, 0)
+  switch(L["Patterns from the auction house"], "ah")
+  switch(L["Patterns from vendors"], "vendor")
+  do
+    local cb, fs = UI.NoAltsSwitch(box0, function() if calc then calc(true) end end) -- the costs change: a new route
+    fs:SetPoint("LEFT", cb, "RIGHT", 4, 0); switches[3] = cb
+  end
+  local function placeSwitches()
+    local w = box0:GetWidth() or 0
+    for i, cb in ipairs(switches) do cb:ClearAllPoints(); cb:SetPoint("LEFT", box0, "TOPLEFT", 10 + (i - 1) * math.floor((w - 20) / 3), -48) end
+  end
+  box0:SetScript("OnSizeChanged", placeSwitches); placeSwitches()
+  local status = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); status:SetPoint("TOPLEFT", 12, -102); status:SetPoint("RIGHT", f, "RIGHT", -12, 0)
   status:SetJustifyH("LEFT"); status:SetWordWrap(false)
-  -- when Auctionator last scanned the auction house: green within the hour, red after (user 12.11.)
-  local scanFS = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); scanFS:SetPoint("TOPRIGHT", -12, -62); scanFS:SetJustifyH("RIGHT")
   -- the big progress bar: skill since the plan was started -> target (user 12.11.: "ein grosser, damit es optisch gut aussieht")
-  local bar = CreateFrame("Frame", nil, f); bar:SetPoint("TOPLEFT", 10, -80); bar:SetPoint("RIGHT", f, "RIGHT", -10, 0); bar:SetHeight(28)
+  local bar = CreateFrame("Frame", nil, f); bar:SetPoint("TOPLEFT", 10, -120); bar:SetPoint("RIGHT", f, "RIGHT", -10, 0); bar:SetHeight(28)
   UI.MarkBG(UI.RoundRect(bar, bar, "BACKGROUND", 0, 7, 1, 0.07, 0.06, 0.05, 0.95))
   UI.RoundRect(bar, bar, "BORDER", 0, 8, 0, 0.62, 0.47, 0.24, 0.95, UI.ASSET_ROOT .. "window_ring")
   local fill = bar:CreateTexture(nil, "ARTWORK"); FLT.SetTex(fill, "Interface\\TargetingFrame\\UI-StatusBar")
@@ -572,7 +629,7 @@ function UI.CreateSkillUpPage(parent)
   -- the row spans exactly the bar's width; the tiles share it (beta13, user 12.11.: flush with the bar)
   local tiles = {}
   local TILE_GAP = 6
-  local row = CreateFrame("Frame", nil, f); row:SetPoint("TOPLEFT", 10, -120); row:SetPoint("RIGHT", f, "RIGHT", -10, 0); row:SetHeight(46)
+  local row = CreateFrame("Frame", nil, f); row:SetPoint("TOPLEFT", 10, -160); row:SetPoint("RIGHT", f, "RIGHT", -10, 0); row:SetHeight(46)
   local function layoutTiles()
     local w = row:GetWidth() or 0
     if w <= 0 then return end
@@ -607,7 +664,7 @@ function UI.CreateSkillUpPage(parent)
   local tResale = tile(7, L["Resale value"])
   tResale.value:SetTextColor(0.62, 0.62, 0.62)
   layoutTiles()
-  local note = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); note:SetPoint("TOPLEFT", 12, -170); note:SetPoint("RIGHT", f, "RIGHT", -10, 0)
+  local note = FLT.NewFS(f, nil, "OVERLAY", "GameFontDisableSmall"); note:SetPoint("TOPLEFT", 12, -210); note:SetPoint("RIGHT", f, "RIGHT", -10, 0)
   note:SetJustifyH("LEFT")
   local open = UI.GoldButton(f, L["Open guide"], 120, 24, nil, 12); open:SetPoint("TOPRIGHT", -10, -2)
   open:SetScript("OnClick", function() SU.ShowGuide(plan, prof) end)
@@ -623,9 +680,9 @@ function UI.CreateSkillUpPage(parent)
   recalc:SetScript("OnLeave", function() GameTooltip:Hide() end)
   local cols = { { x = 0, w = 80, text = L["Skill"] }, { x = 80, w = 360, text = L["Recipe"] }, { x = 440, w = 90, text = L["Crafts"] },
     { x = 530, w = 130, text = L["Cost"] }, { x = 660, w = 160, text = L["Learn"] } }
-  UI.ColumnHeader(f, cols, 820, -186)
+  UI.ColumnHeader(f, cols, 820, -226)
   local sf = FLT.SkinBlizz(CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate"))
-  sf:SetPoint("TOPLEFT", 4, -214); sf:SetPoint("BOTTOMRIGHT", -26, 4)
+  sf:SetPoint("TOPLEFT", 4, -254); sf:SetPoint("BOTTOMRIGHT", -26, 4)
   local child = CreateFrame("Frame", nil, sf); child:SetSize(800, 10); sf:SetScrollChild(child)
   if UI.PlaceScrollBar then UI.PlaceScrollBar(sf) end
   local empty = FLT.NewFS(child, nil, "OVERLAY", "GameFontDisable"); empty:SetPoint("TOP", 0, -30); empty:SetWidth(700)
@@ -644,6 +701,8 @@ function UI.CreateSkillUpPage(parent)
       b:SetScript("OnLeave", function() GameTooltip:Hide() end)
       prow[pused] = b
     end
+    -- rows are reused; the "Materials" head and its rows move icon and name to the left edge
+    b.icon:ClearAllPoints(); b.icon:SetPoint("LEFT", 88, 0); b.name:ClearAllPoints(); b.name:SetPoint("LEFT", 114, 0); b.name:SetWidth(320)
     b:ClearAllPoints(); b:SetPoint("TOPLEFT", 0, y); b:SetPoint("RIGHT", child, "RIGHT", 0, 0); b:Show()
     return b
   end
@@ -738,6 +797,7 @@ function UI.CreateSkillUpPage(parent)
       local h = row(y - 6); h.step, h.item = nil, nil
       h.skill:SetText(""); h.icon:SetTexture(nil); h.crafts:SetText(""); h.cost:SetText(""); h.note:SetText("")
       h.name:SetText(L["Materials"]); h.name:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+      h.name:ClearAllPoints(); h.name:SetPoint("LEFT", 12, 0) -- at the left edge of the table, like the skill column (user 13.11. 10:58: still "nicht ganz links")
       h:SetScript("OnEnter", nil); h:SetScript("OnClick", nil)
       y = y - 36
       for _, id in ipairs(ids) do
@@ -746,6 +806,8 @@ function UI.CreateSkillUpPage(parent)
         local bags = FLT.CraftList and FLT.CraftList.InBags and FLT.CraftList.InBags(id) or 0
         b.step, b.item = nil, id
         b.skill:SetText(""); b.icon:SetTexture(icon(id))
+        -- under the "Materials" heading (user 13.11. 11:00: "damit die materialien auch unter materials stehen")
+        b.icon:ClearAllPoints(); b.icon:SetPoint("LEFT", 12, 0); b.name:ClearAllPoints(); b.name:SetPoint("LEFT", 38, 0); b.name:SetWidth(396)
         b.name:SetText(itemName(id)); b.name:SetTextColor(1, 1, 1)
         b.crafts:SetText((have >= want and "|cff40ff60" or "|cffffffff") .. have .. " / " .. want .. "|r")
         local where = bags < want and elsewhere(id)

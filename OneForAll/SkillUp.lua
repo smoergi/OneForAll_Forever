@@ -53,10 +53,13 @@ function SU.Fee(prof, spell)
   return f and f[1] or nil, spec
 end
 
--- what you have of an item (bags, bank, other characters of the realm / faction)
+-- the switch "Without other characters' materials" (6.2.7, Discord 13.11.: twinks may need their materials themselves),
+-- shared by the Skill-Up Helper and Profit; off = they count
+function SU.NoAlts() local d = type(OneForAllDB) == "table" and OneForAllDB.skillUp; return d and d.noAlts == true or false end
+-- what you have of an item (bags, bank, other characters of the realm / faction unless SU.NoAlts)
 function SU.Have(id)
   local CL = FLT.CraftList
-  if CL and CL.Stock then return (CL.Stock(id)) or 0 end
+  if CL and CL.Stock then return (CL.Stock(id, SU.NoAlts())) or 0 end
   return GetItemCount and GetItemCount(id, true) or 0
 end
 
@@ -204,7 +207,10 @@ function SU.ProfitBuyList(picks)
   local unit, byItem = ctx.unit, ctx.byItem or {}
   local out, bags, busy = {}, {}, {}
   local function have(id)
-    if not bags[id] then local CL = FLT.CraftList; bags[id] = CL and CL.InBags and CL.InBags(id) or 0 end
+    if not bags[id] then -- bags, bank and the other characters (6.2.7-beta2/4, user 13.11.: "twinks natuerlich auch")
+      local CL = FLT.CraftList
+      bags[id] = CL and CL.Stock and (CL.Stock(id, SU.NoAlts())) or (CL and CL.InBags and CL.InBags(id)) or 0
+    end
     return bags[id]
   end
   local function need(id, n)
@@ -689,21 +695,42 @@ function SU.TrainersFor(prof, rankName)
   return out
 end
 
--- Auctionator shopping list ("OneForAll Skill-Up"): exact searches with the amount; true when sent
--- (plan.ah = { { id, n } }; the Profit page passes its own list and name, 6.2.6-beta28)
-function SU.SendToAuctionator(plan, listName)
+-- Auctionator shopping list ("OneForAll Skill-Up"): exact searches with the amount
+-- (plan.ah = { { id, n } }; the Profit page passes its own list and name, 6.2.6-beta28).
+-- 6.2.7-beta3 (user 13.11.: "pruefen ob der skill up guide das richtig uebergibt"): Auctionator searches by name, and an
+-- item the client has not loaded yet has none - it fell out of the list without a word. Missing names are requested and
+-- the list is sent up to 2 s later; done(ok, missing) is called once at the end (missing = items still without a name).
+local function itemNameOf(id)
+  local CI = C_Item -- looked up live (the file-level GetItemInfo is fixed at load)
+  local n = CI and CI.GetItemNameByID and call(CI.GetItemNameByID, id)
+  if not n then n = call((CI and CI.GetItemInfo) or _G.GetItemInfo, id) end
+  return n
+end
+function SU.SendToAuctionator(plan, listName, done, tries)
   local a = atr()
-  if not (a and a.CreateShoppingList and a.ConvertToSearchString and plan) then return false end
+  if not (a and a.CreateShoppingList and a.ConvertToSearchString and plan) then if done then done(false, 0) end return false end
+  tries = tries or 0
+  local missing = 0
+  for _, sh in ipairs(plan.ah or {}) do
+    if not itemNameOf(sh.id) then
+      missing = missing + 1
+      if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, sh.id) end
+    end
+  end
+  if missing > 0 and tries < 4 and C_Timer and C_Timer.After then
+    C_Timer.After(0.5, function() SU.SendToAuctionator(plan, listName, done, tries + 1) end)
+    return nil -- sent later
+  end
   local terms = {}
   for _, sh in ipairs(plan.ah or {}) do
-    local name = GetItemInfo and GetItemInfo(sh.id)
+    local name = itemNameOf(sh.id)
     if name then
       local s = call(a.ConvertToSearchString, CALLER, { searchString = name, isExact = true, quantity = sh.n })
       if s then terms[#terms + 1] = s end
     end
   end
-  if #terms == 0 then return false end
-  local ok = pcall(a.CreateShoppingList, CALLER, listName or "OneForAll Skill-Up", terms)
+  local ok = #terms > 0 and pcall(a.CreateShoppingList, CALLER, listName or "OneForAll Skill-Up", terms) or false
+  if done then done(ok, missing) end
   return ok
 end
 

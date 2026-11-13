@@ -36,6 +36,9 @@ function UI.CreateProfitPage(parent)
   known:SetPoint("LEFT", search, "RIGHT", 16, 0)
   local knownFS = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); knownFS:SetPoint("LEFT", known, "RIGHT", 4, 0)
   knownFS:SetText(L["Only known recipes"])
+  if UI.NoAltsSwitch then -- only the shopping list for Auctionator uses what you have
+    local cb, fs = UI.NoAltsSwitch(f); cb:SetPoint("LEFT", knownFS, "RIGHT", 18, 0); fs:SetPoint("LEFT", cb, "RIGHT", 4, 0)
+  end
   local scanFS = FLT.NewFS(f, nil, "OVERLAY", "GameFontHighlightSmall"); scanFS:SetPoint("TOPRIGHT", -12, -38); scanFS:SetJustifyH("RIGHT")
   -- filters (beta32, user 12.11.: "mehr einstellen ... Skill von bis, und Profit von"): learn level from - to and the
   -- least profit in gold, applied to the search result at once; empty = no limit (OneForAllDB.skillUp.profitFilter)
@@ -255,8 +258,12 @@ function UI.CreateProfitPage(parent)
       if src == "ah" then items[#items + 1] = { id = id, n = n } end
     end
     table.sort(items, function(a, b) return a.id < b.id end)
-    local ok = #items > 0 and SU.SendToAuctionator({ ah = items }, "OneForAll Profit")
-    if FLT.Msg then FLT.Msg(ok and L["Shopping list \"OneForAll Profit\" is in Auctionator (Shopping tab)."] or L["Auctionator did not take the list (open the auction house once, then try again)."]) end
+    local function msg(ok, missing)
+      if not FLT.Msg then return end
+      FLT.Msg(ok and L["Shopping list \"OneForAll Profit\" is in Auctionator (Shopping tab)."] or L["Auctionator did not take the list (open the auction house once, then try again)."])
+      if ok and missing > 0 then FLT.Msg(string.format(L["%d materials could not be added yet (item data still loading) - send the list again."], missing)) end
+    end
+    if #items > 0 then SU.SendToAuctionator({ ah = items }, "OneForAll Profit", msg) else msg(false, 0) end
   end
   sendA:SetScript("OnClick", send)
   addCL:SetScript("OnEnter", function(self)
@@ -267,7 +274,7 @@ function UI.CreateProfitPage(parent)
   sendA:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:AddLine(L["Send to Auctionator"], GOLD[1], GOLD[2], GOLD[3])
     GameTooltip:AddLine(L["The auction house materials for the selected recipes (as many crafts as in their fields), as the shopping list \"OneForAll Profit\"."], 1, 1, 1, true)
-    GameTooltip:AddLine(L["What is already in your bags is taken off."], 0.7, 0.7, 0.7, true); GameTooltip:Show()
+    GameTooltip:AddLine(SU.NoAlts and SU.NoAlts() and L["What you already have (bags, bank) is taken off."] or L["What you already have (bags, bank, other characters) is taken off."], 0.7, 0.7, 0.7, true); GameTooltip:Show()
   end)
   sendA:SetScript("OnLeave", function() GameTooltip:Hide() end)
 

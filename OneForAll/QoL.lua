@@ -17,6 +17,7 @@ local DEFAULTS = {
   inviteMode = "friendsguild", keywordMode = "friendsguild", keyword = "inv", duelMode = "friendsguild",
   durabilityPct = 20, mmDir = "auto", logoColor = "teal", -- logo color: turquoise by default (user 27.10.)
   lowRank = true, -- on by default (user 15.10.)
+  tipMousePos = "BOTTOMRIGHT", -- Tooltip at the mouse: off, bottom right preselected (user 13.11.; the list showed "Top left" before)
   mapLandmarks = true, lmDungeons = true, lmFlight = true, lmTransport = true, lmTransitions = true, -- transitions: on like all landmarks (user 01.11.) -- Map Landmarks: on with all parts (user 16.10.)
   gearValue = true, -- Gear Planner Value in item tooltips: on (user 16.10.)
   spellbookTrainer = true, -- trainer button in the spellbook: on (user 22.10.)
@@ -2263,7 +2264,47 @@ local function addQuestLines(tt)
   local _, unit = tt:GetUnit()
   FLT.MapQuests.AddUnitLines(tt, unit)
 end
+-- Tooltip at the mouse (6.2.7-beta15, user 13.11.: "eine option damit der tool tip an der maus geankert werden kann ...
+-- top mit jeweils left center right und das gleiche mit bottom ... in dungeon, raids nicht aktiv und auf pvp schlachtfeldern,
+-- das aber getrennt"). Only tooltips that use the game's default place (GameTooltip_SetDefaultAnchor: units in the world,
+-- action buttons, ...); "Top left" = above the mouse, to its left. Follows the mouse only while such a tooltip is shown.
+do -- own block: this file is at Lua's limit of 200 top-level locals
+QoL.TIP_ANCHORS = {
+  { key = "TOPLEFT", label = N"Top left" }, { key = "TOP", label = N"Top center" }, { key = "TOPRIGHT", label = N"Top right" },
+  { key = "BOTTOMLEFT", label = N"Bottom left" }, { key = "BOTTOM", label = N"Bottom center" }, { key = "BOTTOMRIGHT", label = N"Bottom right" },
+}
+local TIP_POINT = { -- tooltip corner at the cursor, offset (the bottom ones keep clear of the mouse pointer)
+  TOPLEFT = { "BOTTOMRIGHT", -4, 6 }, TOP = { "BOTTOM", 0, 8 }, TOPRIGHT = { "BOTTOMLEFT", 4, 6 },
+  BOTTOMLEFT = { "TOPRIGHT", -4, -20 }, BOTTOM = { "TOP", 0, -24 }, BOTTOMRIGHT = { "TOPLEFT", 18, -20 },
+}
+local function tipMouseOff()
+  if not QoL.Get("tipMouse") then return true end
+  local inside, kind = IsInInstance and IsInInstance()
+  if not inside then return false end
+  if (kind == "party" or kind == "raid" or kind == "scenario") and QoL.Get("tipMouseNoDungeon") then return true end
+  if (kind == "pvp" or kind == "arena") and QoL.Get("tipMouseNoPvP") then return true end
+  return false
+end
+local function tipAtMouse(tt)
+  local p = TIP_POINT[QoL.Get("tipMousePos") or "BOTTOMRIGHT"] or TIP_POINT.BOTTOMRIGHT
+  local x, y = GetCursorPosition()
+  local sc = UIParent:GetEffectiveScale()
+  tt:ClearAllPoints(); tt:SetPoint(p[1], UIParent, "BOTTOMLEFT", x / sc + p[2], y / sc + p[3])
+end
+function QoL.SetupTipMouse()
+  if not (hooksecurefunc and GameTooltip and GameTooltip.HookScript and GetCursorPosition) then return end
+  hooksecurefunc("GameTooltip_SetDefaultAnchor", function(tt, parent)
+    tt._ofaMouse = nil
+    if tt ~= GameTooltip or tipMouseOff() then return end
+    tt:SetOwner(parent or UIParent, "ANCHOR_NONE"); tt._ofaMouse = true; tipAtMouse(tt)
+  end)
+  GameTooltip:HookScript("OnUpdate", function(tt) if tt._ofaMouse then tipAtMouse(tt) end end)
+  GameTooltip:HookScript("OnHide", function(tt) tt._ofaMouse = nil end)
+end
+end
+
 local function setupTooltips()
+  pcall(QoL.SetupTipMouse)
   if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType and Enum.TooltipDataType.Unit then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tt)
       if tt == GameTooltip then pcall(addTargetLine, tt); pcall(addQuestLines, tt) end
