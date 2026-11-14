@@ -514,9 +514,12 @@ local function createDungeonPanel(parent)
     local maxName=COL.level-COL.name-(d.betaNew and 44 or 6)-(partial and 20 or 0)
     if nameW>maxName then nm:SetWidth(maxName); nameW=maxName end
     local afterName=COL.name+nameW+8
+    local nameLine={} -- name, warning icon and NEW tag: { frame, x }, moved up together when the upgrade line shows
+    nameLine[1]={nm,COL.name}
     if partial then
       -- Incomplete data: small warning icon with a tooltip.
       local warn=CreateFrame("Frame",nil,row); warn:SetSize(16,16); warn:SetPoint("LEFT",afterName,0)
+      nameLine[#nameLine+1]={warn,afterName}
       local wt=warn:CreateTexture(nil,"OVERLAY"); wt:SetAllPoints(); FLT.SetTex(wt, "Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew")
       warn:SetScript("OnEnter",function(self)
         GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine(L["Partial data"],1,0.62,0.25)
@@ -527,7 +530,15 @@ local function createDungeonPanel(parent)
     end
     if d.betaNew then
       local tag=FLT.NewFS(row, nil,"OVERLAY","GameFontDisableSmall"); tag:SetPoint("LEFT",afterName,0); tag:SetText(L["NEW"]); tag:SetTextColor(FLT.SkinC(0.40,0.95,0.50))
+      nameLine[#nameLine+1]={tag,afterName}
     end
+    -- 6.2.9: upgrade chance per run under the name (UI/DungeonUpgrades.lua), its items in the tooltip
+    local upText=FLT.NewFS(row, nil,"OVERLAY","GameFontHighlightSmall"); upText:SetPoint("TOPLEFT",nm,"BOTTOMLEFT",0,-2); upText:Hide()
+    do local font,_,flags=upText:GetFont(); if font then upText:SetFont(font,10,flags) end end
+    upText:SetTextColor(FLT.SkinC(0.40,0.95,0.45))
+    local upHover=CreateFrame("Frame",nil,row); upHover:SetPoint("TOPLEFT",upText,"TOPLEFT",-2,2); upHover:SetPoint("BOTTOMRIGHT",upText,"BOTTOMRIGHT",2,-2); upHover:Hide()
+    upHover:SetScript("OnLeave",function() GameTooltip:Hide() end)
+    upHover:SetScript("OnMouseUp",function() row:Click() end) -- the row still opens
 
     local lv=FLT.NewFS(row, nil,"OVERLAY","GameFontHighlight"); lv:SetPoint("LEFT",COL.level,0); lv:SetWidth(COL_W.level); lv:SetJustifyH("CENTER"); lv:SetText(d.level)
     do local font,_,flags=lv:GetFont(); if font then lv:SetFont(font,12,flags) end end
@@ -633,7 +644,19 @@ local function createDungeonPanel(parent)
       if detail._render then detail._render() end
     end)
     local entry={dungeon=d,row=row,questText=qc,levelText=lv,keyIcon=keyIcon,keyText=keyText,order=di,openQuests=0,
-      sortName=(d.short or d.name or ""):lower(),sortSide=sideName,sortZone=zoneText:lower()}
+      sortName=(d.short or d.name or ""):lower(),sortSide=sideName,sortZone=zoneText:lower(),upChance=-1}
+    entry.paintUp=function()
+      local DU=FLT.DungeonUpgrades
+      local r=DU and DU.Get(d)
+      local show=(r and #r.items>0) and true or false
+      entry.upChance=show and r.chance or -1
+      upText:SetShown(show); upHover:SetShown(show)
+      for _,p in ipairs(nameLine) do p[1]:ClearAllPoints(); p[1]:SetPoint("LEFT",p[2],show and 7 or 0) end
+      if show then
+        upText:SetText("|T"..ASSET_ROOT.."icon_arrow_up:11:11:0:0|t "..string.format(L["%s chance of an upgrade"],DU.ChanceText(r)))
+        upHover:SetScript("OnEnter",function(self) GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); DU.Tooltip(GameTooltip,d,r); GameTooltip:Show() end)
+      end
+    end
     do -- search text: names, zone and bosses (built once)
       local parts={d.name or "",DN(d.name or ""),d.short or "",zoneText,d.mapZone or ""}
       for _,b in ipairs(d.bosses or {}) do parts[#parts+1]=b.name or "" end
@@ -655,7 +678,16 @@ local function createDungeonPanel(parent)
     quests=function(e) return e.openQuests end,
     size=function(e) return e.dungeon.size or 0 end,
   }
-  local function sortEntries(list,s,highFirst)
+  local function sortEntries(list,s,highFirst,upFirst)
+    if not (s and SORT_VALUE[s.key]) and upFirst then
+      -- "Best upgrades first" (Settings, 6.2.9): upgrade chance, then the default order
+      table.sort(list,function(a,b)
+        if a.upChance~=b.upChance then return a.upChance>b.upChance end
+        if highFirst then return a.order>b.order end
+        return a.order<b.order
+      end)
+      return
+    end
     if not (s and SORT_VALUE[s.key]) then
       -- default order is by level; "Highest levels first" reverses it
       if highFirst then table.sort(list,function(a,b) return a.order>b.order end)
@@ -715,7 +747,7 @@ local function createDungeonPanel(parent)
             if entry.find:find(searchText,1,true) then visible[#visible+1]=entry end -- search: every bracket, every level
           elseif raids or not onlyFit or fitsPlayer(entry.dungeon) then visible[#visible+1]=entry end
         end
-        sortEntries(visible,s,highFirst)
+        sortEntries(visible,s,highFirst,cfg.upgradesFirst)
         for _,entry in ipairs(visible) do browseOrder[#browseOrder+1]=entry.dungeon end
         for _,entry in ipairs(sec.rows) do entry.row:Hide() end
         if #visible==0 then
@@ -817,7 +849,14 @@ local function createDungeonPanel(parent)
       local ks=requiredKeyStatus(d)
       if ks==nil then entry.keyIcon:Hide() else FLT.SetTex(entry.keyIcon, ks and KEY_ICON_YES or KEY_ICON_NO); entry.keyIcon:Show() end
       if entry.keyText then entry.keyText:SetText(ks~=nil and "" or (d.attunement=="unknown" and "?" or "-")) end
+      entry.paintUp()
     end
+    relayout()
+  end
+  -- item data arrived / the option changed (UI/DungeonUpgrades.lua, Settings)
+  UI.RefreshDungeonUpgrades=function()
+    if not browse:IsShown() then return end
+    for _,entry in ipairs(browseRows) do entry.paintUp() end
     relayout()
   end
   browse:SetScript("OnShow",refreshBrowse)

@@ -7,6 +7,9 @@ local _, FLT = ...
 -- Weights for ratings are per 1 % (GEAR_RATING = rating per 1 %), defense per skill point, the rest per point;
 -- spdmh / spdoh / spdrg = weapon speed: % of the weapon DPS value per second above the kind's normalized speed.
 -- With OneForAll's own changes from tools/gear-weights/overrides.lua (user 12.11.2026; every rule with its reason there).
+-- Enhancement Shaman (user 13.11.2026): the Pawn scale "Enhancement Shaman (Forever)" (attack power = 1, hit / crit /
+-- expertise per 1 %) plus own values for the stats it leaves out; below 60 the % stats follow level (level / 60) and
+-- a survival layer (armor, stamina, health) fades out from 50 to 58. Keep it when this file is generated again.
 FLT.GEAR_STAT_KEYS = {
   ITEM_MOD_AGILITY_SHORT = "agi",
   ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT = "arcane",
@@ -296,7 +299,7 @@ FLT.GEAR_WEIGHTS = {
   SHAMAN = {
     specs = {
       { name = "Elemental", raid = {crit=8.916,dpsmelee=0,dpsoh=0,fire=0.305,hit=13.38,int=0.7803,mp5=0.79,nature=0.685,sp=1,spi=0.2977,sta=0.35}, curve = "Elemental" },
-      { name = "Enhancement", raid = {agi=1.484,ap=1,crit=32.74,dpsmelee=14,dpsoh=0,hit=54.3,int=1.1,mp5=0.147,sp=1.07,spdmh=5.98,spi=0.09987,sta=0.35,str=2.2}, curve = "Enhancement" },
+      { name = "Enhancement", raid = {agi=0.9,ap=1,armor=0.02,crit=18,def=0.2,dodge=2,dpsmelee=18,dpsoh=0,exp=22,fire=0.6,haste=12,hit=28,hp=0.01,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=2,sp=1.9,spdmh=5.98,spi=0.2,sta=0.1,str=2,wskill=4.5}, curve = "Enhancement" },
       { name = "Restoration", raid = {crit=6.8,dpsmelee=0,dpsoh=0,heal=1,int=1.2,mp5=1.42,sp=1,spi=0.975,sta=0.35}, curve = "Restoration" },
     },
     curves = {
@@ -310,22 +313,22 @@ FLT.GEAR_WEIGHTS = {
         {58,{crit=8.182,dpsmelee=0,dpsoh=0,fire=0.3226,hit=11.46,int=0.7803,mp5=0.8022,nature=0.6694,sp=1,spi=0.4924,sta=0.35}},
       },
       ["Enhancement"] = {
-        {10,{agi=0.3316,ap=1,crit=4.95,dpsmelee=14,dpsoh=0,hit=8.209,hp5=1.2,int=0.2663,mp5=0.4207,sp=1.07,spi=0.4,sta=0.6,str=2}},
-        {20,{agi=0.3316,ap=1,crit=4.95,dpsmelee=14,dpsoh=0,hit=8.209,hp5=1.2,int=1,mp5=2.5,sp=1.07,spi=0.4,sta=0.6,str=2}},
-        {30,{agi=1.61,ap=1,armor=0.09974,crit=13.78,def=0.4998,dodge=4.062,dpsmelee=14.33,dpsoh=0,hit=15.16,hp5=2.055,int=1.017,mp5=2.543,sp=0.6521,spdmh=31.66,spi=0.4,sta=1.028,str=2.035}},
-        {40,{agi=1.434,ap=1,armor=0.03082,crit=17.14,def=0.5459,dodge=3.973,dpsmelee=13.78,dpsoh=0,hit=18.91,hp5=1.285,int=0.9937,mp5=2.484,parry=6.299,sp=0.5449,spdmh=15.05,spi=0.4,sta=0.6425,str=1.987}},
-        {50,{agi=1.753,ap=1,armor=0.05952,crit=21.27,def=1.147,dodge=8.184,dpsmelee=14.13,dpsoh=0,hit=25.98,hp5=1.431,int=1.005,mp5=2.512,parry=11.69,sp=0.5015,spdmh=13.77,spi=0.4,sta=0.7155,str=2.01}},
-        {54,{agi=1.645,ap=1,armor=0.03571,crit=25.86,def=0.6884,dodge=4.91,dpsmelee=14.08,dpsoh=0,hit=37.31,hp5=0.3693,int=1.043,mp5=2.512,parry=7.017,sp=0.7291,spdmh=10.65,spi=0.2399,sta=0.3693,str=2.086}},
-        {58,{agi=1.538,ap=1,armor=0.0119,crit=30.44,def=0.2295,dodge=1.637,dpsmelee=14.03,dpsoh=0,hit=48.63,int=1.081,mp5=1.073,parry=2.339,sp=0.9566,spdmh=7.538,spi=0.09987,sta=0.35,str=2.162}},
+        {10,{agi=0.9,ap=1,armor=0.1,crit=3,def=0.2333,dodge=0.6667,dpsmelee=18,dpsoh=0,exp=3.667,fire=0.6,haste=2,hit=4.667,hp=0.05,hp5=1.2,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=0.6667,sp=1.9,spdmh=5.98,spi=0.2,sta=0.6,str=2,wskill=0.75}},
+        {20,{agi=0.9,ap=1,armor=0.1,crit=6,def=0.2667,dodge=1.333,dpsmelee=18,dpsoh=0,exp=7.333,fire=0.6,haste=4,hit=9.333,hp=0.05,hp5=1.2,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=1.333,sp=1.9,spdmh=5.98,spi=0.2,sta=0.6,str=2,wskill=1.5}},
+        {30,{agi=0.9,ap=1,armor=0.1,crit=9,def=0.3,dodge=2,dpsmelee=18,dpsoh=0,exp=11,fire=0.6,haste=6,hit=14,hp=0.05,hp5=1.2,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=2,sp=1.9,spdmh=5.98,spi=0.2,sta=0.6,str=2,wskill=2.25}},
+        {40,{agi=0.9,ap=1,armor=0.1,crit=12,def=0.3333,dodge=2.667,dpsmelee=18,dpsoh=0,exp=14.67,fire=0.6,haste=8,hit=18.67,hp=0.05,hp5=1.2,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=2.667,sp=1.9,spdmh=5.98,spi=0.2,sta=0.6,str=2,wskill=3}},
+        {50,{agi=0.9,ap=1,armor=0.1,crit=15,def=0.3667,dodge=3.333,dpsmelee=18,dpsoh=0,exp=18.33,fire=0.6,haste=10,hit=23.33,hp=0.05,hp5=1.2,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=3.333,sp=1.9,spdmh=5.98,spi=0.2,sta=0.6,str=2,wskill=3.75}},
+        {54,{agi=0.9,ap=1,armor=0.06,crit=16.2,def=0.28,dodge=2.7,dpsmelee=18,dpsoh=0,exp=19.8,fire=0.6,haste=10.8,hit=25.2,hp=0.03,hp5=0.6,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=2.7,sp=1.9,spdmh=5.98,spi=0.2,sta=0.35,str=2,wskill=4.05}},
+        {58,{agi=0.9,ap=1,armor=0.02,crit=17.4,def=0.1933,dodge=1.933,dpsmelee=18,dpsoh=0,exp=21.27,fire=0.6,haste=11.6,hit=27.07,hp=0.01,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=1.933,sp=1.9,spdmh=5.98,spi=0.2,sta=0.1,str=2,wskill=4.35}},
       },
       ["Leveling"] = {
-        {10,{agi=0.3316,ap=1,crit=4.95,dpsmelee=14,dpsoh=0,hit=8.209,hp5=1.2,int=0.2663,mp5=0.4207,sp=1.07,spi=0.4,sta=0.6,str=2}},
-        {20,{agi=0.3316,ap=1,crit=4.95,dpsmelee=14,dpsoh=0,hit=8.209,hp5=1.2,int=1,mp5=2.5,sp=1.07,spi=0.4,sta=0.6,str=2}},
-        {30,{agi=1.61,ap=1,armor=0.09974,crit=13.78,def=0.4998,dodge=4.062,dpsmelee=14.33,dpsoh=0,hit=15.16,hp5=2.055,int=1.017,mp5=2.543,sp=0.6521,spdmh=31.66,spi=0.4,sta=1.028,str=2.035}},
-        {40,{agi=1.434,ap=1,armor=0.03082,crit=17.14,def=0.5459,dodge=3.973,dpsmelee=13.78,dpsoh=0,hit=18.91,hp5=1.285,int=0.9937,mp5=2.484,parry=6.299,sp=0.5449,spdmh=15.05,spi=0.4,sta=0.6425,str=1.987}},
-        {50,{agi=1.753,ap=1,armor=0.05952,crit=21.27,def=1.147,dodge=8.184,dpsmelee=14.13,dpsoh=0,hit=25.98,hp5=1.431,int=1.005,mp5=2.512,parry=11.69,sp=0.5015,spdmh=13.77,spi=0.4,sta=0.7155,str=2.01}},
-        {54,{agi=1.645,ap=1,armor=0.03571,crit=25.86,def=0.6884,dodge=4.91,dpsmelee=14.08,dpsoh=0,hit=37.31,hp5=0.3693,int=1.043,mp5=2.512,parry=7.017,sp=0.7291,spdmh=10.65,spi=0.2399,sta=0.3693,str=2.086}},
-        {58,{agi=1.538,ap=1,armor=0.0119,crit=30.44,def=0.2295,dodge=1.637,dpsmelee=14.03,dpsoh=0,hit=48.63,int=1.081,mp5=1.073,parry=2.339,sp=0.9566,spdmh=7.538,spi=0.09987,sta=0.35,str=2.162}},
+        {10,{agi=0.9,ap=1,armor=0.1,crit=3,def=0.2333,dodge=0.6667,dpsmelee=18,dpsoh=0,exp=3.667,fire=0.6,haste=2,hit=4.667,hp=0.05,hp5=1.2,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=0.6667,sp=1.9,spdmh=5.98,spi=0.2,sta=0.6,str=2,wskill=0.75}},
+        {20,{agi=0.9,ap=1,armor=0.1,crit=6,def=0.2667,dodge=1.333,dpsmelee=18,dpsoh=0,exp=7.333,fire=0.6,haste=4,hit=9.333,hp=0.05,hp5=1.2,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=1.333,sp=1.9,spdmh=5.98,spi=0.2,sta=0.6,str=2,wskill=1.5}},
+        {30,{agi=0.9,ap=1,armor=0.1,crit=9,def=0.3,dodge=2,dpsmelee=18,dpsoh=0,exp=11,fire=0.6,haste=6,hit=14,hp=0.05,hp5=1.2,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=2,sp=1.9,spdmh=5.98,spi=0.2,sta=0.6,str=2,wskill=2.25}},
+        {40,{agi=0.9,ap=1,armor=0.1,crit=12,def=0.3333,dodge=2.667,dpsmelee=18,dpsoh=0,exp=14.67,fire=0.6,haste=8,hit=18.67,hp=0.05,hp5=1.2,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=2.667,sp=1.9,spdmh=5.98,spi=0.2,sta=0.6,str=2,wskill=3}},
+        {50,{agi=0.9,ap=1,armor=0.1,crit=15,def=0.3667,dodge=3.333,dpsmelee=18,dpsoh=0,exp=18.33,fire=0.6,haste=10,hit=23.33,hp=0.05,hp5=1.2,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=3.333,sp=1.9,spdmh=5.98,spi=0.2,sta=0.6,str=2,wskill=3.75}},
+        {54,{agi=0.9,ap=1,armor=0.06,crit=16.2,def=0.28,dodge=2.7,dpsmelee=18,dpsoh=0,exp=19.8,fire=0.6,haste=10.8,hit=25.2,hp=0.03,hp5=0.6,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=2.7,sp=1.9,spdmh=5.98,spi=0.2,sta=0.35,str=2,wskill=4.05}},
+        {58,{agi=0.9,ap=1,armor=0.02,crit=17.4,def=0.1933,dodge=1.933,dpsmelee=18,dpsoh=0,exp=21.27,fire=0.6,haste=11.6,hit=27.07,hp=0.01,int=2.5,mana=0.02,mp5=1,nature=1.2,parry=1.933,sp=1.9,spdmh=5.98,spi=0.2,sta=0.1,str=2,wskill=4.35}},
       },
       ["Restoration"] = {
         {10,{crit=0.684,dpsmelee=0,dpsoh=0,heal=1,int=0.591,mp5=0.737,sp=1,spi=0.49,sta=0.35}},

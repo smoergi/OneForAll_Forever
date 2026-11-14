@@ -183,6 +183,13 @@ local function createSettingsPanel(parent)
   right[#right + 1] = { L["Highest levels first"], L["Shows the high-level brackets at the top of the dungeon list and sorts the dungeons from the highest level down."],
     function() return browseCfg().highFirst and true or false end,
     function(v) browseCfg().highFirst = v or nil; if UI.RefreshDungeonList then UI.RefreshDungeonList() end end }
+  -- 6.2.9: upgrade chance per run under the dungeon name (UI/DungeonUpgrades.lua)
+  right[#right + 1] = { L["Show upgrade chances"], L["Under each dungeon: the chance that one run drops an upgrade for you (Gear Value of your spec). Hover it for the items."],
+    function() return db().dungeonUpgrades ~= false end,
+    function(v) db().dungeonUpgrades = v; if UI.RefreshDungeonUpgrades then UI.RefreshDungeonUpgrades() end end }
+  right[#right + 1] = { L["Best upgrades first"], L["Sorts the dungeons of each level bracket by their upgrade chance (a sort by column head comes first)."],
+    function() return browseCfg().upgradesFirst and true or false end,
+    function(v) browseCfg().upgradesFirst = v or nil; if UI.RefreshDungeonList then UI.RefreshDungeonList() end end }
   right[#right + 1] = { L["Show recipe drops in boss loot"], L["Lists the recipes a boss can drop below its loot, with the same markers as in Professions."],
     function() return db().dungeonRecipes ~= false end,
     function(v) db().dungeonRecipes = v end }

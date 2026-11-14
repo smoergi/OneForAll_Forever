@@ -862,12 +862,12 @@ function UI.CreateGearPlanner(parent)
   box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
   f.searchBox = box
 
-  -- "All slots" on Suggested (6.2.3): the 3 best upgrades of every slot; a slot click shows that slot again
+  -- "All slots" on Suggested (6.2.3): the 5 best upgrades of every slot (3 before 6.2.9); a slot click shows that slot again
   suggestAllBtn = UI.GoldButton(right, L["All slots"], 70, 22, nil, 11); suggestAllBtn:SetPoint("TOPLEFT", 12, -44)
   suggestAllBtn:SetScript("OnClick", function() prefs.suggestAll = not prefs.suggestAll or nil; refreshList() end)
   suggestAllBtn:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:AddLine(L["All slots"], 1, 0.82, 0)
-    GameTooltip:AddLine(L["Shows the 3 best upgrades of every slot. Click again for the selected slot only."], 1, 1, 1, true)
+    GameTooltip:AddLine(L["Shows the 5 best upgrades of every slot. Click again for the selected slot only."], 1, 1, 1, true)
     GameTooltip:Show()
   end)
   suggestAllBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1097,7 +1097,7 @@ function UI.CreateGearPlanner(parent)
     return r
   end
 
-  -- slot headers in "All slots" on Suggested and Wishlist (user 10.11.): gold slot name and a fine line, so the groups of 3 stand apart
+  -- slot headers in "All slots" on Suggested and Wishlist (user 10.11.): gold slot name and a fine line, so the groups of 5 stand apart
   local heads = {}
   local function head(i)
     local h = heads[i]; if h then return h end
@@ -1257,7 +1257,7 @@ function UI.CreateGearPlanner(parent)
     local w = sf:GetWidth(); if w and w > 0 then child:SetWidth(w) end
     wipe(list)
     local slotName = SW(SLOT_NAME[selected]) or ""
-    -- "All slots" on Suggested (6.2.3, user 08.11. / 10.11.): the 3 best upgrades of every slot
+    -- "All slots" on Suggested (6.2.3, user 08.11. / 10.11.): the 5 best upgrades of every slot (user 13.11.: 5, was 3)
     allSlots = tab ~= "wish" and search == "" and prefs.suggestAll and true or false
     suggestAllBtn:SetActive(allSlots)
     local function fits(e) for _, s in ipairs(LOC_SLOTS[e.loc] or {}) do if s == selected then return true end end return false end
@@ -1322,11 +1322,11 @@ function UI.CreateGearPlanner(parent)
         return (a.q or 0) > (b.q or 0)
       end)
       if allSlots then
-        -- grouped by the item's first slot (rings / trinkets / one-handers once), the 3 best per slot, slots in order
+        -- grouped by the item's first slot (rings / trinkets / one-handers once), the 5 best per slot, slots in order
         local perSlot, n = {}, 0
         for _, e in ipairs(list) do
           local s = (LOC_SLOTS[e.loc] or {})[1]
-          if s and (perSlot[s] or 0) < 3 then perSlot[s] = (perSlot[s] or 0) + 1; n = n + 1; list[n] = e end
+          if s and (perSlot[s] or 0) < 5 then perSlot[s] = (perSlot[s] or 0) + 1; n = n + 1; list[n] = e end
         end
         for i = #list, n + 1, -1 do list[i] = nil end
         table.sort(list, function(a, b)
@@ -1335,7 +1335,7 @@ function UI.CreateGearPlanner(parent)
           return (a.delta or -1) > (b.delta or -1)
         end)
       end
-      for i = #list, 61, -1 do list[i] = nil end
+      for i = #list, (allSlots and 101 or 61), -1 do list[i] = nil end -- all slots: 5 x up to 15 slot groups
     end
     local short = shortNames()
     titleHover.head = (search == "" and tab ~= "wish") and string.format(L["Suggested: %s"], allSlots and L["all slots"] or slotName) or title:GetText()

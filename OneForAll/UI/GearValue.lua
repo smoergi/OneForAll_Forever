@@ -6,7 +6,7 @@ local L = FLT.L or setmetatable({}, { __index = function(_, k) return k end }) -
 -- Forever + our overrides, 6.2.6): level 60 = the raid profile, below 60 = the spec's leveling curve at the player's level,
 -- no talents = the class's general leveling curve. Ratings are turned into % first (GEAR_RATING).
 -- Compared with what is worn: rings / trinkets with the weaker one, two-handers with main + off hand; the % is of
--- the whole gear's Value (6.2.5).
+-- the whole gear's Value (6.2.5). Hit and a tank's defense count only up to their caps (6.2.9, Data/GearCaps.lua).
 -- Lean: weights are built once per spec / level / talent change, item values are cached per item and slot,
 -- worn values per slot until the gear changes. Nothing runs until a tooltip or the planner asks.
 
@@ -17,12 +17,18 @@ local GetItemInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
 
 local KEYS, RATING = FLT.GEAR_STAT_KEYS or {}, FLT.GEAR_RATING or {}
 local W, specName, autoTree -- current weights; the talent tree with the most points
+local CAP = {}     -- [stat] = { cap =, have = from talents / race } of the capped stats (Data/GearCaps.lua)
 local values = {}  -- [slot][itemID] = value
+local capAmts = {} -- [slot][itemID] = { hit = %, def = points } of the capped stats in that value (false = none)
 local worn = {}    -- [slot] = value of the worn item (false = empty)
+local wornCap = {} -- [slot] = capped amounts of the worn item (false = none)
 local speeds = {}  -- [itemID] = weapon speed (tooltip data)
 local classOK = {} -- [itemID] = false when the item has "Classes: ..." without the player's class
 local gearSum      -- Value of everything worn (6.2.5: the % is against the whole gear); nil = count again
-local function resetWorn() wipe(worn); gearSum = nil end
+local gen = 0      -- counts up whenever Values may change (GV.Gen, for caches elsewhere: UI/DungeonUpgrades.lua)
+local function resetWorn() wipe(worn); wipe(wornCap); gearSum = nil; gen = gen + 1 end
+local function resetValues() wipe(values); wipe(capAmts) end
+function GV.Gen() return gen end
 
 local function curveAt(curve, level)
   local n = #curve
@@ -53,6 +59,27 @@ local function migrateCustom(c)
   OneForAllCharDB.gearCustomV = 2
 end
 
+-- Stat caps (6.2.9): hit counts only up to the hit cap, a level 60 tank's defense up to the crit cap. Casters (no attack
+-- power in the weights) use the spell hit cap. Hit from talents and race is already there: the game's hit modifier
+-- (ratings on gear are not in it).
+local function buildCaps(w, name, level)
+  CAP = {}
+  local C = FLT.GEAR_CAPS
+  if not C then return end
+  local t = level >= 60 and C.raid or C.leveling
+  local caster = (w.ap or 0) == 0 and (w.rap or 0) == 0
+  local hit = caster and t.spellHit or t.hit
+  if hit and math.max(w.hit or 0, w.shit or 0) > 0 then
+    local f = caster and GetSpellHitModifier or GetHitModifier
+    local ok, have = pcall(f or function() end)
+    have = ok and tonumber(have) or 0
+    CAP.hit = { cap = hit, have = math.min(math.max(have, 0), hit) }
+  end
+  if t.def and (w.def or 0) > 0 and (name == "Protection" or name == "Feral (Bear)" or name == "Custom") then
+    CAP.def = { cap = t.def, have = 0 }
+  end
+end
+
 local function buildWeights()
   local _, cls = UnitClass("player")
   local data = FLT.GEAR_WEIGHTS and FLT.GEAR_WEIGHTS[cls]
@@ -75,7 +102,8 @@ local function buildWeights()
     -- melee weapon DPS only from its own fields (no fallback to the ranged / wand "dps")
     w.dpsmelee, w.dpsoh = w.dpsmelee or 0, w.dpsoh or 0
     W, specName = w, "Custom"
-    wipe(values); resetWorn()
+    buildCaps(w, specName, UnitLevel("player") or 1)
+    resetValues(); resetWorn()
     return
   end
   if pick and data.specs[pick] then tree = pick end
@@ -90,7 +118,8 @@ local function buildWeights()
   -- Forever has one hit and one crit rating for melee and spells (as Gear Judge does)
   w.hit = math.max(w.hit or 0, w.shit or 0); w.crit = math.max(w.crit or 0, w.scrit or 0)
   W, specName = w, spec and spec.name or "Leveling"
-  wipe(values); resetWorn()
+  buildCaps(w, specName, level)
+  resetValues(); resetWorn()
 end
 function GV.SpecName() if not W then buildWeights() end return specName end
 -- the weights of a spec (nil = the active one) at the player's level, as the Value would use them
@@ -136,7 +165,7 @@ end
 function GV.SetSpec(i)
   if type(OneForAllCharDB) ~= "table" then return end
   OneForAllCharDB.gearSpec = i
-  W = nil; wipe(values); resetWorn()
+  W = nil; resetValues(); resetWorn()
   if FLT.GearMarks and FLT.GearMarks.Refresh then FLT.GearMarks.Refresh() end
 end
 
@@ -200,7 +229,9 @@ local function speedBonus(dpsValue, slot, id)
   return dpsValue * pct / 100 * (math.min(math.max(sp, k[2]), k[3]) - k[1])
 end
 
-local function score(stats, slot, id, isWand)
+-- capOut (optional): gets the amounts of the capped stats that counted ({ hit = %, def = points }); the total counts
+-- them in full, the cap is applied against the rest of the gear (capFix)
+local function score(stats, slot, id, isWand, capOut)
   local total, dpsValue = 0, 0
   for k, v in pairs(stats) do
     local s = KEYS[k]
@@ -225,6 +256,8 @@ local function score(stats, slot, id, isWand)
         if slot == 17 and s == "dps" and wk ~= "dpsoh" then val = val * 0.5 end
         total = total + val * w
         if s == "dps" then dpsValue = dpsValue + val * w end
+        local ck = (s == "shit" and "hit") or s
+        if capOut and CAP[ck] then capOut[ck] = (capOut[ck] or 0) + val end
       end
     end
   end
@@ -263,23 +296,25 @@ function GV.EnchantValue(eid, slot, itemID)
 end
 
 local getStats = (C_Item and C_Item.GetItemStats) or GetItemStats
--- value of an item in a slot; nil while the client has no data for it yet
+-- value of an item in a slot; nil while the client has no data for it yet. Second value: its capped stats (or false)
 local function itemValue(id, slot, link)
   if not W then buildWeights() end
   if not W or not getStats then return nil end
-  local cache = values[slot]
-  if not cache then cache = {}; values[slot] = cache end
+  local cache, ccache = values[slot], capAmts[slot]
+  if not cache then cache, ccache = {}, {}; values[slot], capAmts[slot] = cache, ccache end
   -- by link when there is one: a worn "of the Eagle" item has stats its bare item ID lacks
   local key = link or id
   local v = cache[key]
-  if v then return v end
+  if v then return v, ccache[key] end
   if not (GetItemInfo and GetItemInfo(id)) then return nil end
   local stats = getStats(link or ("item:" .. id))
   if not stats then return nil end
   local _, _, _, _, _, cid, sub = GetItemInfoInstant(id)
-  v = score(stats, slot, id, cid == 2 and sub == 19)
-  cache[key] = v
-  return v
+  local amt = {}
+  v = score(stats, slot, id, cid == 2 and sub == 19, amt)
+  amt = next(amt) and amt or false
+  cache[key], ccache[key] = v, amt
+  return v, amt
 end
 
 -- the item's own stats only: the enchant is taken out of the link (user 23.10.), its random bonus stays
@@ -288,12 +323,52 @@ local function wornValue(slot)
   local v = worn[slot]
   if v ~= nil then return v end
   local link = GetInventoryItemLink("player", slot)
-  if not link then worn[slot] = 0; return 0 end
+  if not link then worn[slot] = 0; wornCap[slot] = false; return 0 end
   link = bare(link)
   local id = tonumber(link:match("item:(%d+)"))
-  v = id and itemValue(id, slot, link)
-  if v then worn[slot] = v end
+  local amt
+  if id then v, amt = itemValue(id, slot, link) end
+  if v then worn[slot] = v; wornCap[slot] = amt or false end
   return v
+end
+
+-- Caps: the capped stats of everything worn except the slots in `skip` (worn values must be known)
+local GEAR_SLOTS = { 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 } -- no shirt, no tabard
+local function wornCapped(k, skip)
+  local n = 0
+  for _, s in ipairs(GEAR_SLOTS) do
+    local a = wornCap[s]
+    if a and a[k] then
+      local skipped = false
+      if skip then for _, sk in ipairs(skip) do if sk == s then skipped = true; break end end end
+      if not skipped then n = n + a[k] end
+    end
+  end
+  return n
+end
+local function capWeight(k)
+  if k == "hit" then return math.max(W.hit or 0, W.shit or 0) end
+  return W[k] or 0
+end
+-- what to take off a Value that counted `amount` of a capped stat in full, when `other` of it is there already
+local function capFix(k, amount, other)
+  local c = CAP[k]
+  if not c or not amount or amount <= 0 then return 0 end
+  local before = c.have + other
+  local useful = math.max(0, math.min(c.cap, before + amount) - math.max(before, 0))
+  return (math.min(useful, amount) - amount) * capWeight(k)
+end
+-- the cap correction of an item (amounts `amt`) and of the worn items in `cover` it replaces
+local function capDelta(amt, cover)
+  local fixI, fixB = 0, 0
+  for k in pairs(CAP) do
+    local other = wornCapped(k, cover)
+    fixI = fixI + capFix(k, amt and amt[k], other)
+    local wa = 0
+    for _, s in ipairs(cover) do local a = wornCap[s]; wa = wa + (a and a[k] or 0) end
+    fixB = fixB + capFix(k, wa, other)
+  end
+  return fixI, fixB
 end
 
 
@@ -410,12 +485,23 @@ function GV.Upgrade(id, link)
     base = wornValue(slot); cover = { slot }
   end
   if not base then return v end
+  -- caps (6.2.9): the item's hit / defense counts only up to the cap, with the rest of the gear (without the replaced
+  -- items) and talents; the replaced items are valued the same way, so 2% hit replacing 2% hit stays even
+  if next(CAP) then
+    local all = true
+    for _, s in ipairs(GEAR_SLOTS) do if wornValue(s) == nil then all = false; break end end
+    if all then
+      local _, amt = itemValue(id, replaced or slot, link)
+      local fi, fb = capDelta(amt, cover)
+      v, base = v + fi, base + fb
+    end
+  end
   -- the delta is the item alone; 6th value: what set bonuses add / take on top (shown as an own tooltip line)
   return v, v - base, false, base, replaced, setDelta(id, cover)
 end
 
--- the Value of everything worn, active set bonuses included; nil while an item has no data yet
-local GEAR_SLOTS = { 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 } -- no shirt, no tabard
+-- the Value of everything worn, active set bonuses included, hit / defense past their caps left out; nil while an item
+-- has no data yet
 local function gearTotal()
   if gearSum then return gearSum end
   local t = 0
@@ -424,6 +510,7 @@ local function gearTotal()
     if not v then return nil end
     t = t + v
   end
+  for k in pairs(CAP) do t = t + capFix(k, wornCapped(k), 0) end
   if FLT.ITEM_SETS then for set, n in pairs(wornSets()) do t = t + bonusValue(set, n) end end
   gearSum = t
   return t
@@ -462,7 +549,8 @@ function GV.Change(id, link)
   local kind, pct = kindOf(d, tot)
   local sKind, sPct
   if sd and sd ~= 0 then sKind, sPct = kindOf(d + sd, tot) end
-  return kind, pct, kind == "up" and replaced or nil, sKind, sPct, sd
+  -- 7th value: the change in % of the replaced item alone (6.2.9, user 14.11.: "surely its not only 3.2%")
+  return kind, pct, kind == "up" and replaced or nil, sKind, sPct, sd, d / base * 100
 end
 
 -- own arrows (tools/art/arrows.py); the client's Arrow-Up-Up was tiny and odd in the tooltip (beta10)
@@ -478,12 +566,16 @@ GV.WISH = OFA .. "|T" .. ASSET .. "icon_star:16:16:0:0:64:64:0:64:0:64:255:209:6
 function GV.TooltipLine(tt, id, itemLink)
   local _, _, _, loc, _, cid, sub = GetItemInfoInstant(id)
   if not (loc and FLT.GEAR_LOC_SLOTS and FLT.GEAR_LOC_SLOTS[loc]) or not FLT.GearCanUse(loc, cid, sub) then return end
-  local kind, pct, slot, sKind, sPct, sd = GV.Change(id, itemLink)
+  local kind, pct, slot, sKind, sPct, sd, vsWorn = GV.Change(id, itemLink)
   -- with two slots (rings, trinkets, dual wield): which worn item it is compared with (user 17.10.)
   -- only for upgrades: a downgrade replaces nothing (user 22.10.)
   local link = kind == "up" and slot and GetInventoryItemLink("player", slot)
   local which = link and link:match("%[(.-)%]")
   which = which and ("  |cffb0b0b0" .. string.format(L["(replaces %s)"], which) .. "|r") or ""
+  -- the % of the whole gear stays the headline; next to it how much better / worse than the worn item alone
+  if (kind == "up" or kind == "down") and vsWorn then
+    which = " |cffb0b0b0" .. string.format(L["(%s vs. worn)"], (vsWorn >= 0 and "+" or "-") .. GV.Pct(math.abs(vsWorn)) .. "%") .. "|r" .. which
+  end
   local function line(k, p, extra)
     if k == "up" then tt:AddLine(UP .. string.format(L["Upgrade: %s%%"], GV.Pct(p)) .. extra, 0.25, 1, 0.25)
     elseif k == "down" then tt:AddLine(DOWN .. string.format(L["Downgrade: %s%%"], GV.Pct(p)) .. extra, 1, 0.3, 0.3) end
@@ -518,6 +610,9 @@ function GV.Debug(itemString)
   local slots = {}
   for _, s in ipairs(GEAR_SLOTS) do local wv = wornValue(s); if wv and wv ~= 0 then slots[#slots + 1] = s .. "=" .. string.format("%.1f", wv) end end
   say(string.format(L["Worn Value per slot: %s"], table.concat(slots, "  ")))
+  for k, c in pairs(CAP) do
+    say(string.format(L["Cap %s: gear %.1f + talents %.1f of %s"], k == "hit" and L["Hit %"] or L["Defense"], wornCapped(k), c.have, tostring(c.cap)))
+  end
   say(string.format(L["Item: %.1f  |  replaces: %s (slot %s)  |  change: %s  |  whole gear: %s"], v,
     base and string.format("%.1f", base) or "-", tostring(replaced or (equipped and "worn") or "-"),
     d and string.format("%+.1f", d) or "-", tot and string.format("%.1f", tot) or "-"))
@@ -531,6 +626,6 @@ local ev = CreateFrame("Frame")
 for _, e in ipairs({ "PLAYER_LEVEL_UP", "PLAYER_TALENT_UPDATE", "CHARACTER_POINTS_CHANGED", "TRAIT_CONFIG_UPDATED",
   "ACTIVE_TALENT_GROUP_CHANGED", "PLAYER_EQUIPMENT_CHANGED" }) do pcall(ev.RegisterEvent, ev, e) end
 ev:SetScript("OnEvent", function(_, event)
-  if event == "PLAYER_EQUIPMENT_CHANGED" then resetWorn(); setWorn = nil else W = nil end
+  if event == "PLAYER_EQUIPMENT_CHANGED" then resetWorn(); setWorn = nil else W = nil; gen = gen + 1 end
 end)
-GV._reset = function() W = nil; setWorn = nil; wipe(values); resetWorn(); wipe(speeds); wipe(classOK) end -- tests
+GV._reset = function() W = nil; setWorn = nil; resetValues(); resetWorn(); wipe(speeds); wipe(classOK) end -- tests

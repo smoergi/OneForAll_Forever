@@ -96,6 +96,7 @@ Data\SpecialQuests.lua
 Data\QuestPins.lua
 Data\QuestDrops.lua
 Data\GearWeights.lua
+Data\GearCaps.lua
 Data\ItemSets.lua
 Data\Disenchant.lua
 Data\Enchants.lua
@@ -132,6 +133,7 @@ UI\Professions.lua
 UI\GearPlanner.lua
 UI\GearValue.lua
 UI\GearMarks.lua
+UI\DungeonUpgrades.lua
 UI\Armory.lua
 UI\QuestShare.lua
 TalentData.lua
