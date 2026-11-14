@@ -93,7 +93,16 @@ local function getChainProgress(q)
   for i = #steps, 1, -1 do
     local step = steps[i]
     if step.id and not (FLT.IsQuestDone and FLT:IsQuestDone(step.id)) and getQuestLogInfo({ id = step.id }) then
-      return i, total
+      return i, total, true
+    end
+  end
+  -- No step in the log, but earlier steps done: the chain is started, the next open step can be taken (6.2.8, user 14.11.:
+  -- "wieso steht da unavailable??? ich kann sie doch annehmen") -> its position, not "Unavailable"
+  for i = 1, #steps do
+    local step = steps[i]
+    if step.id and not step.optional and not (FLT.IsQuestDone and FLT:IsQuestDone(step.id)) then
+      if i > 1 then return i, total, false end
+      break
     end
   end
   return nil, total
@@ -122,18 +131,9 @@ local function getDungeonQuestStatus(d, q)
   local required = tonumber(q.required or q.level)
   if playerLevel and required and playerLevel < required then return "unavailable" end
 
-  -- If we have a verified prerequisite chain, keep the quest unavailable until
-  -- the prior required steps are completed. Optional lead-ins never block.
-  -- Unknown prerequisites are not guessed here.
-  local chain = q.id and FLT.QUEST_PREREQ_CHAINS and FLT.QUEST_PREREQ_CHAINS[q.id]
-  if chain then
-    for _, step in ipairs(chain) do
-      if step.id and step.id ~= q.id and not step.optional and FLT.IsQuestDone and not FLT:IsQuestDone(step.id) then
-        return "unavailable"
-      end
-    end
-  end
-
+  -- A chain not started yet is no reason for "Unavailable": its first step can be taken (6.2.8, user 14.11.: "unavailable
+  -- nur wenn ich sie aufgrund irgendwelcher gruende nicht annehmen kann.. level, rasse, etc."). The row shows "Chain" and
+  -- the quest pane the chain with its steps.
   return "available"
 end
 

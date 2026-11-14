@@ -71,6 +71,32 @@ and add the file to OneForAll.toc before UI\MainFrame.lua.
 Changelog (newest first)
 ========================
 
+6.2.8 - Dungeon quest chains and rewards, Brazilian Portuguese
+==============================================================
+- Dungeon quests: every dungeon quest checked against QuestieDB and Wowhead Forever. 48 missing quest chains and
+  pre-quests (The Drowned City, Alcaz Prison, Krol'dok Stronghold, Blackmaw Hold, Ruins of Lordaeron ...), 33 missing
+  quests (among them all new WoW Forever ones of the old dungeons) and the rewards of all dungeon quests (about 80 quests
+  corrected: rewards of another quest, new Forever choices, missing rewards). Items given on top of the chosen reward
+  show under "You will also receive:". The chain steps show quest giver, turn-in (with map buttons), level and objective.
+- Dungeon quests: "Unavailable" only when you cannot take a quest (level, faction, race, class); a chain not started yet
+  shows "Available | Chain", a started one "Chain started" and the step you are at. The Drowned City lists its quests like
+  in the game (pre-quests only as chain steps).
+- Boss loot: the new WoW Forever drops of all dungeons (53 items, e.g. Herod's Band of Crimson Light), new bosses Ruuzlu
+  (Zul'Farrak), Malor the Zealous, Crimson Hammersmith, Black Guard Swordsmith and Ezra Grimm (Stratholme), trash drops of
+  Ruins of Lordaeron.
+- Armory > Quests (Cozy Sleeping Bag and the other chains): steps show Done / In log / Ready to turn in like the dungeon
+  quests; click a step for its start, turn-in (map buttons), level and objective; the map button points to the turn-in
+  once the quest is in your log.
+- Shaman class quests: the Air Totem row has the whole Call of Air chain with the "Chain" button.
+- Gear Planner: dungeon quest rewards count from the level you can take the quest at (Wingblade was missing from 1 - 20);
+  Greatstaff of the Necrokhans, the City of Dalaran and Library Books rewards are in it.
+- Skill-Up guide: "Buy" in the vendor section while a merchant who sells it is open.
+- Profit: Reset button; Frilled Lichen, Pristine Leather and Torbernite no longer count as vendor items (only a black
+  market NPC lists them), so Cerulean Dye no longer shows a huge profit.
+- Trainers: no more freeze when buying at a trainer; the trainer is read once per visit.
+- Nameplate quest marks: on plates with the level above the bar the mark sits right of the bar.
+- New language: Brazilian Portuguese (translation by ValadaresX), with quest and NPC names in a Brazilian client.
+
 6.2.7 - New Forever dungeons filled in, Buy at the merchant, Tooltip at the mouse
 ==================================================================================
 - New Forever dungeons: boss loot for Blackmaw Hold, Shaper's Terrace, Krol'dok Stronghold and Alcaz Prison (about 70 items

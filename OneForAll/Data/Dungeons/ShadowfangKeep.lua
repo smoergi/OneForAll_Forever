@@ -110,6 +110,20 @@ FLT.DUNGEON_REGISTRY["Shadowfang Keep"] = {
             rewardItems = {
             },
         },
+        {
+            level = 23,
+            id = 78270,
+            name = "Goblin Lockpicks",
+            requires = 1,
+            faction = "Both",
+            class = "ROGUE",
+            pickup = "Veenix, Stonetalon Mountains (58.2, 51.7)",
+            objective = "Find The Horn of Xelthos inside of Shadowfang Keep. Then, return it to C's dead drop near Pyrewood Village.",
+            turnin = "Veenix, Stonetalon Mountains",
+            rewardItems = {
+                {210186, "Breaching Charge", 1},
+            },
+        },
     },
     bosses = {
         {

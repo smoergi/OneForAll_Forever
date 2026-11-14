@@ -49,8 +49,15 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             pickup = "Leonid Barthalomew the Revered, Eastern Plaguelands (71.9, 48.3)",
             objective = "Travel to Stratholme, in the north. Search the supply crates that litter the city and recover 5 Stratholme Holy Water. Return to Leonid Barthalomew the Revered when you have collected enough of the blessed fluid.",
             turnin = "Leonid Barthalomew the Revered, Eastern Plaguelands",
-            rewardItems = {{3928, "Superior Healing Potion", 1}, {6149, "Greater Mana Potion", 1}, {13216, "Crown of the Penitent", 3}, {13217, "Band of the Penitent", 3}},
             rewardChoice = true,
+            rewardItems = {
+                {13216, "Crown of the Penitent", 2},
+                {13217, "Band of the Penitent", 2},
+            },
+            rewardAlso = {
+                {3928, "Superior Healing Potion", 1},
+                {6149, "Greater Mana Potion", 1},
+            },
         },
         {
             id = 5251,
@@ -193,6 +200,31 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
             rewardItems = {
             },
         },
+        {
+            level = 60,
+            id = 5281,
+            name = "The Restless Souls",
+            requires = 55,
+            faction = "Both",
+            pickup = "Caretaker Alen, Eastern Plaguelands (69.9, 53.7)",
+            objective = "Find Egan. You only know that he was last seen around Stratholme.",
+            turnin = "Egan, Eastern Plaguelands",
+            rewardItems = {
+            },
+        },
+        {
+            level = 59,
+            id = 84330,
+            name = "A Wee Bit O' Necromancy",
+            requires = 54,
+            faction = "Alliance",
+            class = "PALADIN",
+            pickup = "Orthas, Eastern Plaguelands (24.3, 69.1)",
+            objective = "Obtain a Necrotic Runestone from Maleki the Pallid in Stratholme, then find the Rotting Dwarf Corpse near the Undercroft in southwestern Eastern Plaguelands.",
+            turnin = "Rotting Dwarf Corpse, Eastern Plaguelands",
+            rewardItems = {
+            },
+        },
     },
     bosses = {
         {
@@ -216,6 +248,7 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
                 {13378, "Songbird Blouse", "Chest, Leather", 3},
                 {13383, "Woollies of the Prancing Minstrel", "Legs, Mail", 3},
                 {13384, "Rainbow Girdle", "Waist, Plate", 3},
+                {13379, "Piccolo of the Flaming Fire", "Miscellaneous", 3},
             },
         },
         {
@@ -233,6 +266,7 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
                 {13405, "Wailing Nightbane Pauldrons", "Shoulder, Plate", 3},
                 {13408, "Soul Breaker", "Main Hand, Axe", 3},
                 {13409, "Tearfall Bracers", "Wrist, Cloth", 3},
+                {16717, "Wildheart Gloves", "Hands, Leather", 3},
             },
         },
         {
@@ -244,6 +278,7 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
                 {13401, "The Cruel Hand of Timmy", "One-Hand, Mace", 3},
                 {13402, "Timmy's Galoshes", "Feet, Mail", 3},
                 {13403, "Grimgore Noose", "Waist, Cloth", 3},
+                {16724, "Lightforge Gauntlets", "Hands, Plate", 3},
             },
         },
         {
@@ -432,6 +467,49 @@ FLT.DUNGEON_REGISTRY["Stratholme"] = {
                 {23125, "Chains of the Lich", "Neck", 3},
                 {23124, "Staff of Balzaphon", "Two-Hand, Staff", 3},
                 {23126, "Waistband of Balzaphon", "Waist, Cloth", 3},
+            },
+        },
+        {
+            -- Scarlet side; Wowhead Forever zone drops 13.11.2026
+            name = "Malor the Zealous",
+            npcID = 11032,
+            rare = true,
+            loot = {
+                {276397, "Hand of the Zealous", "Two-Hand, Mace", 3},
+                {276398, "Scarlet Malice", "One-Hand, Mace", 3},
+                {276399, "Plate of the Scarlet Bastion", "Chest, Plate", 3},
+            },
+        },
+        {
+            -- summoned (Blacksmith plans); Wowhead Forever zone drops 13.11.2026
+            name = "Crimson Hammersmith",
+            npcID = 11120,
+            rare = true,
+            loot = {
+                {276403, "Scarlet Bonebreaker", "Two-Hand, Mace", 3},
+                {276404, "Masterwork Crimson Hammer", "Main Hand, Mace", 3},
+            },
+        },
+        {
+            -- summoned (Blacksmith plans); Wowhead Forever zone drops 13.11.2026
+            name = "Black Guard Swordsmith",
+            npcID = 11121,
+            rare = true,
+            loot = {
+                {276434, "Black Guard Skullcap", "Head, Mail", 3},
+                {276455, "Swordsmith Mitts", "Hands, Leather", 3},
+                {276456, "Plague Defiled Buckler", "Off Hand, Shield", 3},
+            },
+        },
+        {
+            -- rare; Wowhead Forever zone drops 13.11.2026
+            name = "Ezra Grimm",
+            npcID = 11058,
+            rare = true,
+            loot = {
+                {276394, "Luxurious Smoking Jacket", "Chest, Cloth", 3},
+                {276395, "Grimm's Packing Gloves", "Hands, Cloth", 3},
+                {276396, "Ezra's Seal of Authenticity", "Finger", 3},
             },
         },
     },

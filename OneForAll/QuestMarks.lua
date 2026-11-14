@@ -138,7 +138,13 @@ local function place(plate, m)
   m:ClearAllPoints(); m.text:ClearAllPoints()
   if pos == "right" then
     local lv = levelBox(uf)
-    if lv then m:SetPoint("LEFT", lv, "RIGHT", 3, 0) else m:SetPoint("LEFT", bar, "RIGHT", 30, 0) end
+    -- only a level box BESIDE the bar counts (6.2.8, user screenshot 13.11.: plates with the level above the bar - its wide
+    -- text field pushed the sword far to the right); above / below the bar the mark sits right of the bar
+    if lv then
+      local lb, lt, bb, bt = lv:GetBottom(), lv:GetTop(), bar:GetBottom(), bar:GetTop()
+      if lb and lt and bb and bt and (lb >= bt - 2 or lt <= bb + 2) then lv = nil end
+    end
+    if lv then m:SetPoint("LEFT", lv, "RIGHT", 3, 0) else m:SetPoint("LEFT", bar, "RIGHT", lv == nil and levelBox(uf) and 4 or 30, 0) end
     m.text:SetPoint("LEFT", m, "RIGHT", 1, 0)
   elseif pos == "top" then
     m:SetPoint("BOTTOM", bar, "TOP", 0, 16); m.text:SetPoint("LEFT", m, "RIGHT", 1, 0)

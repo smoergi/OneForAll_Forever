@@ -83,8 +83,14 @@ end
 -- learn costs (and the real level) while a class trainer of your class is open
 -- the spell behind a trainer line, read from a hidden tooltip (names and rank
 -- texts are not reliable enough to match our list)
+-- 6.2.8 (Discord FatPunk 13.11.: "Freeze when visiting the trainer"): building a tooltip per line is slow, so each line's
+-- spell ID is read once per trainer visit (keyed by name and rank text; wiped when the trainer opens / closes)
 local scanTip
+local idCache = {}
 local function serviceSpellID(i)
+  local name, sub = GetTrainerServiceInfo(i)
+  local key = name and (name .. "|" .. tostring(sub))
+  if key and idCache[key] ~= nil then return idCache[key] or nil end
   if not scanTip then
     scanTip = CreateFrame("GameTooltip", "OneForAllTrainerScanTip", nil, "GameTooltipTemplate")
   end
@@ -95,7 +101,9 @@ local function serviceSpellID(i)
     id = select(2, scanTip:GetSpell())
     scanTip:Hide()
   end)
-  return tonumber(id)
+  id = tonumber(id)
+  if key then idCache[key] = id or false end
+  return id
 end
 -- Learn level of recipes (6.1.5, user 05.11.: not in the client data, the trainer knows it): read at a profession
 -- trainer, kept in OneForAllDB.recipeLearn[profession][spellID] and filled into the recipe data (r.req) where it is missing
@@ -115,6 +123,16 @@ function FLT.ApplyRecipeLearnLevels()
     end
   end
 end
+local byNameCache = {}
+local function recipeByName(prof)
+  local t = byNameCache[prof]
+  if not t then
+    t = {}
+    for _, r in ipairs(FLT.PROFESSION_RECIPES[prof] or {}) do t[r.n] = r end
+    byNameCache[prof] = t
+  end
+  return t
+end
 local function readProfTrainer(all)
   if not (GetTrainerServiceSkillReq and FLT.PROFESSION_RECIPES) then return end
   -- user 05.11.: learned recipes kept their "?" - the trainer list hides them (filter "already learned" off). On opening
@@ -131,8 +149,6 @@ local function readProfTrainer(all)
       if ok and not (v == true or v == 1) and pcall(SetTrainerServiceTypeFilter, t, true) then saved[t] = true end
     end
   end
-  local byName = {}
-  for prof, list in pairs(FLT.PROFESSION_RECIPES) do for _, r in ipairs(list) do byName[prof .. "|" .. r.n] = r end end
   local got = 0
   for i = 1, GetNumTrainerServices() do
     local name, _, category = GetTrainerServiceInfo(i)
@@ -142,9 +158,12 @@ local function readProfTrainer(all)
       -- the trainer names the profession in the client's language ("Schneiderei"): our key (6.2.0)
       skill = FLT.ProfKey and FLT.ProfKey(skill) or skill
       if type(skill) == "string" and rank then
-        local r = byName[skill .. "|" .. name]
-        local id = serviceSpellID(i)
-        if not r and id then for _, x in ipairs(FLT.PROFESSION_RECIPES[skill] or {}) do if x.s == id then r = x; break end end end
+        -- by name first (one table per profession, built once); the slow spell ID only when the name does not match
+        local r = recipeByName(skill)[name]
+        if not r then
+          local id = serviceSpellID(i)
+          if id then for _, x in ipairs(FLT.PROFESSION_RECIPES[skill] or {}) do if x.s == id then r = x; break end end end
+        end
         if r then
           db[skill] = db[skill] or {}; db[skill][r.s] = rank; got = got + 1
           -- the fee as the trainer asks it (6.2.6, Skill-Up Helper; beats Data/ProfessionFees.lua)
@@ -164,8 +183,14 @@ local function readProfTrainer(all)
 end
 
 local trainerRaw = {}
+local readThisVisit = false -- 6.2.8 (Discord Pylons 13.11.: every learned spell froze the game): read once per visit
 local function readTrainer(show)
   if not GetNumTrainerServices or not GetTrainerServiceInfo then return end
+  -- fees, levels and recipe levels do not change while you stand at the trainer: once per visit (the list can still be
+  -- empty on TRAINER_SHOW - then the first TRAINER_UPDATE reads it)
+  if readThisVisit then if FLT.RefreshTrainerSpells then FLT.RefreshTrainerSpells() end return end
+  if (GetNumTrainerServices() or 0) == 0 then return end
+  readThisVisit = true
   if IsTradeskillTrainer and IsTradeskillTrainer() then readProfTrainer(show); return end
   local db = costsDB(myToken)
   trainerRaw = {}
@@ -196,12 +221,21 @@ end
 
 local ev = CreateFrame("Frame")
 -- not every event exists in every client (e.g. LEARNED_SPELL_IN_TAB is missing in Forever)
-for _, e in ipairs({ "PLAYER_LOGIN", "TRAINER_SHOW", "TRAINER_UPDATE", "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "PLAYER_LEVEL_UP" }) do
+for _, e in ipairs({ "PLAYER_LOGIN", "TRAINER_SHOW", "TRAINER_UPDATE", "TRAINER_CLOSED", "SPELLS_CHANGED", "LEARNED_SPELL_IN_TAB", "PLAYER_LEVEL_UP" }) do
   pcall(ev.RegisterEvent, ev, e)
 end
+local updatePending = false
 local function onEventSafe(_, event)
   if event == "PLAYER_LOGIN" then FLT.ApplyRecipeLearnLevels()
-  elseif event == "TRAINER_SHOW" or event == "TRAINER_UPDATE" then readTrainer(event == "TRAINER_SHOW")
+  elseif event == "TRAINER_SHOW" then idCache = {}; updatePending = false; readThisVisit = false; readTrainer(true)
+  elseif event == "TRAINER_CLOSED" then idCache = {}; updatePending = false; readThisVisit = false
+  elseif event == "TRAINER_UPDATE" then
+    -- one purchase (and our own filter switching) fires several updates: read once, a moment after the last
+    if updatePending then return end
+    updatePending = true
+    if C_Timer and C_Timer.After then
+      C_Timer.After(0.5, function() if updatePending then updatePending = false; FLT.SafeCall("Trainer", readTrainer, false) end end)
+    else updatePending = false; readTrainer(false) end
   elseif FLT.RefreshTrainerSpells then
     if C_Timer and C_Timer.After then C_Timer.After(0.3, FLT.RefreshTrainerSpells) else FLT.RefreshTrainerSpells() end
   end

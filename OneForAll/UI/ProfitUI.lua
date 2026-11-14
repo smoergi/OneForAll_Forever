@@ -239,6 +239,21 @@ function UI.CreateProfitPage(parent)
   -- (beta32: the switch searches again when there is a result, so the list always matches it)
   known:SetScript("OnClick", function(self) sdb().profitAll = (not self:GetChecked()) or nil; if allResults then doSearch() end end)
   search:SetScript("OnClick", doSearch)
+  -- 6.2.8 (user 14.11.: "einen Reset button ... der die Maske zurueck setzt"): empty filters, no selection, no result
+  local reset = UI.GoldButton(f, L["Reset"], 70, 20, nil, 11); reset:SetPoint("LEFT", minS, "RIGHT", 14, 0)
+  reset:SetScript("OnClick", function()
+    local d = fdb(); d.lo, d.hi, d.minS = nil, nil, nil
+    lo:SetText(""); hi:SetText(""); minS:SetText(""); lo:ClearFocus(); hi:ClearFocus(); minS:ClearFocus()
+    sel, allResults, results = {}, nil, nil
+    for k in pairs(qty) do qty[k] = nil end
+    draw()
+  end)
+  reset:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOM"); GameTooltip:AddLine(L["Reset"], GOLD[1], GOLD[2], GOLD[3])
+    GameTooltip:AddLine(L["Clears the filters, the selection and the search result."], 1, 1, 1, true); GameTooltip:Show()
+  end)
+  reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  f.resetButton = reset
   addCL:SetScript("OnClick", function()
     local CL, list = FLT.CraftList, selected()
     if not CL or #list == 0 then return end

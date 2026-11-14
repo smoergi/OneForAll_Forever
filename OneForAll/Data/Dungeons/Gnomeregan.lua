@@ -233,6 +233,43 @@ FLT.DUNGEON_REGISTRY["Gnomeregan"] = {
                 {9588, "Nogg's Gold Ring", 3},
             },
         },
+        {
+            level = 20,
+            id = 79093,
+            name = "Rumi of Gnomeregan: The Collected Works",
+            requires = 1,
+            faction = "Both",
+            pickup = "Owen Thadd, Undercity (73.4, 33.0)",
+            objective = "Collect 'Rumi of Gnomeregan: The Collected Works' and bring it to Garion Wendell in Stormwind.",
+            turnin = "Owen Thadd, Undercity",
+            rewardItems = {
+                {211779, "Comprehension Charm", 1},
+            },
+        },
+        {
+            level = 40,
+            id = 80325,
+            name = "The Mad King",
+            requires = 40,
+            faction = "Horde",
+            pickup = "Thermaplugg's Engineering Notes, dropped by Mekgineer Thermaplugg",
+            objective = "Bring Thermaplugg's Engineering Notes to Nogg at the Valley of Honor in Orgrimmar.",
+            turnin = "Nogg, Orgrimmar",
+            rewardItems = {
+            },
+        },
+        {
+            level = 10,
+            id = 95041,
+            name = "Data Hoarders",
+            requires = 7,
+            faction = "Alliance",
+            pickup = "Jemma Quikswitch, Ironforge (67.7, 44.2)",
+            objective = "Collect 7 Gnomeregan Archival Data cards from around Gnomeregan, then deliver them to Jemma Quikswitch in Ironforge.",
+            turnin = "Jemma Quikswitch, Ironforge",
+            rewardItems = {
+            },
+        },
     },
     bosses = {
         {

@@ -12,16 +12,24 @@ FLT.DUNGEON_REGISTRY["The Drowned City"] = {
     icon = "Interface\\Icons\\INV_Misc_Idol_03",
     quests = {
         {
-            id = 95775,
-            liveXPFallback = 3150,
-            name = "The Drowned City",
             level = 40,
+            id = 96078,
+            name = "A Tale Spun Around the Fire",
             requires = 30,
             faction = "Horde",
-            pickup = "Kin'weelay, Stranglethorn Vale (32.3, 27.7)",
-            objective = "Use the hide and charcoal to create rubbings of the tablets found in the Drowned City.",
-            turnin = "Kin'weelay, Stranglethorn Vale",
-            note = "Make rubbings of the four Tablets of I'lalai inside the city.",
+            objective = "Take the tablet etchings to Master Gadrin in Sen'jin Village in Durotar.",
+            turnin = "Master Gadrin, Durotar",
+            rewardChoice = true,
+            rewardItems = {
+                {279885, "Ceremonial Mallet", 3},
+                {279886, "Sacrificial Sword", 3},
+                {279887, "I'lalai Flayer", 3},
+            },
+            rewardAlso = {
+                {270312, "Translated Tale of I'lalai", 1},
+                {270313, "Tale of I'lalai in Zandali", 1},
+            },
+            rewardSummary = "35s",
         },
         {
             id = 95776,
@@ -53,33 +61,16 @@ FLT.DUNGEON_REGISTRY["The Drowned City"] = {
         },
         {
             level = 40,
-            id = 95787,
-            name = "Take Two With Water",
-            requires = 30,
-            faction = "Alliance",
-            objective = "Use the hide and charcoal to create rubbings of the tablets found in the Drowned City.",
-            rewardItems = {
-            },
-        },
-        {
-            level = 40,
-            id = 95788,
-            name = "Magics of the Drowned City",
-            requires = 30,
-            faction = "Alliance",
-            objective = "Collect 5 I'lalai Fetishes from trolls in the Drowned City.",
-            rewardItems = {
-            },
-        },
-        {
-            level = 40,
             id = 95789,
             name = "Shady Saltseers",
             requires = 34,
             faction = "Both",
             pickup = "Krazek, Stranglethorn Vale (26.9, 77.2)",
             objective = "Collect 10 Voodoo Infused Artifacts from Saltseer pirates in the Drowned City.",
+            rewardChoice = true,
             rewardItems = {
+                {279882, "Rusted Troll War Belt", 2},
+                {279930, "Saltseer's Helm", 2},
             },
         },
         {
@@ -91,7 +82,10 @@ FLT.DUNGEON_REGISTRY["The Drowned City"] = {
             pickup = "Krazek, Stranglethorn Vale (26.9, 77.2)",
             objective = "Slay 3 Saltseer Coroners and Captain Dreadrise in the Drowned City.",
             turnin = "Krazek, Stranglethorn Vale",
+            rewardChoice = true,
             rewardItems = {
+                {279883, "Mutinous Cuffs", 2},
+                {279884, "South Seas Shroud", 2},
             },
         },
         {
@@ -103,7 +97,10 @@ FLT.DUNGEON_REGISTRY["The Drowned City"] = {
             pickup = "Abra Cadabra, Alterac Mountains (12.1, 70.3)",
             objective = "Bring the I'lalai Fetish to Abra Cadabra in Dalaran.",
             turnin = "Abra Cadabra, Alterac Mountains",
+            rewardChoice = true,
             rewardItems = {
+                {279879, "Rune-Etched Epaulets", 3},
+                {279878, "Apprentice Sorcerer's Slacks", 3},
             },
         },
         {
@@ -115,18 +112,13 @@ FLT.DUNGEON_REGISTRY["The Drowned City"] = {
             pickup = "Historian Karnik, Ironforge (77.5, 11.8)",
             objective = "Bring Loremaster Dibbs' I'lalai Translations to Historian Karnik in Ironforge.",
             turnin = "Historian Karnik, Ironforge",
+            rewardChoice = true,
             rewardItems = {
+                {279880, "Ancient Voodoo Pouch", 3},
+                {279881, "Intrepid Explorer's Chainmail", 3},
             },
-        },
-        {
-            level = 40,
-            id = 96078,
-            name = "A Tale Spun Around the Fire",
-            requires = 30,
-            faction = "Horde",
-            objective = "Take the tablet etchings to Master Gadrin in Sen'jin Village in Durotar.",
-            turnin = "Master Gadrin, Durotar",
-            rewardItems = {
+            rewardAlso = {
+                {272124, "Translated Tale of I'lalai", 1},
             },
         },
         {
@@ -243,6 +235,7 @@ FLT.DUNGEON_REGISTRY["The Drowned City"] = {
     -- trash: blue bind-on-equip drops of the dungeon's enemies - Wowhead Forever, one item ID block per new dungeon
     -- (several confirmed by "Dropped by" a mob of this dungeon), 13.11.2026
     trashLoot = {
+        {271718, "Linken's Boots of Iron", "Feet, Mail", 3}, -- Wowhead Forever zone drops 13.11.2026
         {286997, "Depth-Risen Leggings", "Legs, Cloth", 3},
         {286998, "Deep Flora Bindings", "Wrist, Cloth", 3},
         {286999, "Deathcrawler's Chest", "Chest, Leather", 3},

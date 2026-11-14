@@ -75,6 +75,8 @@ FLT.DUNGEON_REGISTRY["Razorfen Kraul"] = {
                 {4197, "Berylline Pads", 3},
                 {6742, "Stonefist Girdle", 3},
                 {6725, "Marbled Buckler", 3},
+            },
+            rewardAlso = {
                 {274084, "Quilboar Blaster", 3},
             },
             rewardSummary = "7,950 XP · pick one of the first 3 items, the rest is always included",
@@ -95,6 +97,8 @@ FLT.DUNGEON_REGISTRY["Razorfen Kraul"] = {
                 {4197, "Berylline Pads", 3},
                 {6742, "Stonefist Girdle", 3},
                 {6725, "Marbled Buckler", 3},
+            },
+            rewardAlso = {
                 {274084, "Quilboar Blaster", 3},
             },
             rewardSummary = "8,500 XP · +200 Thunder Bluff · pick one of the first 3 items, the rest is always included",
@@ -123,6 +127,32 @@ FLT.DUNGEON_REGISTRY["Razorfen Kraul"] = {
             turnin = "Varimathras, Undercity",
             rewardItems = {},
             note = "The follow-up with the same name (Ambassador Malcin) belongs to Razorfen Downs.",
+        },
+        {
+            level = 33,
+            id = 79360,
+            name = "Elemental Aid",
+            requires = 30,
+            faction = "Horde",
+            class = "SHAMAN",
+            pickup = "Rau Cliffrunner, Thousand Needles (46.1, 51.7)",
+            objective = "Defeat Charlga Razorflank in Razorfen Kraul and collect information on the quilboar's plans.",
+            turnin = "Bath'rah the Windwatcher, Alterac Mountains",
+            rewardItems = {
+            },
+        },
+        {
+            level = 33,
+            id = 96264,
+            name = "Elemental Aid",
+            requires = 30,
+            faction = "Alliance",
+            class = "SHAMAN",
+            pickup = "Veyric Thunderhame, Arathi Highlands (59.8, 27.6)",
+            objective = "Defeat Charlga Razorflank in Razorfen Kraul and collect information on the quilboar's plans.",
+            turnin = "Veyric Thunderhame, Arathi Highlands",
+            rewardItems = {
+            },
         },
     },
     bosses = {

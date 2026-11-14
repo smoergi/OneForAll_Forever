@@ -17,7 +17,8 @@ FLT.LOCALES = FLT.LOCALES or {} -- [code] = function returning the table, put th
 
 -- the languages OneForAll speaks, in the order of the drop-down, each in its own language
 FLT.LANGUAGES = { { key = "enUS", label = "English" }, { key = "deDE", label = "Deutsch" },
-  { key = "frFR", label = "Français" }, { key = "esES", label = "Español" } } -- frFR / esES: beta37
+  { key = "frFR", label = "Français" }, { key = "esES", label = "Español" },
+  { key = "ptBR", label = "Português (Brasil)" } } -- frFR / esES: beta37; ptBR: 6.2.8, translation by ValadaresX (GitHub PR #71)
 
 -- the client's language as one of ours: a Mexican Spanish client uses esES, a British English one enUS
 local CLIENT_ALIAS = { esMX = "esES", enGB = "enUS" }

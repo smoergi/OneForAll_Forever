@@ -63,7 +63,11 @@ FLT.DUNGEON_REGISTRY["Alcaz Prison"] = {
             pickup = "Sergeant Ulka, Dustwallow Marsh (70.3, 18.9)",
             objective = "Enter the Alcaz Prison and slay 15 Strashasz Soldiers, 8 Strashaz Enchantresses, and bring the head of Tidemistress Ca'zass to Sergeant Ulka.",
             turnin = "Sergeant Ulka, Dustwallow Marsh",
+            rewardChoice = true,
             rewardItems = {
+                {279824, "Kor'kron Battle Gauntlets", 2},
+                {279826, "Marshdweller's Pants", 2},
+                {279829, "Naga Scale Spaulders", 2},
             },
         },
         {
@@ -75,7 +79,10 @@ FLT.DUNGEON_REGISTRY["Alcaz Prison"] = {
             pickup = "Sergeant Ulka, Dustwallow Marsh (70.3, 18.9)",
             objective = "Enter Alcaz Prison and collect 8 Blood Red Bandanas from the human guards there.",
             turnin = "Eitrigg, Orgrimmar",
+            rewardChoice = true,
             rewardItems = {
+                {279448, "Bloodsplattered Bandana", 2},
+                {279473, "Makeshift Belt", 2},
             },
         },
         {
@@ -97,7 +104,11 @@ FLT.DUNGEON_REGISTRY["Alcaz Prison"] = {
             pickup = "Sully McCleary, Dustwallow Marsh (63.5, 42.3)",
             objective = "Enter the Alcaz Prison and slay 15  Strashasz Soldiers, 8 Strashaz Enchantresses, and bring the head of Tidemistress Ca'zass to Sully McCleary.",
             turnin = "Sully McCleary, Dustwallow Marsh",
+            rewardChoice = true,
             rewardItems = {
+                {279825, "Theramore Defender's Gauntlets", 2},
+                {279826, "Marshdweller's Pants", 2},
+                {279829, "Naga Scale Spaulders", 2},
             },
         },
     },

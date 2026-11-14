@@ -103,7 +103,10 @@ FLT.DUNGEON_REGISTRY["City of Dalaran"] = {
             pickup = "Image of Archmage Modera, Alterac Mountains (14.3, 59.6)",
             objective = "Defeat 8 Seeking Remnants, 8 Saturated Remnants, and 8 Mana Echoes inside the City of Dalaran for Archmage Modera outside of Dalaran.",
             turnin = "Image of Archmage Modera, Alterac Mountains",
+            rewardChoice = true,
             rewardItems = {
+                {279837, "Fallen Guard's Pendant", 2},
+                {279838, "Arcane Infused Rod", 2},
             },
         },
         {
@@ -115,7 +118,11 @@ FLT.DUNGEON_REGISTRY["City of Dalaran"] = {
             pickup = "Image of Archmage Modera, Alterac Mountains (14.3, 59.6)",
             objective = "Collect the Arcane Mote for the Image of Archmage Modera near the City of Dalaran.",
             turnin = "Image of Archmage Modera, Alterac Mountains",
+            rewardChoice = true,
             rewardItems = {
+                {279839, "Spellguard Pauldrons", 3},
+                {279840, "Renewing Footpads", 3},
+                {279841, "Defender of Dalaran", 3},
             },
         },
         {
@@ -127,7 +134,11 @@ FLT.DUNGEON_REGISTRY["City of Dalaran"] = {
             pickup = "Image of Archmage Modera, Alterac Mountains (14.3, 59.6)",
             objective = "Collect the Arcane Mote in the City of Dalaran for Magus Wordeen Voidglare in Tarren Mill.",
             turnin = "Magus Wordeen Voidglare, Hillsbrad Foothills",
+            rewardChoice = true,
             rewardItems = {
+                {279842, "Battle Spaulders", 3},
+                {279843, "Enchanted Sandals", 3},
+                {279844, "Striking Staff", 3},
             },
         },
         {
@@ -152,6 +163,52 @@ FLT.DUNGEON_REGISTRY["City of Dalaran"] = {
             objective = "Speak to Archmage Celindra in the City of Dalaran.",
             turnin = "Archmage Celindra, Alterac Mountains",
             rewardItems = {
+            },
+        },
+        {
+            level = 60,
+            id = 96603,
+            name = "Unstable Magic",
+            requires = 48,
+            faction = "Alliance",
+            pickup = "Archmage Celindra, Alterac Mountains (14.2, 60.0)",
+            objective = "Bring 10 Motes of Unstable Magic to Archmage Celindra in Dalaran.",
+            turnin = "Archmage Celindra, Alterac Mountains",
+            rewardItems = {
+            },
+        },
+        {
+            level = 52,
+            id = 96609,
+            name = "A Taste of Home",
+            requires = 44,
+            faction = "Alliance",
+            pickup = "Arille Azuregaze, Alterac Mountains (18.5, 65.7)",
+            objective = "Bring 10 bottles of Silvermoon Shimmerwine to Arille Azuregaze in Dalaran city.",
+            turnin = "Arille Azuregaze, Alterac Mountains",
+            rewardChoice = true,
+            rewardItems = {
+                {276903, "Shimmerwine Shanker", 2},
+                {276904, "Shimmerwine Spirits", 2},
+            },
+            rewardAlso = {
+                {276896, "Everlasting Silvermoon Shimmerwine", 3},
+            },
+        },
+        {
+            level = 54,
+            id = 96812,
+            name = "Thicker Than Water",
+            requires = 45,
+            faction = "Alliance",
+            pickup = "Sergeant Danneth, Blasted Lands (65.2, 15.3)",
+            objective = "Return to Orphan Matron Aria in Dalaran and inform her of Sergeant Danneth's intentions to take in Randal.",
+            turnin = "Orphan Matron Aria, Alterac Mountains",
+            rewardChoice = true,
+            rewardItems = {
+                {276900, "Denric's Dog Tags", 2},
+                {276901, "Uncle's Heroism", 2},
+                {276902, "Youngster's First Bow", 2},
             },
         },
     },

@@ -252,7 +252,9 @@ local function buildIndex()
     for _, it in ipairs(d.trashLoot or {}) do local e = add(it.id, it.name, it.quality, where .. " - " .. L["trash"], d.minLevel, d); if e then e.boss = "trash mobs" end end
     for _, qu in ipairs(d.quests or {}) do
       for _, it in ipairs(qu.rewards or {}) do
-        local e = add(it.id, it.name, it.quality, string.format(L["Quest: %s"], NM(qu.name) or "?"), qu.level, d)
+        -- the level you can take the quest at, not the quest's level (6.2.8, Discord sercker 13.11.: Wingblade, Leaders of the
+        -- Fang, level 22 / required 11, was missing from a 1 - 20 list but found by the search)
+        local e = add(it.id, it.name, it.quality, string.format(L["Quest: %s"], NM(qu.name) or "?"), (qu.required or 0) > 0 and qu.required or qu.level, d)
         -- dq: a dungeon quest - its row opens the quest in Dungeons & Raids (user 09.11.)
         if e then e.qid = qu.id; e.side = SIDE[qu.side]; e.dq = true; if (qu.required or 0) > 0 then e.qreq = qu.required end
         else

@@ -146,6 +146,7 @@ FLT.DUNGEON_REGISTRY["The Deadmines"] = {
             objective = "Use the Moonsilver Blade to destroy Old-Fire Eye in Silverpine Forest.",
             turnin = "Lumina Windsinger, Silverpine Forest",
             rewardItems = {
+                {267369, "Wolfsbane", 3},
             },
         },
     },
