@@ -400,6 +400,8 @@ SlashCmdList.ONEFORALL = function(cmd)
     msg(L["Caught errors cleared."])
   elseif cmd == "bug" then
     if FLT.UI and FLT.UI.ShowBugReport then FLT.UI.ShowBugReport() end
+  elseif cmd == "tipdebug" then
+    if FLT.QoL and FLT.QoL.ToggleTipDebug then FLT.QoL.ToggleTipDebug() end
   elseif cmd == "rolltest" then
     if FLT.GearMarks then FLT.GearMarks.RollTest() end
   elseif cmd == "questtest" then

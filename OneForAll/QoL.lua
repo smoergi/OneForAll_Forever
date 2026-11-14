@@ -2291,6 +2291,11 @@ local function tipAtMouse(tt)
   local sc = UIParent:GetEffectiveScale()
   tt:ClearAllPoints(); tt:SetPoint(p[1], UIParent, "BOTTOMLEFT", x / sc + p[2], y / sc + p[3])
 end
+local tipDebug -- /ofa tipdebug: chat lines when a unit tooltip is built and hidden
+function QoL.ToggleTipDebug()
+  tipDebug = not tipDebug
+  FLT.Msg("tipdebug " .. (tipDebug and "on" or "off") .. ", Hide unit tooltips at once: " .. tostring(QoL.Get("tipFastHide")))
+end
 function QoL.SetupTipMouse()
   if not (hooksecurefunc and GameTooltip and GameTooltip.HookScript and GetCursorPosition and UnitExists) then return end
   hooksecurefunc("GameTooltip_SetDefaultAnchor", function(tt, parent)
@@ -2300,15 +2305,44 @@ function QoL.SetupTipMouse()
   end)
   GameTooltip:HookScript("OnUpdate", function(tt)
     if tt._ofaMouse then tipAtMouse(tt) end
-    -- Hide unit tooltips at once: the game keeps the tooltip of a unit in the world for a moment after the mouse
-    -- left it and then fades it out slowly. Hide it as soon as there is no unit under the mouse any more. Only
-    -- world tooltips (owner UIParent); unit frames and nameplates keep "mouseover" while hovered.
-    if QoL.Get("tipFastHide") and tt:GetOwner() == UIParent and not UnitExists("mouseover") then
-      local ok, _, unit = pcall(tt.GetUnit, tt)
-      if ok and unit then tt:Hide() end
+    -- Hide unit tooltips at once (6.2.9): the game keeps the tooltip of a unit in the world for a moment after the
+    -- mouse left it and then fades it out slowly. A tooltip built while that unit was under the mouse (_ofaUnit,
+    -- set below) is hidden as soon as no unit is under the mouse any more. Tooltips of unit frames and buttons
+    -- hide themselves when the mouse leaves them, those are not touched.
+    -- Also when the game's fade has started (alpha below what it was when the tooltip was built), in case
+    -- "mouseover" still answers during the fade.
+    if tt._ofaUnit and QoL.Get("tipFastHide") then
+      local gone, fading = not UnitExists("mouseover"), tt:GetAlpha() < (tt._ofaAlpha or 1) - 0.05
+      if gone or fading then
+        if tipDebug then FLT.Msg(("tipdebug: hidden (%s)"):format(gone and "no mouseover" or "fading")) end
+        tt._ofaUnit = nil; tt:Hide()
+      end
     end
   end)
-  GameTooltip:HookScript("OnHide", function(tt) tt._ofaMouse = nil end)
+  GameTooltip:HookScript("OnHide", function(tt) tt._ofaMouse = nil; tt._ofaUnit = nil; tt._ofaAlpha = nil end)
+  -- a new owner (a button, a bag slot, the next unit) starts a new tooltip: not the old unit's any more
+  hooksecurefunc(GameTooltip, "SetOwner", function(tt) tt._ofaUnit = nil; tt._ofaAlpha = nil end)
+  local function markUnit(tt)
+    if tt ~= GameTooltip then return end
+    if UnitExists("mouseover") and not tt._ofaUnit then tt._ofaUnit = true; tt._ofaAlpha = tt:GetAlpha() end -- kept while it fades
+    if tipDebug then
+      local ok, name, unit = pcall(tt.GetUnit, tt)
+      local o = tt:GetOwner()
+      FLT.Msg(("tipdebug: unit tooltip %s / %s, owner %s, mouseover %s"):format(tostring(ok and name), tostring(ok and unit),
+        tostring(o and (o:GetName() or "unnamed")), tostring(UnitExists("mouseover"))))
+    end
+  end
+  if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType and Enum.TooltipDataType.Unit then
+    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, markUnit)
+  else
+    pcall(GameTooltip.HookScript, GameTooltip, "OnTooltipSetUnit", markUnit)
+  end
+  -- the game's own fade: hide at once instead (when the client calls it from Lua)
+  if GameTooltip.FadeOut then
+    pcall(hooksecurefunc, GameTooltip, "FadeOut", function(tt)
+      if tt._ofaUnit and QoL.Get("tipFastHide") then tt._ofaUnit = nil; tt:Hide() end
+    end)
+  end
 end
 end
 
