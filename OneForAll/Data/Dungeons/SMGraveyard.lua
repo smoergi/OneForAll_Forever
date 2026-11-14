@@ -22,6 +22,8 @@ FLT.DUNGEON_REGISTRY["Scarlet Monastery: Graveyard"] = {
             rewardItems = {
                 {7750, "Mantle of Woe", 2},
                 {4643, "Grimsteel Cape", 2},
+            },
+            rewardAlso = {
                 {7751, "Vorrel's Boots", 2},
             },
             rewardSummary = "3,300 XP · +150 Undercity · pick one of the first 2 items, the rest is always included",
@@ -39,6 +41,19 @@ FLT.DUNGEON_REGISTRY["Scarlet Monastery: Graveyard"] = {
             rewardItems = {},
             rewardSummary = "7,850 XP · +150 Undercity",
             note = "Needs Going, Going, Guano! from Razorfen Kraul. Hearts of Zeal drop from Scarlet enemies in every wing.",
+        },
+        {
+            level = 40,
+            id = 79946,
+            name = "A Brother In Need",
+            requires = 35,
+            faction = "Alliance",
+            class = "PALADIN",
+            pickup = "Katherine the Pure, Stormwind City (48.5, 49.1)",
+            objective = "Speak with Katherine to learn more about Aeonas, and then find him in the Scarlet Monastery.",
+            turnin = "Aeonas, inside Scarlet Monastery: Graveyard",
+            rewardItems = {
+            },
         },
     },
     bosses = {

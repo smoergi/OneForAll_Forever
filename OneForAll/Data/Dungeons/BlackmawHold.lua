@@ -63,7 +63,11 @@ FLT.DUNGEON_REGISTRY["Blackmaw Hold"] = {
             pickup = "Ogtinc, Azshara (42.4, 42.6)",
             objective = "Bring the Claws of the Great Bear and the Tusks of the Unbroken to Ogtinc, in Azshara.",
             turnin = "Ogtinc, Azshara",
+            rewardChoice = true,
             rewardItems = {
+                {260213, "Great Bear Claw", 2},
+                {260214, "Staff of Wild Beasts", 2},
+                {260215, "Wild Malleus", 2},
             },
             note = "Still being discovered: who gives this quest and its rewards are not known yet.",
         },
@@ -75,7 +79,9 @@ FLT.DUNGEON_REGISTRY["Blackmaw Hold"] = {
             pickup = "Feathered Charm Necklace, dropped by Legashi Satyr",
             objective = "Find the owner of the Feathered Charm Necklace.",
             turnin = "Unele, Azshara (43.0, 18.2)",
+            rewardChoice = true,
             rewardItems = {
+                {279893, "Nama's Cherished Necklace", 2},
             },
         },
         {
@@ -87,7 +93,10 @@ FLT.DUNGEON_REGISTRY["Blackmaw Hold"] = {
             pickup = "Lorekeeper Nok, Azshara (41.4, 20.0)",
             objective = "Find the Totem of Ursoc and the Totem of Ursol inside Blackmaw Hold. Then, return them to Lorekeeper Nok at Ursolan.",
             turnin = "Lorekeeper Nok, Azshara (41.4, 20.0)",
+            rewardChoice = true,
             rewardItems = {
+                {279891, "Guidance of Ursoc", 2},
+                {279892, "Wisdom of Ursol", 2},
             },
         },
         {
@@ -110,8 +119,7 @@ FLT.DUNGEON_REGISTRY["Blackmaw Hold"] = {
             faction = "Horde",
             class = "PALADIN",
             objective = "Travel to Blackmaw Hold in Kalimdor, and recover the Reliquary of Tyr.",
-            rewardItems = {
-            },
+            rewardItems = {{286408, "Sword of Mourning", 3}},
         },
     },
     bosses = {
@@ -142,6 +150,7 @@ FLT.DUNGEON_REGISTRY["Blackmaw Hold"] = {
             loot = {
                 {280068, "Bloody Claws of Attack", "One-Hand, Fist Weapon", 3},
                 {280070, "Veilpiercer Girdle", "Waist, Leather", 3},
+                {280069, "Shamanic Wristguards", "Wrist, Mail", 3},
             },
         },
         {

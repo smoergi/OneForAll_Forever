@@ -1368,7 +1368,9 @@ local function createDungeonPanel(parent)
   end
   local function placeRow(parent,y,label,text,loc)
     local yStart=y
-    local ny=infoRow(parent,y,label,text and PT(noCoords(text)) or L["Unknown"],loc and 250 or 330)
+    -- no text in our data but a known place (QuestieDB pin): its NPC and zone instead of "Unknown" (6.2.8, user screenshot 13.11.)
+    local shown=text and PT(noCoords(text)) or (loc and not loc.entrance and loc.label) or L["Unknown"]
+    local ny=infoRow(parent,y,label,shown,loc and 250 or 330)
     if loc then
       local b=UI.GoldButton(parent,L["Map"],62,20,ASSET_ROOT.."icon_map",11)
       b:SetPoint("TOPRIGHT",parent,"TOPLEFT",446,yStart+3)
@@ -1390,9 +1392,10 @@ local function createDungeonPanel(parent)
   -- same NPC as the other end, else the dungeon entrance
   local function questPlaces(d,id,starts,turnin)
     local s=FLT.QuestLoc and FLT:QuestLoc(id,starts)
-    local e=turnin and turnin~="" and FLT.QuestEndLoc and FLT:QuestEndLoc(id,turnin) or nil
-    if turnin and turnin~="" and who(turnin) and who(turnin)==who(starts) then e=e or s; s=s or e end
-    return s or entranceLoc(d,starts), turnin and turnin~="" and (e or entranceLoc(d,turnin)) or nil
+    if turnin=="" then turnin=nil end
+    local e=FLT.QuestEndLoc and FLT:QuestEndLoc(id,turnin) or nil -- also without a text: the pin data (6.2.8)
+    if turnin and who(turnin) and who(turnin)==who(starts) then e=e or s; s=s or e end
+    return s or entranceLoc(d,starts), e or (turnin and entranceLoc(d,turnin)) or nil
   end
   -- framed box with a gold title; returns the box, the y where content starts
   -- and a function that closes the box at the given y (returns the next y)
@@ -1519,9 +1522,9 @@ local function createDungeonPanel(parent)
         row.status=questStatus
         local req=quest.required or quest.level or "?"; local m=string.format(L["Req. %s"],tostring(req)).."  |  "..L[quest.side or "Both"]
         if quest.class then m=m.." / "..((type(LOCALIZED_CLASS_NAMES_MALE)=="table" and LOCALIZED_CLASS_NAMES_MALE[quest.class]) or quest.class) end -- the class name, not "PRIEST" (6.2.4)
-        m=m.."  |  "..L[QUEST_STATUS_LABELS[questStatus] or questStatus]
+        local stepIdx, stepTotal, stepInLog = getChainProgress(quest)
+        m=m.."  |  "..((questStatus=="chain" and not stepInLog) and L["Chain started"] or L[QUEST_STATUS_LABELS[questStatus] or questStatus])
         if quest.id and FLT.QUEST_PREREQ_CHAINS and FLT.QUEST_PREREQ_CHAINS[quest.id] then
-          local stepIdx, stepTotal = getChainProgress(quest)
           if (questStatus=="inlog" or questStatus=="ready") and not stepIdx and stepTotal then stepIdx = stepTotal end
           m=m.."  |  "..(stepIdx and string.format(L["Chain %d/%d"],stepIdx,stepTotal) or L["Chain"])
         end
@@ -1617,7 +1620,7 @@ local function createDungeonPanel(parent)
       do
         local sLoc,eLoc=questPlaces(d,q.id,q.starts,q.turnin)
         ry=placeRow(rchild,ry,N"Starts at",q.starts,sLoc)
-        if q.turnin and q.turnin~="" then ry=placeRow(rchild,ry,N"Turn in",q.turnin,eLoc) end
+        if (q.turnin and q.turnin~="") or eLoc then ry=placeRow(rchild,ry,N"Turn in",q.turnin~="" and q.turnin or nil,eLoc) end
       end
       ry=infoRow(rchild,ry,N"Dungeon",DN(d.name))
       ry,statusValue=infoRow(rchild,ry,N"Status","")
@@ -1721,6 +1724,10 @@ local function createDungeonPanel(parent)
           ry=cy-math.max(14,summary:GetStringHeight() or 14)
         else
           rewardRows(rewards,N"Quest reward")
+          if q.alsoRewards and #q.alsoRewards>0 then
+            local al=dtext(rchild,"GameFontHighlightSmall"); al:SetPoint("TOPLEFT",18,ry-2); al:SetText(L["You will also receive:"]); al:SetTextColor(FLT.SkinC(0.80,0.78,0.72)); ry=ry-20
+            rewardRows(q.alsoRewards,N"Quest reward")
+          end
           if q.rewardSummary then
             local sum=dtext(rchild,"GameFontHighlightSmall"); sum:SetPoint("TOPLEFT",18,ry-2); sum:SetWidth(420); sum:SetJustifyH("LEFT"); sum:SetText(q.rewardSummary); sum:SetTextColor(FLT.SkinC(0.80,0.78,0.72)); ry=ry-20
           end
@@ -1736,8 +1743,8 @@ local function createDungeonPanel(parent)
         local questStatus=getDungeonQuestStatus(d, q)
         local reason=questStatus=="unavailable" and unavailableText(q) or nil
         if reason~=builtReason then pane:Hide(); detailPanes[newIdx]=nil; if questSelection[d.key]==newIdx then selectQuest(newIdx) end; return end
-        local statusLabel=L[QUEST_STATUS_LABELS[questStatus] or questStatus]
-        local stepIdx, stepTotal = getChainProgress(q)
+        local stepIdx, stepTotal, stepInLog = getChainProgress(q)
+        local statusLabel=(questStatus=="chain" and not stepInLog) and L["Chain started"] or L[QUEST_STATUS_LABELS[questStatus] or questStatus]
         local col=STATUS_COLOR[questStatus] or STATUS_COLOR.available
         statusChip:Set(statusLabel,col); layoutChips(chips,18,-44)
 

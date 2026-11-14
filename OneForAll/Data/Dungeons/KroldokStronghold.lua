@@ -21,6 +21,7 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             objective = "Bring 4 Thick Leather and 12 Iron Bar to Kreza Darkthorn.",
             turnin = "Kreza Darkthorn, Riverglades",
             rewardItems = {
+                {267089, "Krol'dok Compound Key", 1},
             },
         },
         {
@@ -33,6 +34,7 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             objective = "Bring 4 Thick Leather and 12 Iron Bars to Alphonse Dumas.",
             turnin = "Alphonse Dumas, Riverglades",
             rewardItems = {
+                {267089, "Krol'dok Compound Key", 1},
             },
         },
         {
@@ -45,6 +47,7 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             objective = "Collect 15 Cultist Ears from the Twilight's Hammer in Krol'dok Stronghold.",
             turnin = "Da'grosh, inside Krol'dok Stronghold",
             rewardItems = {
+                {267090, "Semblance of Twilight", 2},
             },
         },
         {
@@ -66,7 +69,9 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             pickup = "Melanie Sable, Riverglades (66.2, 83.4)",
             objective = "Bring the Satchel of Mementos to Melanie Sable.",
             turnin = "Melanie Sable, Riverglades",
+            rewardChoice = true,
             rewardItems = {
+                {279850, "Curio-Adorned Necklace", 3},
             },
         },
         {
@@ -78,7 +83,10 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             pickup = "Tran'gul, Riverglades (59.4, 44.2)",
             objective = "Recover the Tome of Twilight from Krol'dok Stronghold.",
             turnin = "Tran'gul, Riverglades",
+            rewardChoice = true,
             rewardItems = {
+                {279859, "Indoctrinated Choker", 2},
+                {279860, "Convert's Bindings", 2},
             },
         },
         {
@@ -88,7 +96,10 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             requires = 39,
             faction = "Alliance",
             objective = "Kill Nar'gurk within Krol'dok Stronghold and recover any valuable information.",
+            rewardChoice = true,
             rewardItems = {
+                {279854, "Twilight Initiate's Belt", 2},
+                {279855, "Torn Cultist Cloak", 2},
             },
         },
         {
@@ -100,7 +111,11 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             pickup = "Krom'rosh, Riverglades (59.4, 45.6)",
             objective = "Infiltrate Krol'dok Stronghold and return to Krom'rosh with proof of their leader's demise.",
             turnin = "Krom'rosh, Riverglades",
+            rewardChoice = true,
             rewardItems = {
+                {279852, "Rock on Stick", 3},
+                {279480, "Bigger Rock on Bigger Stick", 3},
+                {279853, "Stick No Rock", 3},
             },
         },
         {
@@ -110,7 +125,11 @@ FLT.DUNGEON_REGISTRY["Krol'dok Stronghold"] = {
             requires = 40,
             faction = "Alliance",
             objective = "Infiltrate Krol'dok Stronghold and return to Commander Brant with proof of their leader's demise.",
+            rewardChoice = true,
             rewardItems = {
+                {279852, "Rock on Stick", 3},
+                {279853, "Stick No Rock", 3},
+                {279480, "Bigger Rock on Bigger Stick", 3},
             },
         },
         {

@@ -195,6 +195,42 @@ FLT.DUNGEON_REGISTRY["Blackfathom Deeps"] = {
             rewardSummary = "7,250 XP · +150 Darkspear Trolls",
             note = "Use the Fathom Core from Amongst the Ruins to summon Baron Aquanis.",
         },
+        {
+            level = 22,
+            id = 6562,
+            name = "Trouble in the Deeps",
+            requires = 17,
+            faction = "Horde",
+            pickup = "Tsunaman, Stonetalon Mountains (47.4, 64.2)",
+            objective = "Speak to Je'neu Sancrea in Ashenvale.",
+            turnin = "Je'neu Sancrea, Ashenvale",
+            rewardItems = {
+            },
+        },
+        {
+            level = 25,
+            id = 78916,
+            name = "The Heart of the Void",
+            requires = 25,
+            faction = "Alliance",
+            pickup = "Blackfathom Pearl, dropped inside Blackfathom Deeps",
+            objective = "Bring the Blackfathom Pearl to Dawnwatcher Selgorm in Darnassus.",
+            turnin = "Dawnwatcher Selgorm, Darnassus",
+            rewardItems = {
+            },
+        },
+        {
+            level = 25,
+            id = 78917,
+            name = "The Heart of the Void",
+            requires = 25,
+            faction = "Horde",
+            pickup = "Blackfathom Pearl, dropped inside Blackfathom Deeps",
+            objective = "Bring the Blackfathom Pearl to Bashana Runetotem in Thunder Bluff.",
+            turnin = "Bashana Runetotem, Thunder Bluff",
+            rewardItems = {
+            },
+        },
     },
     bosses = {
         {

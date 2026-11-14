@@ -80,6 +80,8 @@ end
 local function convertQuest(q)
   local rewards={}
   for _,it in ipairs(q.rewardItems or {}) do rewards[#rewards+1]=itemRec(it) end
+  local alsoRewards={} -- given on top of the chosen one (6.2.8, Wowhead Forever "You will also receive")
+  for _,it in ipairs(q.rewardAlso or {}) do alsoRewards[#alsoRewards+1]=itemRec(it) end
   local noteRewards={}
   for _,it in ipairs(q.noteRewardItems or {}) do noteRewards[#noteRewards+1]=itemRec(it) end
   local class=q.class or q.classOnly
@@ -98,6 +100,7 @@ local function convertQuest(q)
     prereq=q.prerequisite or q.prereq,
     note=q.note,
     rewards=rewards,
+    alsoRewards=alsoRewards,
     noteRewards=noteRewards,
     rewardChoice=q.rewardChoice,
     rewardSummary=q.rewardSummary or q.rewards,

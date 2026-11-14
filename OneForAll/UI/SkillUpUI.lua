@@ -176,6 +176,18 @@ local function newRow()
   b.text = FLT.NewFS(b, nil, "OVERLAY", "GameFontHighlightSmall"); b.text:SetJustifyH("LEFT"); b.text:SetWordWrap(true)
   b.right = FLT.NewFS(b, nil, "OVERLAY", "GameFontHighlightSmall"); b.right:SetJustifyH("RIGHT"); b.right:SetPoint("RIGHT", -24, 0)
   b.map = UI.GoldButton(b, "Map", 18, 18, UI.ASSET_ROOT .. "icon_map"); b.map:SetPoint("RIGHT", -2, 0)
+  -- "Buy" at an open merchant who sells it (6.2.8, user 13.11.: "im popup skillup guide aehnlich bei der crafting list")
+  b.buy = UI.GoldButton(b, L["Buy"], 46, 18, nil, 10); b.buy:SetPoint("RIGHT", b.right, "LEFT", -6, 0); b.buy:Hide()
+  b.buy:SetScript("OnClick", function(self)
+    local CL = FLT.CraftList
+    if self.id and CL and CL.BuyFromMerchant then self:Disable(); CL.BuyFromMerchant(self.id, self.n) end
+  end)
+  b.buy:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(L["Buy"])
+    if self.cost then GameTooltip:AddLine(string.format(L["Buys what is missing from this merchant: %s"], self.cost), 1, 1, 1, true) end
+    GameTooltip:Show()
+  end)
+  b.buy:SetScript("OnLeave", function() GameTooltip:Hide() end)
   b.map:SetScript("OnClick", function(self) if self.loc and FLT.ShowOnMap then FLT:ShowOnMap(self.loc) end end)
   b:SetScript("OnEnter", function(self)
     if not (self.item or self.key) then return end
@@ -214,7 +226,7 @@ local function line(y, o)
   local b = rows[used]; if not b then b = newRow(); rows[used] = b end
   b:ClearAllPoints(); b:SetPoint("TOPLEFT", 4, y); b:SetPoint("RIGHT", gchild, "RIGHT", -4, 0); b:Show()
   b.item, b.key, b.isDone = o.item, o.key, o.done
-  b.c1:Hide(); b.call:Hide(); b.pbar:Hide(); b.chance:Hide()
+  b.c1:Hide(); b.call:Hide(); b.pbar:Hide(); b.chance:Hide(); b.buy:Hide()
   local x = 4 + (o.indent or 0) * 14
   b.cur:SetShown(o.current and true or false)
   if o.head then
@@ -237,6 +249,12 @@ local function line(y, o)
   b.map.loc = o.loc; b.map:SetShown(o.loc ~= nil)
   b.right:SetText(o.right or "")
   b.text:SetPoint("RIGHT", b.right, "LEFT", -6, 0)
+  local CL, bn = FLT.CraftList, o.buy
+  local m = bn and CL and CL.MerchantSells and CL.MerchantSells(o.item)
+  if m then
+    b.buy.id, b.buy.n, b.buy.cost = o.item, bn, CL.MerchantCost(m, bn)
+    b.buy:Enable(); b.buy:Show(); b.text:SetPoint("RIGHT", b.buy, "LEFT", -6, 0)
+  end
   b.text:SetText(o.text or "")
   local h = math.max(22, math.ceil((b.text:GetStringHeight() or 12) + 8))
   local cr, pg = o.craft, o.prog
@@ -322,7 +340,9 @@ local function refreshGuide()
     for _, sh in ipairs(plan.vendor) do
       local m = plan.mats[sh.id]
       local want = m and (m.need - m.craft) or sh.n
-      items[#items + 1] = { item = sh.id, text = itemName(sh.id), right = sh.n .. "x  " .. money((sh.price or 0) * sh.n), done = SU.Have(sh.id) >= want, indent = 1 }
+      local have = SU.Have(sh.id)
+      items[#items + 1] = { item = sh.id, text = itemName(sh.id), right = sh.n .. "x  " .. money((sh.price or 0) * sh.n), done = have >= want, indent = 1,
+        buy = have < want and (want - have) or nil }
     end
     section("vendor", L["Vendors"], items)
   end

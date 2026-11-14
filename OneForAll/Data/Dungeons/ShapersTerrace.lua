@@ -20,7 +20,10 @@ FLT.DUNGEON_REGISTRY["Shaper's Terrace"] = {
             pickup = "Mayena Earthseeker, Mulgore (33.6, 21.2)",
             objective = "Bring Mayena Earthseeker a Moist Crystal, a Charged Crystal, a Noxious Crystal and a Fiery Crystal from Shaper's Terrace.",
             turnin = "Mayena Earthseeker, Mulgore",
+            rewardChoice = true,
             rewardItems = {
+                {279904, "Crystalline Pauldrons", 3},
+                {279906, "Potent Treads", 3},
             },
         },
         {
@@ -31,7 +34,10 @@ FLT.DUNGEON_REGISTRY["Shaper's Terrace"] = {
             faction = "Alliance",
             objective = "Collect 15 Partially Digested Journal Pages from the Shaper's Terrace.",
             turnin = "Curator Thorius, Ironforge (71.4, 16.2)",
+            rewardChoice = true,
             rewardItems = {
+                {279931, "Lost Researcher's Hood", 3},
+                {279901, "Expeditionary Legplates", 3},
             },
         },
         {
@@ -42,7 +48,10 @@ FLT.DUNGEON_REGISTRY["Shaper's Terrace"] = {
             faction = "Alliance",
             pickup = "Curator Thorius, Ironforge (71.5, 15.7)",
             objective = "Slay 6 Ravasaur Matriarchs, 9 Ironhide Ravasaurs and Venomridge in Shaper's Terrace.",
+            rewardChoice = true,
             rewardItems = {
+                {279903, "Diemetradon Scale Spaulders", 3},
+                {279905, "Ravasaur Hide Footpads", 3},
             },
         },
         {
@@ -53,7 +62,11 @@ FLT.DUNGEON_REGISTRY["Shaper's Terrace"] = {
             faction = "Alliance",
             pickup = "Curator Thorius, Ironforge (71.5, 15.7)",
             objective = "Find Interesting Landmarks in Shaper's Terrace and fill out the explorer's map at each.",
+            rewardChoice = true,
             rewardItems = {
+                {279908, "Crystal-Infused Cleaver", 3},
+                {279910, "Beastslayer's Trident", 3},
+                {279912, "Faintly Glowing Orb", 3},
             },
         },
         {
@@ -64,7 +77,11 @@ FLT.DUNGEON_REGISTRY["Shaper's Terrace"] = {
             faction = "Horde",
             pickup = "Master Apothecary Faranell, Undercity (48.8, 69.3)",
             objective = "Gather a colorless Drained Crystal Fragment near the Achromatic Crystal in the Shaper's Terrace.",
+            rewardChoice = true,
             rewardItems = {
+                {279908, "Crystal-Infused Cleaver", 3},
+                {279910, "Beastslayer's Trident", 3},
+                {279912, "Faintly Glowing Orb", 3},
             },
         },
         {
@@ -76,7 +93,10 @@ FLT.DUNGEON_REGISTRY["Shaper's Terrace"] = {
             pickup = "Chemist Fuely, Undercity (47.5, 73.3)",
             objective = "Gather 8 Seeping Slime Essence in the Shaper's Terrace.",
             turnin = "Chemist Fuely, Undercity",
+            rewardChoice = true,
             rewardItems = {
+                {279932, "Slime-Resistant Shroud", 3},
+                {279902, "Reinforced Muck Protectors", 3},
             },
         },
     },

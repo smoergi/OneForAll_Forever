@@ -14,6 +14,7 @@ General sources
 - Boss and trash loot: foreverchanges.pro dungeon pages and wowtbc.gg loot
   tables; item names, slots and qualities from the Wowhead tooltip API
   (Forever data, Classic data as fallback).
+  New WoW Forever drops of all dungeons (November 2026): Wowhead Forever zone and NPC pages ("Dropped by").
 - Boss portraits (display IDs), level ranges and the boss levels of the Forever dungeons: foreverchanges.pro.
   Hall of Thanes boss levels (16, 2026-10-22): wowforeverguides.com and wow4ever.quest ("level 16"),
   foreverchanges.pro had none yet.

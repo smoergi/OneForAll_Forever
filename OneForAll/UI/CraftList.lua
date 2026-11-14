@@ -886,7 +886,7 @@ local function bagsLater()
   end)
 end
 -- the open merchant (6.2.7, user 13.11.): [itemID] = { index, price, per (items per purchase), max (stack), left (-1 = any) };
--- read only while the Crafting List has entries, gone when the merchant closes
+-- read when a merchant opens (6.2.8: also for the Skill-Up guide's vendor section), gone when the merchant closes
 local merchant, merchantOpen = {}, false
 -- the modern client has C_MerchantFrame.GetItemInfo (a table) instead of GetMerchantItemInfo (6.2.7-beta22: no Buy button in
 -- the game with beta21)
@@ -909,7 +909,7 @@ end
 local function readMerchant()
   wipe(merchant)
   local num = (GetMerchantNumItems and GetMerchantNumItems()) or (type(C_MerchantFrame) == "table" and C_MerchantFrame.GetNumItems and C_MerchantFrame.GetNumItems()) or 0
-  if not (merchantOpen and #list() > 0) then return end
+  if not merchantOpen then return end
   for i = 1, num do
     local id = merchantItemID(i)
     local price, per, left, purchasable, extended = merchantInfo(i)
@@ -930,10 +930,12 @@ function CL.MerchantCost(m, need)
   local n = buys(m, need or 0)
   return n > 0 and (FLT.QoL and FLT.QoL.Money and FLT.QoL.Money(n * m.price) or tostring(n * m.price)) or nil
 end
-function CL.BuyFromMerchant(id)
+function CL.BuyFromMerchant(id, need) -- need: how many (Skill-Up guide); else what the Crafting List misses
   local m = CL.MerchantSells(id)
-  if dirty then compute() end
-  local need = shop[id]
+  if not need then
+    if dirty then compute() end
+    need = shop[id]
+  end
   local buy = BuyMerchantItem or (type(C_MerchantFrame) == "table" and C_MerchantFrame.BuyItem) or nil
   if not (m and need and need > 0 and buy) then return end
   local n = buys(m, need)
@@ -954,7 +956,10 @@ ev:SetScript("OnEvent", function(_, event, _, _, spell)
     merchantOpen = event ~= "MERCHANT_CLOSED"
     local had = next(merchant) ~= nil
     readMerchant()
-    if had or next(merchant) then changed() end
+    if had or next(merchant) then
+      changed()
+      if FLT.SkillUp and FLT.SkillUp.RefreshGuide then FLT.SkillUp.RefreshGuide() end
+    end
     return
   end
   if event == "UNIT_SPELLCAST_SUCCEEDED" then
