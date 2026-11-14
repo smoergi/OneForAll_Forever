@@ -18,10 +18,11 @@ FLT.LOCALES = FLT.LOCALES or {} -- [code] = function returning the table, put th
 -- the languages OneForAll speaks, in the order of the drop-down, each in its own language
 FLT.LANGUAGES = { { key = "enUS", label = "English" }, { key = "deDE", label = "Deutsch" },
   { key = "frFR", label = "Français" }, { key = "esES", label = "Español" },
-  { key = "ptBR", label = "Português (Brasil)" } } -- frFR / esES: beta37; ptBR: 6.2.8, translation by ValadaresX (GitHub PR #71)
+  { key = "ptBR", label = "Português (Brasil)" },
+  { key = "zhCN", label = "简体中文" } } -- frFR / esES: beta37; ptBR: 6.2.8 (PR #71); zhCN: 6.2.8
 
 -- the client's language as one of ours: a Mexican Spanish client uses esES, a British English one enUS
-local CLIENT_ALIAS = { esMX = "esES", enGB = "enUS" }
+local CLIENT_ALIAS = { esMX = "esES", enGB = "enUS", zhTW = "zhCN" }
 function FLT.ClientLocale()
   local c = type(GetLocale) == "function" and GetLocale() or "enUS"
   return CLIENT_ALIAS[c] or c
@@ -39,7 +40,7 @@ end
 -- English and is the client's own language (an English choice keeps our English data names; beta12)
 function FLT.ClientTexts()
   local lang = FLT.Language()
-  return lang ~= "enUS" and FLT.ClientLocale() == lang
+  return lang ~= "enUS" and (FLT.ClientLocale() == lang or lang == "zhCN")
 end
 -- a name from our data (quest, NPC, boss, object, item, quest objective) in the client's language when ClientTexts
 -- (6.2.0 step 2b): Locales/Names_<loc>.lua from QuestieDB's translations (tools/locale/names.lua); else the name itself
