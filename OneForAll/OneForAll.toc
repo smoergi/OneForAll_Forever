@@ -18,6 +18,8 @@ Locales\esES.lua
 Locales\Names_esES.lua
 Locales\ptBR.lua
 Locales\Names_ptBR.lua
+Locales\zhCN.lua
+Locales\Names_zhCN.lua
 Data.lua
 ExtraData.lua
 ProfessionData.lua
