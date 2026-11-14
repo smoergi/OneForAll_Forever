@@ -2291,11 +2291,6 @@ local function tipAtMouse(tt)
   local sc = UIParent:GetEffectiveScale()
   tt:ClearAllPoints(); tt:SetPoint(p[1], UIParent, "BOTTOMLEFT", x / sc + p[2], y / sc + p[3])
 end
-local tipDebug -- /ofa tipdebug: chat lines when a unit tooltip is built and hidden
-function QoL.ToggleTipDebug()
-  tipDebug = not tipDebug
-  FLT.Msg("tipdebug " .. (tipDebug and "on" or "off") .. ", Hide unit tooltips at once: " .. tostring(QoL.Get("tipFastHide")))
-end
 function QoL.SetupTipMouse()
   if not (hooksecurefunc and GameTooltip and GameTooltip.HookScript and GetCursorPosition and UnitExists) then return end
   hooksecurefunc("GameTooltip_SetDefaultAnchor", function(tt, parent)
@@ -2312,9 +2307,7 @@ function QoL.SetupTipMouse()
     -- Also when the game's fade has started (alpha below what it was when the tooltip was built), in case
     -- "mouseover" still answers during the fade.
     if tt._ofaUnit and QoL.Get("tipFastHide") then
-      local gone, fading = not UnitExists("mouseover"), tt:GetAlpha() < (tt._ofaAlpha or 1) - 0.05
-      if gone or fading then
-        if tipDebug then FLT.Msg(("tipdebug: hidden (%s)"):format(gone and "no mouseover" or "fading")) end
+      if not UnitExists("mouseover") or tt:GetAlpha() < (tt._ofaAlpha or 1) - 0.05 then
         tt._ofaUnit = nil; tt:Hide()
       end
     end
@@ -2325,12 +2318,6 @@ function QoL.SetupTipMouse()
   local function markUnit(tt)
     if tt ~= GameTooltip then return end
     if UnitExists("mouseover") and not tt._ofaUnit then tt._ofaUnit = true; tt._ofaAlpha = tt:GetAlpha() end -- kept while it fades
-    if tipDebug then
-      local ok, name, unit = pcall(tt.GetUnit, tt)
-      local o = tt:GetOwner()
-      FLT.Msg(("tipdebug: unit tooltip %s / %s, owner %s, mouseover %s"):format(tostring(ok and name), tostring(ok and unit),
-        tostring(o and (o:GetName() or "unnamed")), tostring(UnitExists("mouseover"))))
-    end
   end
   if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType and Enum.TooltipDataType.Unit then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, markUnit)
