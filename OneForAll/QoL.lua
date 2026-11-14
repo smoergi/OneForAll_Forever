@@ -13,6 +13,7 @@ local function N(s) return s end -- marks an English text translated where it is
 FLT.QoL = QoL
 
 local DEFAULTS = {
+  bookAlertHideCombat = false,
   lootFeedQuality = 1, lootFeedMoney = true,
   inviteMode = "friendsguild", keywordMode = "friendsguild", keyword = "inv", duelMode = "friendsguild",
   durabilityPct = 20, mmDir = "auto", logoColor = "teal", -- logo color: turquoise by default (user 27.10.)
@@ -67,6 +68,7 @@ QoL.DEFAULTS = DEFAULTS -- read by the profile import (types)
 function QoL.Get(key)
   local d = db()
   local v = d and d[key]
+  if v == nil and key == "bookAlertNoFlying" and d then v = d.bookAlertHideFlight end
   if v == nil then v = DEFAULTS[key] end
   -- Skyborne map pins: on by default for Skyborne characters, off for the other races (user 30.10.)
   if v == nil and key == "lmSkyborne" then v = UnitRace and select(2, UnitRace("player")) == "Skyborne" or false end

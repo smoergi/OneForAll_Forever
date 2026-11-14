@@ -354,6 +354,13 @@ end
 
 function FLT:CheckNearbyBooks()
   if not self:IsNearbyAlertsEnabled() then return end
+  local q = self.QoL
+  local suppressed = q and (
+    (q.Get("bookAlertNoFlying") and ((UnitOnTaxi and UnitOnTaxi("player")) or (IsFlying and IsFlying())))
+    or (q.Get("bookAlertHideCombat") and
+      ((UnitAffectingCombat and UnitAffectingCombat("player")) or (InCombatLockdown and InCombatLockdown())))
+  )
+  if suppressed and alertFrame and alertFrame.book then alertFrame:Hide() end
   local snoozed = OneForAllDB and OneForAllDB.bookAlertSnooze
   if snoozed then
     if time and time() < snoozed then return end
@@ -361,8 +368,6 @@ function FLT:CheckNearbyBooks()
   end
   if not C_Map or not C_Map.GetBestMapForUnit then return end
   if IsInInstance and IsInInstance() then return end
-  -- 6.2.7: optionally not while flying (on a flight path, too)
-  if FLT.QoL and FLT.QoL.Get("bookAlertNoFlying") and ((UnitOnTaxi and UnitOnTaxi("player")) or (IsFlying and IsFlying())) then return end
 
   local currentMapID = C_Map.GetBestMapForUnit("player")
   if not currentMapID then return end
@@ -400,7 +405,7 @@ function FLT:CheckNearbyBooks()
         end
       end
     end
-    if nearby then
+    if nearby and not suppressed then
       if not activeNearby[book.itemId] then
         activeNearby[book.itemId] = true
         self:ShowNearbyBookAlert(book, distance)

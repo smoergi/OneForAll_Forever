@@ -851,6 +851,7 @@ local function createQoLPanel(parent)
     function(v) if FLT.SetNearbyAlertsEnabled then FLT:SetNearbyAlertsEnabled(v) end end)
   -- 6.2.7 (user 13.11.: "damit man es ausschalten kann waehrend man fliegt")
   check(g, N"Not while flying", N"No book popup while you are on a flight path or flying mount.", nil, "bookAlertNoFlying", 24)
+  check(g, N"Not in combat", N"No book popup while you are in combat.", nil, "bookAlertHideCombat", 24)
   check(g, N"Pet ability alerts (Hunter)", N"Popup when a beast nearby teaches a higher ability rank your pets can learn.", nil, nil, nil,
     function() return FLT.IsPetTeachAlertsEnabled and FLT:IsPetTeachAlertsEnabled() and true or false end,
     function(v) if FLT.SetPetTeachAlertsEnabled then FLT:SetPetTeachAlertsEnabled(v) end end)
