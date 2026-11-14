@@ -23,6 +23,7 @@ local NEW_TAGS = { -- the 6.1.x marks removed when 6.2.0 started (rule: marks st
   quiverAmmo = "6.2.2",
   deValue = "6.2.6",
   tipMouse = "6.2.7",
+  tipFastHide = "6.2.9",
   bookAlertNoFlying = "6.2.7",
 }
 -- placed left of the checkbox (or of the label when there is none), user 16.10.
@@ -635,6 +636,7 @@ local function createQoLPanel(parent)
   choice(g, N"Tooltip at the mouse", N"Tooltips that normally appear at the bottom right show at your mouse.", N"Choose on which side of the mouse it opens. Tooltips that addons or windows place themselves stay where they are.", "tipMousePos", Q.TIP_ANCHORS, "tipMouse")
   check2(g, { N"Not in dungeons and raids", N"There the tooltip stays at its usual place.", nil, "tipMouseNoDungeon" },
     { N"Not in battlegrounds", N"There the tooltip stays at its usual place.", nil, "tipMouseNoPvP" }, 24)
+  check(g, N"Hide unit tooltips at once", N"The tooltip of a player or NPC goes away as soon as your mouse leaves it.", N"Normally the game keeps it for a moment and then fades it out slowly. Also works when the tooltip is not at the mouse. Unit frames and nameplates are not affected.", "tipFastHide")
   g = group(c, N"Units")
   check(g, N"Target of players", N"Shows who a player or NPC under your mouse is targeting.", N"\"You\" when it is you.", "unitTarget")
   check(g, N"Quests on NPCs", N"Quests you can take (!) or turn in (?) at the NPC under your mouse.", N"The same quests as the quest icons on the world map: for your level, side, race and class, pre-quests done. Off while Questie is loaded (it shows its own).", "npcQuestTip")

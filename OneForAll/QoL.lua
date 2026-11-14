@@ -2292,13 +2292,22 @@ local function tipAtMouse(tt)
   tt:ClearAllPoints(); tt:SetPoint(p[1], UIParent, "BOTTOMLEFT", x / sc + p[2], y / sc + p[3])
 end
 function QoL.SetupTipMouse()
-  if not (hooksecurefunc and GameTooltip and GameTooltip.HookScript and GetCursorPosition) then return end
+  if not (hooksecurefunc and GameTooltip and GameTooltip.HookScript and GetCursorPosition and UnitExists) then return end
   hooksecurefunc("GameTooltip_SetDefaultAnchor", function(tt, parent)
     tt._ofaMouse = nil
     if tt ~= GameTooltip or tipMouseOff() then return end
     tt:SetOwner(parent or UIParent, "ANCHOR_NONE"); tt._ofaMouse = true; tipAtMouse(tt)
   end)
-  GameTooltip:HookScript("OnUpdate", function(tt) if tt._ofaMouse then tipAtMouse(tt) end end)
+  GameTooltip:HookScript("OnUpdate", function(tt)
+    if tt._ofaMouse then tipAtMouse(tt) end
+    -- Hide unit tooltips at once: the game keeps the tooltip of a unit in the world for a moment after the mouse
+    -- left it and then fades it out slowly. Hide it as soon as there is no unit under the mouse any more. Only
+    -- world tooltips (owner UIParent); unit frames and nameplates keep "mouseover" while hovered.
+    if QoL.Get("tipFastHide") and tt:GetOwner() == UIParent and not UnitExists("mouseover") then
+      local ok, _, unit = pcall(tt.GetUnit, tt)
+      if ok and unit then tt:Hide() end
+    end
+  end)
   GameTooltip:HookScript("OnHide", function(tt) tt._ofaMouse = nil end)
 end
 end
