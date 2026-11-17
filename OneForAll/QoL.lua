@@ -1576,7 +1576,18 @@ local function hiddenByAddon(f)
   if W <= 0 or H <= 0 then return false end
   return l * k >= W or t * k <= 0 or (r and r * k <= 0) or (b and b * k >= H) or false
 end
+-- Offhand uses monitor-specific native placement for Forever's Spellbook.
+function QoL.OffhandOwnsSpellbook(name)
+  if name ~= "PlayerSpellsFrame" then return false end
+  local offhand = _G.Offhand
+  if not (offhand and offhand.isForever and offhand.db and offhand.db.enabled
+    and offhand.Viewport and offhand.Canvas and offhand.Canvas.CanManagePanelsFromAddon
+    and offhand.Canvas.CanManagePanelsFromAddon()) then return false end
+  local metrics = offhand.Viewport:GetMetrics()
+  return metrics and metrics.isSpanned == true
+end
 local function applyPos(f, name)
+  if QoL.OffhandOwnsSpellbook(name) then return end
   if padBag(name) or hiddenByAddon(f) then return end
   -- "Open loot window at mouse" (6.2.6, Discord 0xveri 12.11.): the game puts the loot window at the cursor - leave it there
   if name == "LootFrame" and GetCVar and GetCVar("lootUnderMouse") == "1" then return end
@@ -1669,7 +1680,7 @@ local function makeMovable(name)
       if QoL.Get("resizeWindows") then sizeStart(f, name) end
       return
     end
-    if button ~= "LeftButton" or not QoL.Get("moveWindows") then return end
+    if button ~= "LeftButton" or not QoL.Get("moveWindows") or QoL.OffhandOwnsSpellbook(name) then return end
     if inCombat() and f:IsProtected() then return end
     if f.SetClampedToScreen then f.ofaClamp = f.IsClampedToScreen and f:IsClampedToScreen() or false; f:SetClampedToScreen(true) end
     f.ofaMoving = true; f:StartMoving()
