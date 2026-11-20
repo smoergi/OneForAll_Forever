@@ -18,7 +18,7 @@ FLT.LOCALES = FLT.LOCALES or {} -- [code] = function returning the table, put th
 -- the languages OneForAll speaks, in the order of the drop-down, each in its own language
 FLT.LANGUAGES = { { key = "enUS", label = "English" }, { key = "deDE", label = "Deutsch" },
   { key = "frFR", label = "Français" }, { key = "esES", label = "Español" },
-  { key = "ptBR", label = "Português (Brasil)" } } -- frFR / esES: beta37; ptBR: 6.2.8, translation by ValadaresX (GitHub PR #71)
+  { key = "ptBR", label = "Português (Brasil)" }, { key = "ruRU", label = "Русский" } } -- frFR / esES: beta37; ptBR: 6.2.8, translation by ValadaresX (GitHub PR #71); ruRU: Russian
 
 -- the client's language as one of ours: a Mexican Spanish client uses esES, a British English one enUS
 local CLIENT_ALIAS = { esMX = "esES", enGB = "enUS" }
@@ -27,10 +27,11 @@ function FLT.ClientLocale()
   return CLIENT_ALIAS[c] or c
 end
 
--- the chosen language ("enUS" when none or not known); beta1/2 saved "game" / "english"
+-- the chosen language (client's language when none or not known, else "enUS"); beta1/2 saved "game" / "english"
 function FLT.Language()
   local v = type(OneForAllDB) == "table" and OneForAllDB.language
-  if v == "game" then v = FLT.ClientLocale() end
+  if v == "english" then return "enUS" end
+  if not v or v == "game" then v = FLT.ClientLocale() end
   for _, l in ipairs(FLT.LANGUAGES) do if l.key == v then return v end end
   return "enUS"
 end
