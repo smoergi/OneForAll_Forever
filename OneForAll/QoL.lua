@@ -194,6 +194,13 @@ QoL.WHO_OPTIONS = {
 -- Bags
 -- ---------------------------------------------------------------------------
 local NUM_BAGS = tonumber(NUM_BAG_SLOTS) or 4
+-- the carried bags incl. the reagent bag (Enum.BagIndex.ReagentBag = 5 on Forever), for Sell junk
+local SELL_BAGS = {}
+for bag = 0, NUM_BAGS do SELL_BAGS[#SELL_BAGS + 1] = bag end
+do
+  local reagent = type(Enum) == "table" and type(Enum.BagIndex) == "table" and Enum.BagIndex.ReagentBag
+  if reagent and reagent > NUM_BAGS then SELL_BAGS[#SELL_BAGS + 1] = reagent end
+end
 local function numSlots(bag)
   local f = (C_Container and C_Container.GetContainerNumSlots) or GetContainerNumSlots
   return f and f(bag) or 0
@@ -331,7 +338,7 @@ local function sellJunk()
   if not QoL.Get("sellJunk") or paused() then return end
   if sellTicker then sellTicker:Cancel(); sellTicker = nil end
   local list, total = {}, 0
-  for bag = 0, NUM_BAGS do
+  for _, bag in ipairs(SELL_BAGS) do
     for slot = 1, numSlots(bag) do
       local link, count, quality, noValue, locked = itemInfo(bag, slot)
       local id = link and tonumber(link:match("item:(%d+)"))
