@@ -2369,4 +2369,18 @@ FLT.LOCALES.deDE = function() return {
   ["Cheap Upgrade Scan complete: %d items scanned."] = "Upgrade-Scan fertig: %d Items gescannt.",
   ["A button in the auction house that scans it for Armory > Cheap Upgrades."] = "Ein Knopf im Auktionshaus, der es für Arsenal > Günstige Upgrades scannt.",
   ["Reads the whole auction house (Blizzard's full scan, once every 15 minutes) and keeps the cheapest price of every Bind on Equip piece of gear, items with a random bonus (\"of the Eagle\") each with their own price - Auctionator has only one price per item. Off: no button, nothing is read; the Cheap Upgrades then use Auctionator's prices."] = "Liest das ganze Auktionshaus (Blizzards Komplettscan, alle 15 Minuten) und merkt sich den günstigsten Preis jedes beim Anlegen gebundenen Ausrüstungsteils, Items mit Zufallsbonus (\"des Adlers\") jeweils mit eigenem Preis - Auctionator hat nur einen Preis pro Item. Aus: kein Knopf, es wird nichts gelesen; die Günstigen Upgrades nutzen dann die Preise von Auctionator.",
+  -- plugins (API.lua)
+  ["No plugins."] = "Keine Plugins.",
+  ["Plugins installed for OneForAll, their options, on or off."] = "Die für OneForAll installierten Plugins, ihre Optionen, an oder aus.",
+  ["Plugins"] = "Plugins",
+  ["Addons that plug into OneForAll. Their options are saved in the profile this character uses."] = "Addons, die sich in OneForAll einklinken. Ihre Optionen werden im Profil dieses Charakters gespeichert.",
+  ["By %s"] = "Von %s",
+  ["Enabled"] = "Aktiviert",
+  ["Turns the plugin on or off, as in the game's AddOns list. The change applies after a reload."] = "Schaltet das Plugin ein oder aus, wie in der AddOn-Liste des Spiels. Die Änderung gilt nach einem Neuladen.",
+  ["Options"] = "Optionen",
+  ["This plugin has no options."] = "Dieses Plugin hat keine Optionen.",
+  ["This plugin is turned off. Turn it on and reload to see its options."] = "Dieses Plugin ist ausgeschaltet. Schalte es ein und lade neu, um seine Optionen zu sehen.",
+  ["On"] = "An",
+  ["Command: %s"] = "Befehl: %s",
+  ["No plugin answers to /ofa %s. /ofa plugins lists the plugins' commands."] = "Kein Plugin reagiert auf /ofa %s. /ofa plugins listet die Befehle der Plugins auf.",
 } end

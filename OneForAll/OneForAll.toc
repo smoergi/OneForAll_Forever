@@ -158,3 +158,4 @@ UI\KeyBindings.lua
 UI\VersionCheck.lua
 UI\InfoBar.lua
 UI\GuildGames.lua
+API.lua

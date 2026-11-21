@@ -477,6 +477,11 @@ SlashCmdList.ONEFORALL = function(cmd)
     local resolved, total = FLT:GetProfessionResolutionCount()
     msg(string.format("Profession data: standalone and embedded. %d/%d Merchant's Favor recipes have built-in result mappings.", resolved, total))
   else
+    -- plugins (API.lua): /ofa plugins, and /ofa plugin_<name> [rest] (every word starting with "plugin_")
+    local word, rest = cmd:match("^(%S+)%s*(.-)$")
+    local plug = word and FLT.PluginSlash and FLT.PluginSlash[word]
+    if plug then FLT.SafeCall("Plugin /ofa " .. word, plug.fn, rest or "") return end
+    if word and word:find("^plugin_") and FLT.PluginSlashUnknown then FLT.PluginSlashUnknown(word) return end
     if FLT.ToggleUI then FLT:ToggleUI() end
   end
 end

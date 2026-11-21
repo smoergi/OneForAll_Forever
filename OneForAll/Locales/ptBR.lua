@@ -2369,4 +2369,18 @@ FLT.LOCALES.ptBR = function() return {
   ["Cheap Upgrade Scan complete: %d items scanned."] = "Scan de melhorias concluído: %d itens verificados.",
   ["A button in the auction house that scans it for Armory > Cheap Upgrades."] = "Um botão na casa de leilões que a varre para Arsenal > Melhorias baratas.",
   ["Reads the whole auction house (Blizzard's full scan, once every 15 minutes) and keeps the cheapest price of every Bind on Equip piece of gear, items with a random bonus (\"of the Eagle\") each with their own price - Auctionator has only one price per item. Off: no button, nothing is read; the Cheap Upgrades then use Auctionator's prices."] = "Lê toda a casa de leilões (a varredura completa da Blizzard, a cada 15 minutos) e guarda o menor preço de cada peça de equipamento vinculada ao equipar, itens com bônus aleatório (\"da Águia\") cada um com seu preço - o Auctionator tem só um preço por item. Desligado: sem botão, nada é lido; as Melhorias baratas usam então os preços do Auctionator.",
+  -- plugins (API.lua)
+  ["No plugins."] = "Nenhum plugin.",
+  ["Plugins installed for OneForAll, their options, on or off."] = "Os plugins instalados para o OneForAll, as opções deles, ativados ou não.",
+  ["Plugins"] = "Plugins",
+  ["Addons that plug into OneForAll. Their options are saved in the profile this character uses."] = "Addons que se conectam ao OneForAll. As opções deles ficam salvas no perfil deste personagem.",
+  ["By %s"] = "Por %s",
+  ["Enabled"] = "Ativado",
+  ["Turns the plugin on or off, as in the game's AddOns list. The change applies after a reload."] = "Ativa ou desativa o plugin, como na lista de AddOns do jogo. A mudança vale depois de recarregar.",
+  ["Options"] = "Opções",
+  ["This plugin has no options."] = "Este plugin não tem opções.",
+  ["This plugin is turned off. Turn it on and reload to see its options."] = "Este plugin está desativado. Ative-o e recarregue para ver as opções dele.",
+  ["On"] = "Ativado",
+  ["Command: %s"] = "Comando: %s",
+  ["No plugin answers to /ofa %s. /ofa plugins lists the plugins' commands."] = "Nenhum plugin responde a /ofa %s. /ofa plugins lista os comandos dos plugins.",
 } end

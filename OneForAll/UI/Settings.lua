@@ -52,18 +52,22 @@ local function createSettingsPanel(parent)
     if NEW_SECTIONS[label] then local m = UI.NewMark(box, "New in OneForAll 5.6.1."); m:SetPoint("LEFT", t, "RIGHT", 5, 0) end
 
     local s = { y = -40, rowMax = -40, box = box }
-    function s:check(text, hint, get, set, x, compact)
+    function s:check(text, hint, get, set, x, compact, w)
       local cx = 12 + (x or 0)
       local cb = FLT.SkinBlizz(CreateFrame("CheckButton", nil, box, "UICheckButtonTemplate"))
       cb:SetSize(24, 24); cb:SetPoint("TOPLEFT", cx, self.y)
       local l = FLT.NewFS(box, nil, "OVERLAY", "GameFontHighlight")
-      l:SetPoint("TOPLEFT", cb, "TOPRIGHT", 4, -5); l:SetText(text)
+      l:SetPoint("TOPLEFT", cb, "TOPRIGHT", 4, -5)
+      -- Labels stay inside the panel: a long one (French, German...) wraps onto a second line instead of running
+      -- past the right edge, and the row grows with it. w: the label's width (two switches side by side)
+      l:SetWidth(w or (COL_W - cx - 38)); l:SetJustifyH("LEFT"); l:SetWordWrap(true); l:SetText(text)
+      local lh = math.max(14, l:GetStringHeight() or 14)
       cb:SetScript("OnClick", function(btn) set(btn:GetChecked() and true or false) end)
-      local h = 30
+      local h = math.max(30, lh + 16)
       if hint and not compact then
         local d = FLT.NewFS(box, nil, "OVERLAY", "GameFontDisableSmall")
         d:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -3); d:SetWidth(COL_W - cx - 44); d:SetJustifyH("LEFT"); d:SetText(hint)
-        h = 26 + math.max(12, d:GetStringHeight() or 12) + 4
+        h = lh + 12 + math.max(12, d:GetStringHeight() or 12) + 4
       end
       if hint then
         cb:SetScript("OnEnter", function(btn)
@@ -190,7 +194,7 @@ local function createSettingsPanel(parent)
   for i = 1, math.max(#left, #right) do
     local l, r = left[i], right[i]
     if l then dun:check(l[1], l[2], l[3], l[4], 0, true) end
-    if r then dun:check(r[1], r[2], r[3], r[4], 220, true) end
+    if r then dun:check(r[1], r[2], r[3], r[4], 170, true) end
     dun:nextRow()
   end
   dun:finish()

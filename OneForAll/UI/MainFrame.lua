@@ -270,7 +270,7 @@ function UI.SortableTabs()
   if type(saved) == "table" then for i, k in ipairs(saved) do pos[k] = i end end
   local list = {}
   for i, spec in ipairs(UI.panels) do
-    if not FIXED_TABS[spec.key] then list[#list + 1] = { spec = spec, def = i } end
+    if not FIXED_TABS[spec.key] and not spec.noTab then list[#list + 1] = { spec = spec, def = i } end
   end
   table.sort(list, function(a, b)
     local pa, pb = pos[a.spec.key], pos[b.spec.key]
@@ -311,7 +311,7 @@ end
 function defaultTab()
   local last = type(OneForAllCharDB) == "table" and OneForAllCharDB.lastTab
   if type(last) == "string" and last ~= "settings" and UI.IsTabVisible(last) then
-    for _, spec in ipairs(UI.panels) do if spec.key == last then return last end end
+    for _, spec in ipairs(UI.panels) do if spec.key == last and not spec.noTab then return last end end
   end
   for _, spec in ipairs(UI.SortableTabs()) do
     if UI.IsTabVisible(spec.key) then return spec.key end
@@ -557,6 +557,33 @@ local function decorateWindow()
     GameTooltip:Show()
   end)
   dcBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+  -- pages without a tab (spec.noTab: Plugins and the plugins' pages, API.lua): a button each, left of the Discord
+  -- button, Plugins first
+  local prev = dcBtn
+  local noTab = {}
+  for _, spec in ipairs(UI.panels) do if spec.noTab then noTab[#noTab + 1] = spec end end
+  table.sort(noTab, function(a, b)
+    if (a.key == "plugins") ~= (b.key == "plugins") then return a.key == "plugins" end
+    return (a.order or 50) < (b.order or 50)
+  end)
+  for _, spec in ipairs(noTab) do
+    do
+      local pb = UI.GoldButton(frame, "", 30, 26, spec.icon, 11)
+      pb:SetPoint("RIGHT", prev, "LEFT", -6, 0)
+      pb:SetFrameLevel(frame:GetFrameLevel() + 25)
+      if pb.icon then pb.icon:ClearAllPoints(); pb.icon:SetSize(16, 16); pb.icon:SetPoint("CENTER", 0, 0); pb.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
+      pb:SetScript("OnMouseDown", nil); pb:SetScript("OnMouseUp", nil)
+      pb:SetScript("OnClick", function() GameTooltip:Hide(); FLT:OpenPanel(spec.key) end)
+      pb:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:SetText(L[spec.label])
+        if spec.tooltip then GameTooltip:AddLine(L[spec.tooltip], 1, 1, 1, true) end
+        GameTooltip:Show()
+      end)
+      pb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+      prev = pb
+    end
+  end
 end
 
 local function buildUI()
@@ -632,6 +659,7 @@ local function buildUI()
   -- Tabs sit directly below the title bar, in the order given by each
   -- panel's "order" value. Hidden tabs (Settings > Shown tabs) are skipped.
   for _, spec in ipairs(UI.panels) do
+   if not spec.noTab then -- a page behind a title-bar button (spec.noTab, e.g. Plugins): no tab
     local key = spec.key
     local b = makeTab(frame, spec.icon and "" or L[spec.label], spec.tabWidth or 130, HDR.tabH + 1, key) -- 1 over the line
     if spec.icon then
@@ -651,6 +679,7 @@ local function buildUI()
       setPanelTab(key)
     end)
     tabButtons[key] = b
+   end
   end
   UI.LayoutTabs()
 

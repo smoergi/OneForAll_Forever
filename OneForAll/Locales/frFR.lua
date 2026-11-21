@@ -2369,4 +2369,18 @@ FLT.LOCALES.frFR = function() return {
   ["Cheap Upgrade Scan complete: %d items scanned."] = "Scan améliorations terminé : %d objets analysés.",
   ["A button in the auction house that scans it for Armory > Cheap Upgrades."] = "Un bouton à l'hôtel des ventes qui l'analyse pour Arsenal > Améliorations bon marché.",
   ["Reads the whole auction house (Blizzard's full scan, once every 15 minutes) and keeps the cheapest price of every Bind on Equip piece of gear, items with a random bonus (\"of the Eagle\") each with their own price - Auctionator has only one price per item. Off: no button, nothing is read; the Cheap Upgrades then use Auctionator's prices."] = "Lit tout l'hôtel des ventes (l'analyse complète de Blizzard, toutes les 15 minutes) et garde le prix le plus bas de chaque pièce d'équipement liée quand équipée, les objets à bonus aléatoire (\"de l'aigle\") chacun avec son prix - Auctionator n'a qu'un prix par objet. Désactivé : pas de bouton, rien n'est lu ; les Améliorations bon marché utilisent alors les prix d'Auctionator.",
+  -- plugins (API.lua)
+  ["No plugins."] = "Aucun plugin.",
+  ["Plugins installed for OneForAll, their options, on or off."] = "Les plugins installés pour OneForAll, leurs options, activés ou non.",
+  ["Plugins"] = "Plugins",
+  ["Addons that plug into OneForAll. Their options are saved in the profile this character uses."] = "Addons qui se branchent sur OneForAll. Leurs options sont enregistrées dans le profil de ce personnage.",
+  ["By %s"] = "Par %s",
+  ["Enabled"] = "Activé",
+  ["Turns the plugin on or off, as in the game's AddOns list. The change applies after a reload."] = "Active ou désactive le plugin, comme dans la liste des AddOns du jeu. Le changement s'applique après un rechargement.",
+  ["Options"] = "Options",
+  ["This plugin has no options."] = "Ce plugin n'a pas d'options.",
+  ["This plugin is turned off. Turn it on and reload to see its options."] = "Ce plugin est désactivé. Activez-le et rechargez pour voir ses options.",
+  ["On"] = "Activé",
+  ["Command: %s"] = "Commande : %s",
+  ["No plugin answers to /ofa %s. /ofa plugins lists the plugins' commands."] = "Aucun plugin ne répond à /ofa %s. /ofa plugins liste les commandes des plugins.",
 } end
